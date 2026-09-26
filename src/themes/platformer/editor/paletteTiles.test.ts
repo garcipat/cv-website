@@ -10,7 +10,8 @@ import {
   CONNECTION_POINT_GLYPH,
   type TileSpriteSpec,
 } from './paletteTiles';
-import { TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHAR, HAZARD_CHARS } from '../level/LevelParser';
+import { ENTITY_CHARS, SIGN_CHAR, HAZARD_CHARS } from '../level/LevelParser';
+import { TERRAIN_CHARS } from '../tiles/registry';
 import type { EditorTool } from './editorState';
 
 describe('PALETTE_TILE_SPRITES', () => {

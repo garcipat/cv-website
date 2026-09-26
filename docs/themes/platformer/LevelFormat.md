@@ -8,13 +8,15 @@ Everything here is defined by code, and the code is the authority:
 
 | Concern | Source |
 |---|---|
-| Character maps, the `TileChar`/`BackgroundChar` unions, `parseBackgroundLayout`, `parseLevel`/`parseMarkers`, `SIGN_CHAR`, `LEGACY_MARKER_CHARS` | `src/themes/platformer/level/LevelParser.ts` |
+| Character maps (terrain + entity/sign/hazard), the `TileChar`/`BackgroundChar` unions, `parseBackgroundLayout`, `parseLevel`/`parseMarkers`, `SIGN_CHAR`, `LEGACY_MARKER_CHARS` | `src/themes/platformer/level/LevelParser.ts` |
+| The terrain `TERRAIN_CHARS` table and `TerrainChar` union (derived from the tile module registry) | `src/themes/platformer/tiles/registry.ts` |
 | `TileType`, `LevelDef`, `MarkerEntry`, `MarkerGrid`, `MarkerPlacement`, `BackgroundGrid`, `BackgroundMaterialId` | `src/themes/platformer/level/LevelData.ts` |
 | The ordered sign-hint catalog | `src/themes/platformer/level/HintCatalog.ts` |
 | The shipped level's layout, markers and structure notes | `src/themes/platformer/level/level.ts` |
 | Saved-level discovery and validation | `src/themes/platformer/level/levelRegistry.ts` |
 | Blueprint shape, discovery and validation | `src/themes/platformer/level/BlueprintData.ts`, `blueprintRegistry.ts` |
-| Solidity and climbability predicates, `markerAt` | `src/themes/platformer/level/Terrain.ts` |
+| Solidity and climbability predicates (`isSolid`/`isClimbable` wrappers over the tile registry), `markerAt` | `src/themes/platformer/level/Terrain.ts` |
+| The tile-kind registry, `TERRAIN_CHARS`, `TILE_FOG_EXEMPT` and the rule/draw dispatch helpers | `src/themes/platformer/tiles/registry.ts` |
 | Background neighbour-mask autotiling | `src/themes/platformer/engine/BackgroundAtlas.ts` |
 
 ## The layout array
@@ -66,9 +68,11 @@ blueprint connection point, a sign's hint, a falling-stalactite variant — live
 
 ## Terrain characters
 
-`TERRAIN_CHARS` in `src/themes/platformer/level/LevelParser.ts`; each value is a
-`TileType` from `LevelData.ts`. "Solid" means `Terrain.ts`'s `isSolid` returns true;
-"climbable" means `isClimbable` does.
+`TERRAIN_CHARS` is derived in `src/themes/platformer/tiles/registry.ts` from each tile
+module's declared `char`; `LevelParser.ts` imports it and composes the full editor
+`TileChar`. Each value is a `TileType` from `LevelData.ts`. "Solid" means the registry's
+`isSolidTile` (re-exported from `Terrain.ts` as `isSolid`) returns true; "climbable" means
+`isClimbableTile` (`isClimbable`) does.
 
 | Char | Places (`TileType`) | Behavior |
 |---|---|---|
@@ -87,7 +91,7 @@ blueprint connection point, a sign's hint, a falling-stalactite variant — live
 | `⊥` | `stalagmite` | Decorative, non-solid cave dressing. Size variant (large/twin) picked by position hash. |
 | `¥` | `torch` | Non-solid cave dressing and a light source. Its flame animates through a 4-frame sparkle loop; each cell's phase is derived from its grid position plus the shared world clock (`engine/Torch.ts`). A `torch` marker on this tile sets its light strength 0–9 (default 5), scaling the light radius (see the tile meta layer). |
 | `@` | `ladderBundle` | A curled-up rope-ladder bundle (O-011). Non-solid and not climbable, but standable from above (`isStandableLadderBundleTop`); a grounded character presses Up while on or one cell above it to unroll a `ropeLadder` shaft down to the first solid tile below. |
-| `§` | `bouncyMushroom` | Non-solid and not climbable: passable from the side and from below. Its top cap is one-way ground (`isStandableMushroomCap`) and launches the character with a fixed super-jump on every downward landing, with a brief cosmetic cap dip. A vertical run reads as one mushroom — cap / connector / stem / foot — via `verticalRunRole`. The character is the section sign; it is not a valid JS identifier, so its `TERRAIN_CHARS` key is quoted (`'§'`). |
+| `§` | `bouncyMushroom` | Non-solid and not climbable: passable from the side and from below. Its top cap is one-way ground (the `bouncyMushroom` module's `standableAt`, reached through `isStandableTileAt`) and launches the character with a fixed super-jump on every downward landing, with a brief cosmetic cap dip. A vertical run reads as one mushroom — cap / connector / stem / foot — via `verticalRunRole`. The character is the section sign; it is not a valid JS identifier, so its `TERRAIN_CHARS` key is quoted (`'§'`). |
 | `s` | `decorativeMushroom` | Non-solid and not climbable dressing mushroom. Never standable, never bounces, never awards anything — a single fixed sprite. (`s` is also a `BACKGROUND_CHARS` key, meaning `surfaceStone`; the background is a separate layer, so the overlap is allowed.) |
 
 Decorative tiles never form multi-tile runs and carry no CV-data mapping. The two
@@ -198,13 +202,15 @@ game. See
 
 ## `TileChar`
 
-`TileChar` (`LevelParser.ts`) is the union of every legal layout character — every
-`TERRAIN_CHARS`, `ENTITY_CHARS` and `HAZARD_CHARS` key, plus the uniform `SIGN_CHAR`
-(`'T'`). It is written out by hand rather than derived with `keyof typeof`: the maps are
-annotated `Record<string, … | undefined>` so lookups can index by a plain `string`, which
-would widen a derived union to `string` and remove all type safety. A test asserts every
-map key appears in the union. The legacy marker characters (`P`, `+`, `1`–`6`) are **not**
-members — they exist only in `LEGACY_MARKER_CHARS`.
+`TileChar` (`LevelParser.ts`) is the union of every legal layout character — the terrain
+half `TerrainChar` (extracted from each tile module's declared `char` in
+`tiles/registry.ts`), plus the `ENTITY_CHARS` and `HAZARD_CHARS` keys and the uniform
+`SIGN_CHAR` (`'T'`). The terrain half is derived; the entity/sign/hazard half is written
+out by hand rather than derived with `keyof typeof`, because those maps are annotated
+`Record<string, … | undefined>` so lookups can index by a plain `string`, which would widen
+a derived union to `string` and remove all type safety. A test asserts every map key
+appears in the union. The legacy marker characters (`P`, `+`, `1`–`6`) are **not** members
+— they exist only in `LEGACY_MARKER_CHARS`.
 
 `TileChar` is also the editor grid's cell type — `editorLevelSignal` holds a
 `TileChar[][]`.

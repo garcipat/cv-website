@@ -33,10 +33,10 @@ Declared in `src/themes/platformer/level/LevelData.ts`.
 | `crystalCluster` | Decorative, non-solid, one fixed sprite. |
 | `stalactite` | Decorative, non-solid. Two size variants (large / twin) picked by position hash. A `{ kind: 'fallingStalactite' }` marker on this tile (O-027) makes it shake and drop; the tile itself renders untinted in game (see [LevelFormat.md](./LevelFormat.md#the-tile-meta-layer)). |
 | `stalagmite` | Decorative, non-solid. Two size variants picked the same way. |
-| `torch` | Decorative, non-solid cave dressing. Its flame animates through a 4-frame sparkle loop — each cell's frame is a pure function of its grid position and the shared world clock (`engine/Torch.ts`'s `torchFrameIndex`), so neighbouring torches flicker out of phase and the tile carries no per-instance state. |
-| `ladderBundle` | A curled-up rope-ladder bundle (`@`), the author-placeable O-011 tile. Non-solid, not climbable, but standable from above (`isStandableLadderBundleTop`). A grounded character presses Up while on or one cell above it to deploy it. |
+| `torch` | Decorative, non-solid cave dressing. Its flame animates through a 4-frame sparkle loop — each cell's frame is a pure function of its grid position and the shared world clock (`tiles/torch.ts`'s `torchFrameIndex`), so neighbouring torches flicker out of phase and the tile carries no per-instance state. |
+| `ladderBundle` | A curled-up rope-ladder bundle (`@`), the author-placeable O-011 tile. Non-solid, not climbable, but standable from above (the `ladderBundle` module's `standableAt`, reached through `isStandableTileAt`). A grounded character presses Up while on or one cell above it to deploy it. |
 | `ropeLadder` | A deployed rope-ladder rung cell. **Never author-placeable** — it exists only in the effective grid `applyDeployedLadders` derives from bundle state (see [Runtime overrides](#runtime-overrides)). Climbable exactly like `ladder`/`chain`. |
-| `bouncyMushroom` | The red bouncy mushroom (`§`). Non-solid and non-climbable: passable from the side and from below. Its top cap is one-way ground (`isStandableMushroomCap`) and launches the character with a fixed super-jump on every downward landing. A vertical run reads as one mushroom — cap / connector / stem / foot — via `verticalRunRole`, like `bush`. |
+| `bouncyMushroom` | The red bouncy mushroom (`§`). Non-solid and non-climbable: passable from the side and from below. Its top cap is one-way ground (the `bouncyMushroom` module's `standableAt`, reached through `isStandableTileAt`) and launches the character with a fixed super-jump on every downward landing. A vertical run reads as one mushroom — cap / connector / stem / foot — via `verticalRunRole`, like `bush`. |
 | `decorativeMushroom` | The small non-solid dressing mushroom (`s`). No behaviour of any kind: never solid, never standable, never bounces. A single fixed sprite. |
 | `empty` | Air. Out-of-bounds reads also resolve to `empty` — see `tileAt` below. |
 `tileAt(level, col, row)` in `src/themes/platformer/level/Terrain.ts` is the only sanctioned
@@ -52,48 +52,59 @@ top-left rendered pixel.
 ## The three behavioral axes
 
 A tile is classified along three independent axes. A tile may sit on more than one — a
-`ladder` is climbable and non-solid; a `bush` is neither. The axes are expressed as
-predicates in `src/themes/platformer/level/Terrain.ts`, and `src/themes/platformer/engine/Physics.ts`
-consults those predicates rather than comparing tile types directly. That indirection is
+`ladder` is climbable and non-solid; a `bush` is neither.
+
+Since R-015 each tile kind is one self-contained module under
+`src/themes/platformer/tiles/`, and `src/themes/platformer/tiles/registry.ts`
+(`TILE_MODULES`) is the single dispatch point. `src/themes/platformer/engine/Physics.ts`
+and `level/Terrain.ts` consult the registry's dispatch helpers rather than comparing tile
+types directly; the old `level/Terrain.ts` predicates survive only as thin, per-kind-logic-free
+wrappers (`isSolid` → `isSolidTile`, `isClimbable` → `isClimbableTile`). That indirection is
 what let `chain` ship as a pure art variant with no physics code of its own.
 
 ### Solid
 
-`isSolid(tile)` is true for `groundGrass`, `groundRock`, `wall` and `bridge`. It is the
-plain "this blocks movement" test, used for horizontal wall collision and for landing.
+`isSolidTile(tile)` (registry dispatch, re-exported from `Terrain.ts` as the thin `isSolid`)
+is true for the modules declaring `solid: true` — `groundGrass`, `groundRock`, `wall` and
+`bridge`. It is the plain "this blocks movement" test, used for horizontal wall collision
+and for landing.
 
-`isSolidExcludingBridge(tile)` is identical except that `bridge` is not solid. It is the
-one-way half of the bridge contract.
+`isSolidExcludingOneWay(tile)` (the relocated `isSolidExcludingBridge`) is identical except
+that a kind declaring `oneWay: true` — `bridge` — is not solid. It is the one-way half of
+the bridge contract.
 
-Decorative tiles are deliberately absent from both. A `bush`, `fence`, `cobweb`,
+Decorative tiles declare no capability flags at all. A `bush`, `fence`, `cobweb`,
 `crystalCluster`, `stalactite`, `stalagmite` or `torch` is walked through freely.
 
 ### Climbable
 
-`isClimbable(tile)` is true for `ladder` and `chain`, and nothing else. A climbable tile is
-deliberately **not** solid: it never blocks horizontal movement and never counts as ground.
+The `ladder`, `chain` and `ropeLadder` modules declare `climbable: true`, read through
+`isClimbableTile(tile)` (the thin `isClimbable` wrapper). A climbable tile is deliberately
+**not** solid: it never blocks horizontal movement and never counts as ground.
 `Physics.ts`'s climbing branch is the only place vertical movement through one is resolved,
 and it checks the feet row only — so a climb ends close to the shaft's top edge rather than
 overshooting until the head clears it.
 
-`isStandableLadderTop(level, col, row)` is the one exception. It is true when the cell is
-climbable and the cell directly above it is neither climbable (the shaft continues) nor
-solid (there would be no room to stand). Such a cell is solid **from above only**:
-`Physics.ts`'s ground scan treats it as ground, so the character can climb out onto it,
-land on it from a fall, step off it sideways, or press Down to climb back in. `isSolid` is
-untouched — the rung still blocks nothing horizontally and no climb passing through it is
+The one exception is the shaft's standable top, declared by the climbable kinds' own module
+`standableAt` hook and reached through the registry's single
+`isStandableTileAt(level, col, row, ctx)` dispatcher (R-015 removed
+`isStandableLadderTop`). It is true when the cell is climbable and the cell directly above
+it is neither climbable (the shaft continues) nor solid (there would be no room to stand).
+Such a cell is solid **from above only**: `Physics.ts`'s ground scan treats it as ground, so
+the character can climb out onto it, land on it from a fall, step off it sideways, or press
+Down to climb back in. It blocks nothing horizontally and no climb passing through it is
 interrupted. A dead-end shaft (solid ceiling directly above the top rung) keeps the plain
 climb-until-the-feet-leave-the-ladder behavior.
 
-Note that this predicate takes the level and a coordinate, not a bare tile: it is a
-property of a cell in context, not of a tile type.
+Note that these hooks take the level and a coordinate, not a bare tile: they are properties
+of a cell in context, not of a tile type.
 
-`isStandableMushroomCap(level, col, row)` is the bouncy mushroom's analogous one-way
-ground term. It is true when the cell is a `bouncyMushroom`, the cell directly above is
-**not** a `bouncyMushroom` (so this is the run's top), and that cell above is not solid
-(there would be no room to land). A covered cap is not standable, but its art role is
-unchanged — nothing special happens where no landing can occur. `isSolid`/`isClimbable`
-are untouched, so both mushroom kinds block nothing horizontally and nothing from below.
+The `bouncyMushroom` module declares its own `standableAt` for the analogous one-way
+mushroom-cap ground term (R-015 removed `isStandableMushroomCap`). It is true when the cell
+is a `bouncyMushroom`, the cell directly above is **not** a `bouncyMushroom` (so this is the
+run's top), and that cell above is not solid (there would be no room to land). A covered cap
+is not standable, but its art role is unchanged — nothing special happens where no landing
+can occur. Neither mushroom kind blocks horizontally or from below.
 
 Standability is evaluated per column, exactly like the ladder top: `Physics.ts`'s ground
 scan tests every column the hitbox spans. The **bounce**, however, is defined by the
@@ -162,13 +173,13 @@ per-instance session state) tracks the bundle's phase (`rolled` → `deploying` 
 `deployed`). `engine/DeployableLadder.ts`'s `applyDeployedLadders(level, states)`
 is a pure function that returns an **effective `LevelDef`** in which every
 completed bundle's cells are written as the `ropeLadder` tile type — climbable
-through the existing `isClimbable`/`isStandableLadderTop` predicates, with no new
+through the registry's `isClimbableTile`/`isStandableTileAt` helpers, with no new
 climbing code of its own.
 
 The split is deliberate: only `stepPlayerPhysics` reads the effective grid
 (`PlatformerState.ts`'s `activeLevel`); rendering and every other subsystem keep
 reading the raw `currentLevel`, and the deploy pass draws the rope art itself
-(`Renderer.ts`'s `drawDeployableLadders`). `applyDeployedLadders` returns the
+(`Renderer.ts`'s `drawDeployableItems`). `applyDeployedLadders` returns the
 **same** `level` object when nothing is deployed, so the common case allocates
 nothing. This mechanism is scoped to bundles only — it is deliberately not a
 general per-tile animation or state framework (see the O-011 spec's Assumptions
@@ -178,18 +189,21 @@ and Out of Scope).
 
 The one other piece of transient state is the cosmetic cap dip that plays after a
 bounce (O-018). It is **not** a tile override: the `bouncyMushroom` cells in the grid
-never change. `engine/MushroomSquash.ts` owns a small pure list of
+never change. `tiles/bouncyMushroom.ts` owns a small pure list of
 `{ col, row, elapsed }` entries — one per recently-bounced cap — held in
 `PlatformerState.ts`'s `mushroomSquashStates` signal, advanced and pruned each `playing`
 tick by `tickMushroomSquashes`, and cleared by `resetGame()`. The renderer reads
 `mushroomSquashDipAt` only to shift the cap sub-rect downward; the squash never affects
 collision, standability or bounce strength (FR-011/FR-015).
 
-**Open gap:** terrain kinds still do not own their own rules. Every one-way kind
-(`bridge`, a ladder shaft's standable top, the rolled bundle, and now the bouncy mushroom's
-cap) is a special-cased predicate consulted by `Physics.ts`; there is deliberately no
-`TerrainKind` registry (O-018 research D1). The gap recorded by F-018 therefore stays open
-— a future feature may still lift these predicates into a registry.
+**Gap closed by R-015.** Terrain kinds now own their own rules: each kind is one module
+under `src/themes/platformer/tiles/` declaring its capability flags and its
+`standableAt`/`solidRegionAt` hooks, and `tiles/registry.ts`'s exhaustive `TILE_MODULES`
+map is the single dispatch point every one-way kind (`bridge`, a ladder shaft's standable
+top, the rolled bundle, the bouncy mushroom's cap, the crumbling floor's phase-aware
+solidity) is reached through. The F-018 "terrain kinds still do not own their own rules"
+open gap is therefore recorded as **closed** by R-015; a new kind is one module plus one
+registry line (see [Adding a tile](#adding-a-tile)).
 
 ## Autotiling `groundGrass`
 
@@ -217,7 +231,7 @@ Continuity is tested with `isSolidExcludingBridge`, not `isSolid`: a bridge coun
 space, because it is a thin walkway you can see past, so ground beside or beneath one must
 read exactly as if it faced air.
 
-`groundAtlasCell(mask)` in `src/themes/platformer/engine/GroundAtlas.ts` maps each of the 16
+`groundAtlasCell(mask)` in `src/themes/platformer/tiles/groundGrass.ts` maps each of the 16
 masks to a `GroundAtlasEntry` — `sx`, `sy`, a `rotation` in quarter-turns clockwise, and a
 `kind` of `'bright'` or `'dark'`. The table is pure data, so re-pointing a shape (or swapping
 the whole sheet for another material) is an edit to values only. `groundTileKind(mask)`
@@ -226,7 +240,8 @@ is the exposed surface and is bright, anything with terrain above it is buried a
 and a test asserts every table entry agrees with it, so editing the rule surfaces exactly
 which entries need re-pointing.
 
-`Renderer.ts`'s `drawGroundTile` applies the entry's rotation about the cell's own centre.
+`src/themes/platformer/tiles/groundGrass.ts`'s `draw` applies the entry's rotation about the
+cell's own centre (through the shared `tiles/draw.ts` `drawRotatedTile`).
 Quarter turns move a border onto an adjacent edge and are only used on cells whose artwork
 is flat enough to survive it; a half turn is used to flip a vertical brightness ramp
 end-for-end.
@@ -242,9 +257,9 @@ clear, the cell is an exposed surface and a grass sprite is drawn over the groun
 `GRASS_SOURCE_HEIGHT` (9) native pixels; the rest of the grass sprite's cell is transparent,
 so the ground beneath shows through.
 
-Which grass sprite is chosen comes from `grassCell(position)` in `GroundAtlas.ts`, keyed by
+Which grass sprite is chosen comes from `grassCell(position)` in `tiles/groundGrass.ts`, keyed by
 a horizontal run position (`left`, `middle`, `right`, `single`) computed by
-`horizontalRunPosition` with `Renderer.ts`'s local `isGrassSurface` as the continuity test.
+`horizontalRunPosition` with the module's local `isGrassSurface` as the continuity test.
 Grass continues into a horizontal neighbour only when that neighbour is itself a
 grass-topped surface cell: a `groundRock` neighbour, or a `groundGrass` one that is buried
 because the terrain steps up, caps the run instead. `isGrassSurface` reads exposure from the
@@ -258,7 +273,7 @@ mask-times-grass-state, and why changing which materials grow grass is an edit t
 `isGrassSurface` alone.
 
 `isTopExposed(level, col, row)` remains as the plain "nothing solid directly above" test and
-still serves `groundRock`'s two-sprite lookup in `Renderer.ts`'s `tileSource`.
+still serves `groundRock`'s two-sprite lookup in `tiles/groundRock.ts`'s `draw`.
 
 ## Run helpers
 
@@ -275,7 +290,7 @@ type *and* top-exposed).
 (`'only' | 'bottom' | 'middle' | 'top'`) from the two vertical neighbours. Unlike the
 horizontal helper it never counts a run's full length, so an arbitrarily tall stack costs no
 more to classify than a lone tile. `bush` uses it to become a tree: `bushOrTreeEntry(role, col, row)`
-in `src/themes/platformer/engine/StaticObjectsCatalog.ts` maps the role to a sprite family.
+in `src/themes/platformer/tiles/bush.ts` maps the role to a sprite family.
 `bouncyMushroom` uses it the same way, through `mushroomEntry(role)` / `mushroomHasCap(role)`:
 the run's top cell carries the cap (and is the only one-way ground), interior cells are plain
 stem, and the bottom cell carries the foot.
@@ -289,7 +304,7 @@ the flat sprite, for which `rotation` is unused.
 
 ### Position-hashed variants
 
-`StaticObjectsCatalog.ts`'s `pickVariant(variants, col, row)` chooses among a role's sprite
+`src/themes/platformer/shared/variants.ts`'s `pickVariant(variants, col, row)` chooses among a role's sprite
 variants deterministically from the cell's own column and row, so neighbouring cells of the
 same role do not all look identical. The hash multiplies each coordinate by a large
 unrelated constant (`Math.imul` keeps this in 32-bit integer math) before XOR-ing, because a
@@ -297,9 +312,10 @@ plain `(col * a + row * b) % n` would cycle through a short, visibly repeating s
 columns advance. It throws on an empty variants array rather than letting `% 0` produce `NaN`
 and surface later as a confusing crash deep in the render loop.
 
-Callers: `bushOrTreeEntry` (four bush sizes for the `only` role), `staticObjectEntry` for
-`fence` and `crystalCluster` (one variant each), and `stalactiteEntry` / `stalagmiteEntry`
-(large / twin). A level author places one tile; the size is never a level-file choice.
+Callers: `tiles/bush.ts`'s `bushOrTreeEntry` (four bush sizes for the `only` role),
+`fenceEntry` / `crystalClusterEntry` (one variant each), and `stalactiteEntry` /
+`stalagmiteEntry` (large / twin). A level author places one tile; the size is never a
+level-file choice.
 
 `isStalactiteTwin(col, row)` reuses that same `pickVariant` hash to tell whether a cell's
 `stalactite` decoration resolves to the twin variant, so the O-027 falling-stalactite
@@ -320,7 +336,7 @@ that stack is drawn entirely by the run's **top** cell.
 The chain art's link pieces are not 16x16. A link's true vertical repeat is 6px, and 16 is
 not a multiple of 6, so forcing each cell to hold one 16px slice would visibly cut links
 mid-body at every tile boundary. Instead each piece keeps its own native width and height —
-`ChainPieceRect` in `StaticObjectsCatalog.ts` carries `sx`, `sy`, `width`, `height`, unlike
+`ChainPieceRect` in `src/themes/platformer/tiles/spriteRects.ts` carries `sx`, `sy`, `width`, `height`, unlike
 the plain `StaticObjectEntry` used by every other static object, which is implicitly 16x16 —
 and the shaft's total height comes from the pieces' own sizes rather than from the tile grid.
 
@@ -337,7 +353,7 @@ and the shaft's total height comes from the pieces' own sizes rather than from t
    hookless sprite family.
 
 The attachment picks the sprite family for the whole run below it, and has no bearing on
-physics: `isClimbable` treats every chain tile identically regardless of attachment.
+physics: `isClimbableTile` treats every chain tile identically regardless of attachment.
 
 ### Run length and piece composition
 
@@ -345,7 +361,7 @@ physics: `isClimbable` treats every chain tile identically regardless of attachm
 cell, returning 1 when the cell below is not `chain`. It is only ever called with the cell at
 the top of a run.
 
-`chainRunPieces(attachment, runLength)` in `StaticObjectsCatalog.ts` composes the vertical
+`chainRunPieces(attachment, runLength)` in `src/themes/platformer/tiles/chain.ts` composes the vertical
 sequence to draw:
 
 - A 1-tile shaft is just that attachment's **cap** — a rounded, closed end. The
@@ -367,21 +383,22 @@ explicitly rather than relying on that.
 
 ### Only the top cell draws
 
-In `Renderer.ts`'s `drawTerrain`, the `chain` branch first checks
+In `src/themes/platformer/tiles/chain.ts`'s `draw` (invoked by `drawTerrain`'s
+band-filtered dispatch), the `chain` draw first checks
 `tileAt(level, col, row - 1) !== 'chain'`. Every cell that fails this test is skipped
 entirely — it is part of a shaft already drawn from above. The top cell then walks the piece
 list, drawing each into a running `drawY`, and clamps against
 `capY = destY + runLength * RENDERED_TILE_SIZE` so no piece can spill past the shaft's last
 cell; a piece whose remaining room is zero or negative ends the loop.
 
-Sprite-less-by-design tiles use the same skip mechanism at a different site: `tileSource`
-returns `null` for `chain` (drawn by the run branch), for `groundGrass` (drawn by the atlas
-path), and for the decorative tiles when their sheet is not loaded. Markers are not in the
-terrain grid at all, so `tileSource` never sees one.
+A visible kind's `draw` decides for itself whether a cell has anything to draw: the
+`chain` module returns early for every cell but the run's top, the `groundGrass` module
+owns its atlas path, and the decoration modules return early when their sheet is not
+loaded. Markers are not in the terrain grid at all, so a tile `draw` never sees one.
 
 ### The wall gap and vertical offset
 
-`CHAIN_WALL_GAP` in `Renderer.ts` is `2 * RENDER_SCALE` native pixels, used in two distinct
+`CHAIN_WALL_GAP` (computed in `tiles/chain.ts`) is `2 * RENDER_SCALE` native pixels, used in two distinct
 ways, and only for `'left'` and `'right'` shafts — a ceiling or floating shaft has no wall
 edge and is always centred in its cell.
 
@@ -424,65 +441,44 @@ values alongside the block lookup and feed it into the same minimum.
 
 ## Adding a tile
 
-Every step below is a real file. Steps 4–6 are conditional on what the tile does; the rest
-are always required. Follow the repository's test-first rule — write the failing test in the
-relevant `*.test.ts` before each production edit.
+Since R-015 every tile kind is one self-contained module under
+`src/themes/platformer/tiles/`, and the exhaustive `TILE_MODULES` map in
+`src/themes/platformer/tiles/registry.ts` is the single dispatch point. Adding a tile is
+therefore **one new module plus one registry line** — no edit to `level/Terrain.ts`,
+`engine/Physics.ts`, `engine/Standable.ts`, `engine/Renderer.ts`, `level/LevelParser.ts`,
+`level/LevelData.ts` or the editor palette. Follow the repository's test-first rule: write
+the failing test first.
 
-1. **`src/themes/platformer/level/LevelData.ts`** — add the member to the `TileType` union,
-   with a doc comment saying what it is and pointing at whichever helper decides its
-   appearance. `Renderer.ts`'s `tileSource` has an exhaustiveness check
-   (`const _exhaustive: never = type`), so the build fails until step 3 handles the new member.
+1. **Add `src/themes/platformer/tiles/<kind>.ts`.** Declare a module object that
+   `satisfies TileModule` (the contract in `tiles/TileModule.ts`) with:
+   - `char` — the level character it is parsed from (omit for a registry-only kind such as
+     `ropeLadder`), and `fogExempt`;
+   - `drawBand` — `'terrain'` (the default pass), `'afterHazards'` (a state/phase layer such
+     as the crumbling floor) or `'deployable'` (drawn by R-008's deployable pass);
+   - any capability flags it has (`solid`, `oneWay`, `climbable`, `dropThrough`);
+   - any context-dependent rule hooks (`standableAt`, `solidRegionAt`);
+   - a `draw(rc: TileDrawContext)` when it is visible (read the resolved images from
+     `rc.images` — a `tiles/` module never imports `entities/sprites/`);
+   - a `state` descriptor when it carries transient grid state, routed through
+     `shared/timedTile.ts` (R-004 owns the lifecycle — never a second signal or tick).
 
-2. **`src/themes/platformer/level/LevelParser.ts`** — add the character to `TERRAIN_CHARS`,
-   and the same character to the `TileChar` union below it. `TileChar` is hand-maintained
-   rather than derived (the maps are typed `Record<string, … | undefined>`, so `keyof typeof`
-   would widen to plain `string` and carry no safety); a test asserts every map key appears in
-   the union. Document the character in [LevelFormat.md](LevelFormat.md).
+2. **Add one line to `TILE_MODULES` in `tiles/registry.ts`.** That is the whole
+   registration. `TileType` (`keyof typeof TILE_MODULES`), `TERRAIN_CHARS` and
+   `TILE_FOG_EXEMPT` derive from it automatically, so the parser, the fog pass and the
+   built-in palette all pick the tile up with no further edit.
 
-3. **`src/themes/platformer/engine/Renderer.ts`** — decide how it draws:
-   - *One fixed sprite from `world_tileset.png`*: return its `sx`/`sy` from `tileSource`.
-   - *Neighbour- or run-dependent art*: add the lookup to `Terrain.ts` or
-     `StaticObjectsCatalog.ts` and add a branch to `drawTerrain`, returning `null` from
-     `tileSource` with a comment saying which branch owns it.
-   - *Invisible*: there is no invisible terrain kind any more — an invisible per-cell
-     marker belongs on the tile meta layer, not in `TERRAIN_CHARS`. Follow the "Adding a
-     new marker kind" recipe in [LevelFormat.md](./LevelFormat.md#adding-a-new-marker-kind).
-   If the art comes from a new image, register it in
-   `src/themes/platformer/entities/sprites/sheets.ts` and load it in both
-   `src/themes/platformer/PlatformerPage.tsx` and
-   `src/themes/platformer/editor/EditorCanvasPane.tsx`, then thread the image through
-   `drawTerrain`'s optional parameters the way `staticObjects` and `decorations` already are.
+3. **Tests.** The module's rules/art have their own `tiles/<kind>.test.ts` (moved with the
+   module if it already had one). `tiles/registry.test.ts` already asserts the registry is
+   exhaustive against the frozen kind list, the char/fog tables derive correctly, the layer
+   invariants hold, and no per-kind rule branch survives in `Physics.ts`/`Standable.ts`/
+   `Terrain.ts` — so a bad registration fails the suite.
 
-4. **`src/themes/platformer/level/Terrain.ts`** — only if the tile is solid or climbable. Add
-   it to `isSolid` (and therefore to `isSolidExcludingBridge`) or to `isClimbable`. Adding it
-   to `isClimbable` is enough to make it climb like a ladder, including the standable-top
-   behavior, because every consumer goes through these predicates rather than comparing tile
-   types.
+4. **Only if the art needs a brand-new image**, register it in
+   `src/themes/platformer/entities/sprites/sheets.ts`, load it in
+   `PlatformerPage.tsx`/`EditorCanvasPane.tsx`, and add a role to `TerrainImages`
+   (`tiles/TileModule.ts`) threaded through the two render passes.
 
-5. **`src/themes/platformer/engine/Physics.ts`** — only if the tile needs behavior no existing
-   predicate expresses. A direction-dependent rule (a second one-way tile, say) needs its own
-   predicate in `Terrain.ts` and a call site here; a plain solid or climbable tile needs no
-   change at all.
-
-6. **`src/themes/platformer/engine/GroundAtlas.ts`** — only if the tile autotiles. That means a
-   16-entry mask table plus, if it grows an overlay, a run-position table and its own
-   continuity predicate in `Renderer.ts`.
-
-7. **`src/themes/platformer/editor/paletteTiles.ts`** — add an entry to `PALETTE_TILE_SPRITES`
-   (a crop into a sheet, or `null` for an invisible tile), `PALETTE_TILE_LABELS` (a
-   human-readable name) and `PALETTE_TILE_DESCRIPTIONS` (what the tile does in the finished
-   level). An invisible tile also needs a distinct glyph in `PALETTE_TILE_GLYPHS`, since every
-   sprite-less tile renders as the same empty bordered square.
-
-8. **`src/themes/platformer/editor/Palette.tsx`** — a purely decorative tile joins
-   `DECORATION_CHARS` so it lands in the Decorations group; anything else falls into Terrain
-   automatically. (An invisible per-cell marker is not a tile: see the "Adding a new marker
-   kind" recipe in [LevelFormat.md](./LevelFormat.md#adding-a-new-marker-kind) instead.)
-
-9. **`src/themes/platformer/editor/EditorCanvas.tsx`** — only if the tile needs an
-   editor-only marker drawn over it; see `drawTileMarkers` for the marker-grid version.
-
-10. **Tests** — `Terrain.test.ts` for any new predicate or classifier, `Renderer.test.ts` for
-    the draw branch, `LevelParser.test.ts` for the character mapping (the map/`TileChar`
-    sync test covers it automatically), `Physics.test.ts` for any collision change, and
-    `paletteTiles.test.ts` for the palette entries.
+5. **Only if the editor should expose the tile directly**, add its palette entry in
+   `src/themes/platformer/editor/paletteTiles.ts` (a crop into a sheet, or `null` for an
+   invisible tile) — R-010 will later read this from `TILE_MODULES` instead. Document the
+   character in [LevelFormat.md](LevelFormat.md).

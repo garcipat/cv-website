@@ -1,21 +1,23 @@
 import type { LevelDef, TileType, BackgroundMaterialId, MarkerEntry } from './LevelData';
+import {
+  claimsDropThrough,
+  isClimbableTile,
+  isSolidExcludingOneWay,
+  isSolidTile,
+  isStandableTileAt,
+  tileSolidRegionAt,
+} from '../tiles/registry';
+
+// `isStandableTileAt`, `tileSolidRegionAt` and `claimsDropThrough` are the
+// registry's one dispatch implementations. They are re-exported here because
+// `Terrain` is the shared grid-reader/rule surface the engine and entities
+// already import from; there is no second rule body — every one reads
+// `TILE_MODULES`.
+export { claimsDropThrough, isStandableTileAt, tileSolidRegionAt };
 
 export const TILE_SIZE = 16;
 export const RENDER_SCALE = 2;
 export const RENDERED_TILE_SIZE = TILE_SIZE * RENDER_SCALE;
-
-/**
- * Height, in rendered px, of a crumbling floor tile's solid region
- * (O-023): its art top-aligns within its cell and is only half a
- * tile tall, and its collision matches that exactly rather than the full
- * cell every other solid tile uses. This is the tile's "vertical hitbox
- * inset" — the first one in this codebase; every existing inset
- * (`hitboxInsetXForBlock`) is horizontal and block-only. `Physics.ts`'s
- * ceiling (rising-from-below) branch is the only place this is consulted —
- * landing on it from above needs no special handling, since its solid
- * region's TOP edge still sits at the ordinary tile-top line.
- */
-export const CRUMBLING_FLOOR_SOLID_HEIGHT = RENDERED_TILE_SIZE / 2;
 
 export function tileAt(level: LevelDef, col: number, row: number): TileType {
   if (row < 0 || row >= level.height || col < 0 || col >= level.width) {
@@ -24,91 +26,38 @@ export function tileAt(level: LevelDef, col: number, row: number): TileType {
   return level.terrain[row][col];
 }
 
+/**
+ * Plain "blocks movement" — a thin registry-delegating wrapper. All per-kind
+ * logic lives in the tile module; this holds none (FR-018), it only keeps the
+ * long-standing `isSolid(tile)` call shape for the ~40 existing call sites.
+ */
 export function isSolid(tile: TileType): boolean {
-  return (
-    tile === 'groundGrass' ||
-    tile === 'groundRock' ||
-    tile === 'wall' ||
-    tile === 'bridge'
-  );
+  return isSolidTile(tile);
 }
 
 /**
- * Whether a tile counts as solid for the two "bridge is special" collision
+ * Whether a tile counts as solid for the two "one-way is special" collision
  * cases: rising into it from below (always excluded), and falling through it
  * while actively dropping through (Physics.ts's isDroppingThroughBridge
- * flag). Identical to `isSolid` for every tile except `bridge` — a bridge is
- * solid from above (landing) and the side (walking into it) like any other
- * terrain, but never blocks these two specific directions/states.
+ * flag). Identical to `isSolid` for every tile except `bridge`. Also a thin
+ * registry-delegating wrapper.
  */
 export function isSolidExcludingBridge(tile: TileType): boolean {
-  return isSolid(tile) && tile !== 'bridge';
+  return isSolidExcludingOneWay(tile);
 }
 
 /**
- * Whether the player can climb this tile — `'ladder'` and its purely visual
- * `'chain'` skin (roadmap step 38) behave identically here and everywhere
- * else in this file/Physics.ts, which is exactly why `'chain'` needs no
- * physics code of its own: every consumer of `isClimbable`/
- * `isStandableLadderTop` already goes through these two functions rather
- * than checking `tile === 'ladder'` directly.
- * Deliberately NOT part of `isSolid`: a climbable tile never blocks
- * horizontal movement or counts as ground; `Physics.ts`'s climbing branch is
- * the only place vertical movement through one is resolved.
+ * Whether the player can climb this tile — `'ladder'`, its purely visual
+ * `'chain'` skin, and the deployed `'ropeLadder'` all behave identically here
+ * and everywhere else. A thin registry-delegating wrapper; the module declares
+ * the capability.
+ *
+ * Deliberately NOT part of `isSolid`: a climbable tile never blocks horizontal
+ * movement or counts as ground; `Physics.ts`'s climbing branch is the only
+ * place vertical movement through one is resolved.
  */
 export function isClimbable(tile: TileType): boolean {
-  return tile === 'ladder' || tile === 'chain' || tile === 'ropeLadder';
-}
-
-/**
- * Whether this tile is a ladder shaft's topmost tile with open space above
- * it — the one ladder tile the character can actually stand ON. A shaft's
- * top rung is solid from above only: you climb out of the shaft onto it,
- * land on it when falling from above, and can step off it sideways or press
- * Down to climb back in. Every other ladder tile
- * stays fully passable, and even the top one never blocks horizontal
- * movement or a climb passing through it (`isSolid` is deliberately
- * untouched — `Physics.ts` consults this separately, exactly like it does
- * for `bridge`'s one-way behavior).
- *
- * "Open space above" excludes both a continuing ladder (that tile isn't the
- * top) and a solid tile (there'd be no room to stand — the character would
- * end up embedded in it, so such a dead-end shaft keeps the plain
- * climb-until-the-feet-leave-the-ladder behavior).
- */
-export function isStandableLadderTop(level: LevelDef, col: number, row: number): boolean {
-  const above = tileAt(level, col, row - 1);
-  return isClimbable(tileAt(level, col, row)) && !isClimbable(above) && !isSolid(above);
-}
-
-/**
- * Whether a rolled `ladderBundle` cell at (col, row) is standable from above.
- * Deliberately UNCONDITIONAL on the cell above — unlike `isStandableLadderTop`,
- * a bundle is a solid little parcel the character stands ON regardless of what
- * is overhead (FR-002/FR-009), and it must stay standable throughout its
- * unroll so a character standing on it when it deploys does not fall. It is
- * never `isSolid` (so it blocks nothing horizontally) and never `isClimbable`
- * (so a rolled bundle cannot be climbed); Physics.ts consults this predicate
- * exactly like it consults `isStandableLadderTop`, as a one-way ground term.
- */
-export function isStandableLadderBundleTop(level: LevelDef, col: number, row: number): boolean {
-  return tileAt(level, col, row) === 'ladderBundle';
-}
-
-/**
- * Whether a `bouncyMushroom` cell at (col, row) is the standable, one-way
- * ground cap of its vertical run — true only for the run's topmost cell, and
- * only when the cell directly above it is not solid (FR-005/FR-006). Mirrors
- * `isStandableLadderTop`: the mushroom is never `isSolid` (so it blocks
- * nothing horizontally and nothing from below) and never `isClimbable`, and
- * `Physics.ts` consults this separately as a one-way ground term. A cap with
- * a solid tile directly above has no room to land, so it is not standable —
- * and out-of-bounds above resolves to `'empty'` via `tileAt`, so a cap in the
- * level's top row is standable.
- */
-export function isStandableMushroomCap(level: LevelDef, col: number, row: number): boolean {
-  const above = tileAt(level, col, row - 1);
-  return tileAt(level, col, row) === 'bouncyMushroom' && above !== 'bouncyMushroom' && !isSolid(above);
+  return isClimbableTile(tile);
 }
 
 export function isTopExposed(level: LevelDef, col: number, row: number): boolean {

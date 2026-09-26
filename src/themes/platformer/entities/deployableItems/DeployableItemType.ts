@@ -6,7 +6,7 @@ import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { DeployableItemKind } from '../../contracts/DeployableItemKind';
 import type { LevelDef, TileType } from '../../level/LevelData';
 import type { BlockPlacement } from '../../level/BlockMapper';
-import type { CrumblingFloorTimerState } from '../../engine/CrumblingFloor';
+import type { CrumblingFloorTimerState } from '../../tiles/crumblingFloor';
 import type { PlayerState } from '../Player';
 import type { CollectedFact } from '../../types';
 import type { BubbleMessageId } from '../../level/HintCatalog';

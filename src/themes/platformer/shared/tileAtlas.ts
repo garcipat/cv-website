@@ -1,8 +1,8 @@
 /**
  * The shared tile-atlas vocabulary (R-002 FR-009): the quarter-turn type, the
  * uniform 19px cell stride, and the `{ sx, sy, rotation }` entry shape that
- * both `GroundAtlas.ts` and `BackgroundAtlas.ts` build on. Pure — imports
- * nothing.
+ * both `tiles/groundGrass.ts` and `engine/BackgroundAtlas.ts` build on. Pure —
+ * imports nothing.
  */
 
 /** Quarter-turns clockwise applied when drawing a tile from an atlas. A half

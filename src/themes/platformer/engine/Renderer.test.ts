@@ -92,11 +92,11 @@ import {
   DECORATIONS_SHEET,
   ROPE_LADDER_SHEET,
 } from '../entities/sprites/sheets';
-import { isStalactiteTwin, stalactiteEntry } from './StaticObjectsCatalog';
+import { isStalactiteTwin, stalactiteEntry } from '../tiles/stalactite';
 import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
 import type { PotRenderPlan } from '../entities/blocks/potTypes';
 import type { DrawContext } from '../contracts/DrawContext';
-import { TORCH_LIGHT_RADIUS_PX } from '../entities/Torch';
+import { TORCH_LIGHT_RADIUS_PX } from '../tiles/torch';
 import type { LightSource } from '../contracts/lighting';
 import {
   MAX_DARKNESS,

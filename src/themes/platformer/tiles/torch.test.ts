@@ -21,8 +21,8 @@ import {
   torchLightRadius,
   torchGlowStrengthAt,
   torchLightSource,
-} from './Torch';
-import type { TorchLight } from './Torch';
+} from './torch';
+import type { TorchLight } from './torch';
 
 function makeTorch(overrides: Partial<TorchLight> = {}): TorchLight {
   return { col: 3, row: 4, x: 100, y: 100, strength: 5, ...overrides };

@@ -5,7 +5,7 @@ import type { BackgroundMaterialId } from '../level/LevelData';
 // 3-row block; `BACKGROUND_ATLAS_ROW_PITCH` is the vertical distance from one
 // material's block to the next (`3*16 + 2*3` for the three gutter-separated
 // rows, plus the extra 6px gap between materials — see data-model.md).
-import { ATLAS_STRIDE, type QuarterTurns, type TileAtlasEntry } from './TileAtlas';
+import { ATLAS_STRIDE, type QuarterTurns, type TileAtlasEntry } from '../shared/tileAtlas';
 
 export const BACKGROUND_ATLAS_ROW_PITCH = 60;
 

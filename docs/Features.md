@@ -80,7 +80,7 @@ graph RL
         R012["R-012: Platformer State Stores & Asset/HUD Extraction"]
         R013["R-013: Platformer Sprite Asset & Atlas Organization"]
         R014["R-014: Platformer Layer-Boundary Lint Guard"]
-        R015["R-015: Platformer Tile Module Registry"]
+        R015["✅ R-015: Platformer Tile Module Registry"]
     end
 
     F003 --> F002
@@ -318,6 +318,7 @@ graph RL
     class R002 done
     class R004 done
     class R008 done
+    class R015 done
     class R005 done
     class R006 done
     class R007 done

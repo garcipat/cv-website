@@ -10,7 +10,7 @@ import {
   stalactiteEntry,
   TWIN_LEFT_RECT,
   TWIN_RIGHT_RECT,
-} from '../../engine/StaticObjectsCatalog';
+} from '../../tiles/stalactite';
 import { findLandingRow, isStandableCell } from '../../engine/Standable';
 import type { Rect } from '../../contracts/geometry';
 import type { DrawContext } from '../../contracts/DrawContext';

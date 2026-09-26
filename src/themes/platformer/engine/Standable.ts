@@ -1,15 +1,8 @@
-import {
-  isSolid,
-  isSolidExcludingBridge,
-  isStandableLadderTop,
-  isStandableLadderBundleTop,
-  isStandableMushroomCap,
-  tileAt,
-} from '../level/Terrain';
+import { isStandableTileAt, tileSolidRegionAt } from '../level/Terrain';
 import { isBlockOccupied } from '../level/BlockMapper';
 import type { BlockPlacement } from '../level/BlockMapper';
-import { isCrumblingFloorBroken } from './CrumblingFloor';
-import type { CrumblingFloorTimerState } from './CrumblingFloor';
+import type { CrumblingFloorTimerState } from '../tiles/crumblingFloor';
+import type { TileTransientState } from '../tiles/TileModule';
 import type { LevelDef } from '../level/LevelData';
 
 export interface StandableOptions {
@@ -22,13 +15,14 @@ export interface StandableOptions {
 /**
  * Whether the player could stand on the tile at `(col, row)` — the single
  * shared definition of "a landing solid" (O-027 FR-008/FR-003). Composed of
- * exactly the union `engine/Physics.ts`'s ground branch computes:
+ * exactly the union `engine/Physics.ts`'s ground branch computes, both terms
+ * now reached through the registry:
  *
- * - terrain `isSolid` (with `crumblingFloor` solid only while at rest or
- *   cracking, and `bridge` excludable via `excludeBridge`)
- * - `isStandableLadderTop`
- * - `isStandableLadderBundleTop`
- * - `isStandableMushroomCap`
+ * - the terrain solid region via `tileSolidRegionAt` (a crumbling floor is
+ *   solid only while at rest or cracking, and `bridge` is excludable via
+ *   `excludeBridge`; a plain solid resolves to the full cell)
+ * - the one-way ground terms via `isStandableTileAt` (ladder/chain/ropeLadder
+ *   shaft top, rolled `ladderBundle` top, `bouncyMushroom` cap)
  * - `isBlockOccupied`
  *
  * `Physics.ts` delegates here with `{ excludeBridge: droppingThroughBridge }`
@@ -43,15 +37,15 @@ export function isStandableCell(
   row: number,
   options: StandableOptions = {},
 ): boolean {
-  const tile = tileAt(level, col, row);
-  const baseCheck = options.excludeBridge ? isSolidExcludingBridge : isSolid;
+  const transient: TileTransientState = {
+    crumblingFloorTimers: crumblingFloorStates,
+    mushroomSquashes: [],
+  };
   const tileIsGround =
-    tile === 'crumblingFloor' ? !isCrumblingFloorBroken(crumblingFloorStates, col, row) : baseCheck(tile);
+    tileSolidRegionAt(level, col, row, { transient, excludeOneWay: options.excludeBridge }) !== null;
   return (
     tileIsGround ||
-    isStandableLadderTop(level, col, row) ||
-    isStandableLadderBundleTop(level, col, row) ||
-    isStandableMushroomCap(level, col, row) ||
+    isStandableTileAt(level, col, row, { transient }) ||
     isBlockOccupied(blocks, col, row)
   );
 }

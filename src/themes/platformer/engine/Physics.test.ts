@@ -5,7 +5,7 @@ import { parseLevel } from '../level/LevelParser';
 import type { LevelDef } from '../level/LevelData';
 import { RENDERED_TILE_SIZE, isSolid, tileAt } from '../level/Terrain';
 import { placeBlocks } from '../level/BlockMapper';
-import type { CrumblingFloorTimerState } from './CrumblingFloor';
+import type { CrumblingFloorTimerState } from '../tiles/crumblingFloor';
 import { hitboxInsetXForBlock } from '../entities/Block';
 import {
   PLAYER_RENDERED_SIZE,

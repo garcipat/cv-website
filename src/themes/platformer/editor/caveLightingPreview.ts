@@ -1,8 +1,9 @@
-import { TERRAIN_CHARS, type TileChar } from '../level/LevelParser';
+import type { TileChar } from '../level/LevelParser';
+import { TERRAIN_CHARS } from '../tiles/registry';
 import { RENDERED_TILE_SIZE, tileToPixel } from '../level/Terrain';
 import type { MarkerGrid } from '../level/LevelData';
-import { DEFAULT_TORCH_STRENGTH, torchLightSource } from '../entities/Torch';
-import type { TorchLight } from '../entities/Torch';
+import { DEFAULT_TORCH_STRENGTH, torchLightSource } from '../tiles/torch';
+import type { TorchLight } from '../tiles/torch';
 import type { LightSource } from '../contracts/lighting';
 import { playerLightSource } from '../entities/Player';
 import { synthesizePlayerState } from './gridRenderState';

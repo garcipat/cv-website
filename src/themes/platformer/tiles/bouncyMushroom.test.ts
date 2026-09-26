@@ -10,7 +10,7 @@ import {
   mushroomSquashDipAt,
   startMushroomSquash,
   type MushroomSquashState,
-} from './Mushroom';
+} from './bouncyMushroom';
 
 const TILE_SIZE = 16;
 

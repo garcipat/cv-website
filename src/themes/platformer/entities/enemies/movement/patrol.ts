@@ -1,11 +1,11 @@
 import { PHYSICS_CONFIG } from '../../../contracts/PhysicsConfig';
-import { isSolid, tileAt, markerAt, RENDER_SCALE, RENDERED_TILE_SIZE } from '../../../level/Terrain';
+import { tileSolidRegionAt, markerAt, RENDER_SCALE, RENDERED_TILE_SIZE } from '../../../level/Terrain';
 import type { LevelDef } from '../../../level/LevelData';
 import type { Direction } from '../../../contracts/geometry';
 import type { SpriteDescriptor } from '../../sprites/SpriteSheet';
 import type { BaseEnemyState } from '../EnemyType';
 import type { MovementStrategy } from './MovementStrategy';
-import { isCrumblingFloorBroken, type CrumblingFloorTimerState } from '../../../engine/CrumblingFloor';
+import type { CrumblingFloorTimerState } from '../../../tiles/crumblingFloor';
 
 const NO_CRUMBLING_FLOOR_STATES: readonly CrumblingFloorTimerState[] = [];
 
@@ -93,9 +93,11 @@ export function stepHorizontal(params: StepHorizontalParams): StepHorizontalResu
   // like ordinary terrain, as long as it isn't currently broken/reforming
   // — otherwise an enemy would treat an intact crumbling floor tile as a
   // wall/ledge edge and reverse in front of it as if it were a pit, even
-  // though the player can walk right onto it.
-  const tileIsGroundFor = (col: number, tileRow: number, tile = tileAt(level, col, tileRow)): boolean =>
-    tile === 'crumblingFloor' ? !isCrumblingFloorBroken(crumblingFloorStates, col, tileRow) : isSolid(tile);
+  // though the player can walk right onto it. Reached through the registry's
+  // `tileSolidRegionAt`, the single source of the phase/inset rule.
+  const transient = { crumblingFloorTimers: crumblingFloorStates, mushroomSquashes: [] };
+  const tileIsGroundFor = (col: number, tileRow: number): boolean =>
+    tileSolidRegionAt(level, col, tileRow, { transient }) !== null;
 
   /** Tries moving one step in `direction` from `fromX`. `blocked` is whether
    *  the leading edge would enter a wall or run out of ground; `nextX` is
@@ -117,14 +119,12 @@ export function stepHorizontal(params: StepHorizontalParams): StepHorizontalResu
     // A patrol boundary is invisible and never solid (the player walks right
     // through it), so it has to be read from the tile meta layer rather than
     // through `isSolid` — it is a boundary for enemies only (FR-021).
-    const wallAhead = Array.from({ length: rowsSpanned }, (_, i) => row - i).some((r) => {
-      const tile = tileAt(level, leadingCol, r);
-      return (
-        tileIsGroundFor(leadingCol, r, tile) ||
+    const wallAhead = Array.from({ length: rowsSpanned }, (_, i) => row - i).some(
+      (r) =>
+        tileIsGroundFor(leadingCol, r) ||
         markerAt(level, leadingCol, r)?.kind === 'patrolBoundary' ||
-        isBlockedTile(leadingCol, r)
-      );
-    });
+        isBlockedTile(leadingCol, r),
+    );
     const noGroundAhead =
       checkLedges &&
       !tileIsGroundFor(leadingCol, row + 1) &&

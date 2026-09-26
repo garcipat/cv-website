@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { parseBackgroundLayout, TERRAIN_CHARS, type TileChar, type BackgroundChar } from '../level/LevelParser';
+import { parseBackgroundLayout, type TileChar, type BackgroundChar } from '../level/LevelParser';
+import { TERRAIN_CHARS } from '../tiles/registry';
 import type { MarkerEntry, MarkerGrid } from '../level/LevelData';
 import { hintCode } from '../level/HintCatalog';
-import { DEFAULT_TORCH_STRENGTH, torchStrengthCode } from '../entities/Torch';
+import { DEFAULT_TORCH_STRENGTH, torchStrengthCode } from '../tiles/torch';
 import {
   paintMarkerCell,
   eraseMarkerCell,
@@ -40,7 +41,7 @@ import {
   stalactiteEntry,
   TWIN_LEFT_RECT,
   TWIN_RIGHT_RECT,
-} from '../engine/StaticObjectsCatalog';
+} from '../tiles/stalactite';
 import { PATROL_GLYPH, CONNECTION_POINT_GLYPH, PALETTE_TILE_SPRITES } from './paletteTiles';
 import {
   drawTerrain,

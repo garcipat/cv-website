@@ -8,12 +8,12 @@ import type { EditorTool } from './editorState';
  * cropping" technique (an `<img>` of the whole sheet, absolutely positioned
  * inside an `overflow: hidden` box) needs, with no runtime image
  * measurement. Coordinates are hand-picked to match the exact frame the
- * real engine renders for that tile/marker's "at rest" state (see
- * `Renderer.ts`'s `tileSource`, and `coinFrameIndex`/`enemyFrameIndex`/
+ * real engine renders for that tile/marker's "at rest" state (see the matching
+ * `tiles/<kind>.ts` `draw`, and `coinFrameIndex`/`enemyFrameIndex`/
  * `blockFrameSource`/`playerFrameSource` in the respective entity files) —
  * this is a palette icon, not a live game sprite, so it intentionally
  * doesn't reuse those functions' animation/context-dependent logic (e.g.
- * `tileSource`'s top-exposed/buried variants, `bridgeRunPosition`); it just
+ * `tiles/groundRock.ts`'s top-exposed/buried variants, `bridgeRunPosition`); it just
  * needs one representative, correct-looking icon per tile.
  */
 export interface TileSpriteSpec {

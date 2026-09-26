@@ -1,44 +1,17 @@
 import {
   tileAt,
-  isTopExposed,
-  bridgeRunPosition,
-  chainAttachment,
-  chainRunLength,
-  cobwebOrientation,
-  horizontalRunPosition,
-  neighbourMask,
-  NEIGHBOUR_UP,
   tileToPixel,
   TILE_SIZE,
   RENDER_SCALE,
   RENDERED_TILE_SIZE,
-  verticalRunRole,
   backgroundNeighbourMask,
-  markerAt,
 } from '../level/Terrain';
-import type { ChainAttachment } from '../level/Terrain';
-import { groundAtlasCell, grassCell, GRASS_SOURCE_HEIGHT } from './GroundAtlas';
+import { drawRotatedTile } from '../tiles/draw';
+import { drawTileAt, isFogExempt } from '../tiles/registry';
+import type { TerrainImages, TileDrawContext, TileTransientState } from '../tiles/TileModule';
 import { backgroundAtlasCell } from './BackgroundAtlas';
 import { backgroundRockEntry } from './BackgroundDecorCatalog';
-import {
-  bushOrTreeEntry,
-  staticObjectEntry,
-  stalactiteEntry,
-  stalagmiteEntry,
-  chainRunPieces,
-  COBWEB_CORNER_ENTRY,
-  COBWEB_FLAT_ENTRY,
-} from './StaticObjectsCatalog';
-import {
-  mushroomEntry,
-  mushroomHasCap,
-  MUSHROOM_CAP_SOURCE_HEIGHT,
-  MUSHROOM_DECORATIVE_ENTRY,
-  mushroomSquashDipAt,
-} from '../entities/blocks/Mushroom';
-import type { MushroomSquashState } from '../entities/blocks/Mushroom';
-import { isFogExempt } from '../level/LevelData';
-import type { LevelDef, TileType } from '../level/LevelData';
+import type { LevelDef } from '../level/LevelData';
 import type { SignPlacement } from '../level/SignMapper';
 import {
   PLAYER_FRAME_SIZE,
@@ -90,20 +63,10 @@ import type { CheckpointState } from '../entities/Checkpoint';
 import { frameSource } from '../entities/sprites/SpriteSheet';
 import { pulse } from '../shared/math';
 import { fillTextWithOutline, RESTART_PROMPT_FONT_FAMILY } from './textDraw';
-import { TORCH_SHEET, BOMB_SHEET, CRUMBLE_FLOOR_SHEET, CRUMBLE_CRACKS_SHEET } from '../entities/sprites/sheets';import {
-  crumblingFloorPhaseFor,
-  crumblingFloorCrackRatioFor,
-  crumblingFloorReformRatioFor,
-  crumblingFloorShakeOffsetXAt,
-  crumblingFloorElapsedFor,
-} from './CrumblingFloor';
-import type { CrumblingFloorTimerState } from './CrumblingFloor';
-import {
-  TORCH_FRAME_WIDTH,
-  TORCH_FRAME_HEIGHT,
-  TORCH_INSET_X,
-  torchFrameIndex,
-} from '../entities/Torch';
+import { TORCH_SHEET, BOMB_SHEET, CRUMBLE_FLOOR_SHEET, CRUMBLE_CRACKS_SHEET } from '../entities/sprites/sheets';
+import type { CrumblingFloorTimerState } from '../tiles/crumblingFloor';
+import type { MushroomSquashState } from '../tiles/bouncyMushroom';
+import { TORCH_FRAME_WIDTH, TORCH_FRAME_HEIGHT, torchFrameIndex } from '../tiles/torch';
 import type { Point } from './Lighting';
 import type { LightSource } from '../contracts/lighting';
 import {
@@ -120,79 +83,6 @@ import {
   fogPeekStrengthAt,
   isCellDarkening,
 } from './Lighting';
-
-function tileSource(
-  level: LevelDef,
-  type: TileType,
-  col: number,
-  row: number,
-): { sx: number; sy: number } | null {
-  switch (type) {
-    case 'groundGrass':
-      // Drawn by drawTerrain's own atlas path — it sources from a different
-      // image and may be rotated, neither of which this shared lookup models.
-      return null;
-    case 'groundRock':
-      return isTopExposed(level, col, row)
-        ? { sx: TILE_SIZE, sy: 0 }
-        : { sx: TILE_SIZE, sy: TILE_SIZE };
-    case 'wall':
-      return { sx: 8 * TILE_SIZE, sy: 0 };
-    case 'bridge': {
-      const position = bridgeRunPosition(level, col, row);
-      if (position === 'left') return { sx: 9 * TILE_SIZE, sy: 2 * TILE_SIZE }; // ramp down
-      if (position === 'right') return { sx: 11 * TILE_SIZE, sy: 2 * TILE_SIZE }; // ramp up
-      return { sx: 10 * TILE_SIZE, sy: 2 * TILE_SIZE }; // low (middle, or a lone single tile)
-    }
-    case 'ladder':
-      return { sx: 9 * TILE_SIZE, sy: 3 * TILE_SIZE };
-    case 'chain':
-      // Drawn by drawTerrain's own staticObjects branch — an entire shaft is
-      // composited as one run from its top cell, which this shared
-      // single-tile lookup has no way to express.
-      return null;
-    case 'bush':
-    case 'fence':
-    case 'cobweb':
-    case 'crystalCluster':
-    case 'stalactite':
-    case 'stalagmite':
-      // Drawn by drawTerrain's own staticObjects/decorations branch when that
-      // sheet is loaded; this shared lookup only runs when it isn't, so there
-      // is nothing to draw here.
-      return null;
-    case 'torch':
-      // Drawn by drawTerrain's own torch branch (a frame picked from
-      // TORCH_SHEET by grid position + the world clock) — not a static
-      // sx/sy lookup, so there is nothing to return here.
-      return null;
-    case 'ladderBundle':
-    case 'ropeLadder':
-      // Drawn by the rope-ladder kind's own `draw` (the rolled bundle parcel,
-      // and the deployed shaft's cap/step pieces), which needs the bundle's
-      // runtime state — not a static sx/sy lookup, so there is nothing to
-      // return here.
-      return null;
-    case 'bouncyMushroom':
-    case 'decorativeMushroom':
-      // Drawn by drawTerrain's own mushroom branch when the mushroom sheet is
-      // loaded (the cap/stem split, the squash dip and the decorative cell are
-      // all neighbour- or state-dependent) — not a static sx/sy lookup.
-      return null;
-    case 'crumblingFloor':
-      // Drawn by the dedicated drawCrumblingFloors pass below, which needs
-      // per-cell cycle state (crack stage, shake, reform scale) this shared
-      // static sx/sy lookup has no way to access — not a plain tile-source
-      // lookup, same reasoning as ladderBundle/bouncyMushroom above.
-      return null;
-    case 'empty':
-      return null;
-    default: {
-      const _exhaustive: never = type;
-      return _exhaustive;
-    }
-  }
-}
 
 /** Water tiles live in `world_tileset.png` column 4, row 9: the wave-crest
  *  (foam edge over blue). */
@@ -491,109 +381,16 @@ export function drawEnemyEyes(
 }
 
 /**
- * Draws one atlas cell into a terrain cell, applying the entry's rotation
- * about the cell's own centre (see GroundAtlas.ts). A quarter turn moves a
- * border onto an adjacent edge and would also swing a vertical brightness
- * ramp sideways, so it is only used on cells measured flat: `c1r1`, `c6r0`,
- * `c6r1`. A half turn maps every edge onto its opposite and flips the ramp
- * end-for-end, which is exactly why the isolated-tile cell `c0r0` uses one —
- * it puts that cell's bright end in the strip visible below the grass.
- */
-/**
- * Draws one atlas cell into a tile-sized cell, applying the entry's rotation
- * about the cell's own centre — the shared rotation-aware draw both
- * `drawTerrain` (ground tiles) and `drawBackgroundTiles` (O-014's background
- * mass) use, since both index into a 16px-tile atlas the same way and only
- * differ in which atlas image and lookup table they use. A quarter turn moves
- * a border onto an adjacent edge (and would also swing a vertical brightness
- * ramp sideways for `GroundAtlas`, so that caller only uses one on cells
- * measured flat — see `GroundAtlas.ts`'s own doc comment); a half turn maps
- * every edge onto its opposite.
- */
-function drawRotatedTile(
-  ctx: CanvasRenderingContext2D,
-  atlas: HTMLImageElement,
-  entry: { sx: number; sy: number; rotation: 0 | 1 | 2 | 3 },
-  destX: number,
-  destY: number,
-): void {
-  if (entry.rotation === 0) {
-    ctx.drawImage(
-      atlas, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
-      destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
-    );
-    return;
-  }
-
-  const half = RENDERED_TILE_SIZE / 2;
-  ctx.save();
-  ctx.translate(destX + half, destY + half);
-  ctx.rotate((entry.rotation * Math.PI) / 2);
-  ctx.drawImage(
-    atlas, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
-    -half, -half, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
-  );
-  ctx.restore();
-}
-
-/**
- * Grass continues into a horizontal neighbour only when that neighbour is
- * itself a grass-topped surface cell. A `groundRock` neighbour, or a
- * `groundGrass` one that is buried because the terrain steps up, caps the
- * run instead — so this adds a material check on top of the ground mask's
- * notion of exposure. Exposure is read from the mask's UP bit rather than
- * `isTopExposed` so that a bridge overhead counts as open space here exactly
- * as it does when the ground cell is chosen.
- */
-function isGrassSurface(level: LevelDef, col: number, row: number): boolean {
-  return (
-    tileAt(level, col, row) === 'groundGrass' &&
-    (neighbourMask(level, col, row) & NEIGHBOUR_UP) === 0
-  );
-}
-
-/** Native-pixel offset used two ways for a wall-hugging chain shaft
- *  (left/right attachment): vertically, its TOP piece starts this far below
- *  the cell's own top (its hook art has no top-side neck margin the way
- *  ceiling/floating pieces do, so without this it reads as sitting higher
- *  than a ceiling-attached shaft's top at the same row); horizontally, every
- *  piece BELOW the top one is offset this far in from the wall tile beside
- *  it, instead of flush against it — deliberately leaving room to draw a
- *  small connector piece bridging the seam later. Never applied to the top
- *  piece's own horizontal position (its art already has that gap baked in —
- *  that's what makes the hook read as "attached to the wall"), and never
- *  applied at all to ceiling/floating shafts, which have no wall edge. */
-const CHAIN_WALL_GAP = 2 * RENDER_SCALE;
-
-/**
- * Horizontal destination for one chain piece within its cell. `left`/`right`
- * pieces are 7px (not 5) wide — the extra width is a connector bar baked
- * into the art — and only the run's TOP piece draws flush against its wall
- * (`isTopPiece`): its own art already has the wall gap baked in, which is
- * what makes the hook read as "attached" in the first place. Every piece
- * below it is a plain, symmetric shape with no such gap built in, so
- * `CHAIN_WALL_GAP` is added there instead, to land at the same offset the
- * top piece's own art already reads as. Ceiling/floating pieces are always
- * centered, having no wall to hug at all.
- */
-function chainPieceDestX(
-  attachment: ChainAttachment,
-  isTopPiece: boolean,
-  destX: number,
-  renderedWidth: number,
-): number {
-  if (attachment === 'left') return destX + (isTopPiece ? 0 : CHAIN_WALL_GAP);
-  if (attachment === 'right') return destX + RENDERED_TILE_SIZE - renderedWidth - (isTopPiece ? 0 : CHAIN_WALL_GAP);
-  return destX + (RENDERED_TILE_SIZE - renderedWidth) / 2;
-}
-
-/**
  * Draws the level's terrain. `originX` shifts every tile horizontally and
  * `originY` shifts every tile vertically (e.g. to anchor the level to the
  * bottom of a taller-than-the-level canvas instead of drawing it pinned to
  * the top with empty space below, or to scroll it horizontally with the
  * camera). Both default to 0 (level drawn at its raw grid position,
  * top-left origin).
+ *
+ * The body is a band-filtered dispatch: each cell's module owns its appearance,
+ * and this pass draws only the modules whose `drawBand` is `'terrain'` (US4/T040;
+ * the per-`TileType` branches and the `tileSource` lookup are gone).
  */
 export function drawTerrain(
   ctx: CanvasRenderingContext2D,
@@ -611,217 +408,38 @@ export function drawTerrain(
 ): void {
   ctx.imageSmoothingEnabled = false;
 
+  const images: TerrainImages = {
+    tileset,
+    groundAtlas,
+    staticObjects,
+    decorations,
+    torch,
+    mushroom,
+    crumblingLedge: null,
+    crumblingCracks: null,
+  };
+  // The terrain band reads only the mushroom-squash state; the crumbling
+  // floor's timers belong to the afterHazards pass below. A hook needing
+  // another kind's state would be a second lifecycle, which R-015 forbids.
+  const transient: TileTransientState = { crumblingFloorTimers: [], mushroomSquashes };
+
   for (let row = 0; row < level.height; row++) {
     for (let col = 0; col < level.width; col++) {
-      const tile = tileAt(level, col, row);
       const { x, y } = tileToPixel(col, row);
-      const destX = x + originX;
-      const destY = y + originY;
-
-      if (tile === 'groundGrass') {
-        const mask = neighbourMask(level, col, row);
-        drawRotatedTile(ctx, groundAtlas, groundAtlasCell(mask), destX, destY);
-
-        if ((mask & NEIGHBOUR_UP) === 0) {
-          const grass = grassCell(horizontalRunPosition(level, col, row, isGrassSurface));
-          ctx.drawImage(
-            groundAtlas, grass.sx, grass.sy, TILE_SIZE, GRASS_SOURCE_HEIGHT,
-            destX, destY, RENDERED_TILE_SIZE, GRASS_SOURCE_HEIGHT * RENDER_SCALE,
-          );
-        }
-        continue;
-      }
-
-      if (tile === 'bush') {
-        const entry = bushOrTreeEntry(verticalRunRole(level, col, row, 'bush'), col, row);
-        ctx.drawImage(
-          tileset, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
-          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
-        );
-        continue;
-      }
-
-      if (staticObjects && tile === 'fence') {
-        const entry = staticObjectEntry('fence', col, row);
-        ctx.drawImage(
-          staticObjects, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
-          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
-        );
-        continue;
-      }
-
-      if (decorations && tile === 'cobweb') {
-        const orientation = cobwebOrientation(level, col, row);
-        if (!orientation.corner) {
-          ctx.drawImage(
-            decorations,
-            COBWEB_FLAT_ENTRY.sx, COBWEB_FLAT_ENTRY.sy,
-            COBWEB_FLAT_ENTRY.width ?? TILE_SIZE, COBWEB_FLAT_ENTRY.height ?? TILE_SIZE,
-            destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
-          );
-        } else if (orientation.rotation === 0) {
-          ctx.drawImage(
-            decorations,
-            COBWEB_CORNER_ENTRY.sx, COBWEB_CORNER_ENTRY.sy,
-            COBWEB_CORNER_ENTRY.width ?? TILE_SIZE, COBWEB_CORNER_ENTRY.height ?? TILE_SIZE,
-            destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
-          );
-        } else {
-          const half = RENDERED_TILE_SIZE / 2;
-          ctx.save();
-          ctx.translate(destX + half, destY + half);
-          ctx.rotate((orientation.rotation * Math.PI) / 2);
-          ctx.drawImage(
-            decorations,
-            COBWEB_CORNER_ENTRY.sx, COBWEB_CORNER_ENTRY.sy,
-            COBWEB_CORNER_ENTRY.width ?? TILE_SIZE, COBWEB_CORNER_ENTRY.height ?? TILE_SIZE,
-            -half, -half, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
-          );
-          ctx.restore();
-        }
-        continue;
-      }
-
-      if (decorations && tile === 'crystalCluster') {
-        const entry = staticObjectEntry('crystalCluster', col, row);
-        ctx.drawImage(
-          decorations, entry.sx, entry.sy, entry.width ?? TILE_SIZE, entry.height ?? TILE_SIZE,
-          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
-        );
-        continue;
-      }
-
-      if (decorations && tile === 'stalactite') {
-        // A cell carrying a `fallingStalactite` marker is rendered by that
-        // hazard's own `draw` — which shows the large sprite while hanging,
-        // renders nothing once it has fallen, and keeps only the survivor half
-        // of a twin. Drawing the static decoration here too would leave a
-        // ghost on the cell after the stalactite falls.
-        if (markerAt(level, col, row)?.kind === 'fallingStalactite') continue;
-        const entry = stalactiteEntry(col, row);
-        ctx.drawImage(
-          decorations, entry.sx, entry.sy, entry.width ?? TILE_SIZE, entry.height ?? TILE_SIZE,
-          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
-        );
-        continue;
-      }
-
-      if (decorations && tile === 'stalagmite') {
-        const entry = stalagmiteEntry(col, row);
-        ctx.drawImage(
-          decorations, entry.sx, entry.sy, entry.width ?? TILE_SIZE, entry.height ?? TILE_SIZE,
-          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
-        );
-        continue;
-      }
-
-      if (torch && tile === 'torch') {
-        // The frame is a pure function of the cell's grid position and the
-        // shared world clock (engine/Torch.ts) — no per-instance state, and
-        // neighbouring torches flicker out of phase. The 12x14 frame is
-        // bottom-aligned and horizontally centred in the 16px cell; never
-        // mirrored or rotated (single fixed front-facing sprite, spec FR-007).
-        const frame = frameSource(TORCH_SHEET, torchFrameIndex(col, row, worldElapsed));
-        ctx.drawImage(
-          torch,
-          frame.sx,
-          frame.sy,
-          TORCH_FRAME_WIDTH,
-          TORCH_FRAME_HEIGHT,
-          destX + TORCH_INSET_X * RENDER_SCALE,
-          destY + (TILE_SIZE - TORCH_FRAME_HEIGHT) * RENDER_SCALE,
-          TORCH_FRAME_WIDTH * RENDER_SCALE,
-          TORCH_FRAME_HEIGHT * RENDER_SCALE,
-        );
-        continue;
-      }
-
-      if (mushroom && tile === 'decorativeMushroom') {
-        // A single fixed cell; the small mushroom's art already sits in the
-        // lower part of its 16px cell.
-        ctx.drawImage(
-          mushroom,
-          MUSHROOM_DECORATIVE_ENTRY.sx, MUSHROOM_DECORATIVE_ENTRY.sy,
-          TILE_SIZE, TILE_SIZE,
-          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
-        );
-        continue;
-      }
-
-      if (mushroom && tile === 'bouncyMushroom') {
-        // A vertical run reads as one mushroom: the cap-bearing roles split
-        // their sprite into an unshifted stem/connector sub-rect and a cap
-        // sub-rect that dips on a bounce; `middle`/`bottom` draw one whole
-        // role cell. `dip` is in rendered px and is 0 with no active squash.
-        const role = verticalRunRole(level, col, row, 'bouncyMushroom');
-        const entry = mushroomEntry(role);
-        if (mushroomHasCap(role)) {
-          const dip = mushroomSquashDipAt(mushroomSquashes, col, row);
-          const capH = MUSHROOM_CAP_SOURCE_HEIGHT;
-          // Stem/connector first, unshifted, so only the cap moves.
-          ctx.drawImage(
-            mushroom, entry.sx, entry.sy + capH, TILE_SIZE, TILE_SIZE - capH,
-            destX, destY + capH * RENDER_SCALE, RENDERED_TILE_SIZE, (TILE_SIZE - capH) * RENDER_SCALE,
-          );
-          // Cap, dipped.
-          ctx.drawImage(
-            mushroom, entry.sx, entry.sy, TILE_SIZE, capH,
-            destX, destY + dip, RENDERED_TILE_SIZE, capH * RENDER_SCALE,
-          );
-        } else {
-          ctx.drawImage(
-            mushroom, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
-            destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
-          );
-        }
-        continue;
-      }
-
-      if (staticObjects && tile === 'chain') {
-        // Only a run's TOP cell draws anything — every cell below it is
-        // part of the same composited shaft and is skipped here (drawn
-        // already, from the top). Chain pieces don't fit the 16px tile grid
-        // (the artist's link art has a 6px vertical repeat, not a divisor of
-        // 16), so unlike every other tile in this file, a chain shaft is
-        // composited as one continuous stack of native-sized pieces rather
-        // than one sprite per cell.
-        if (tileAt(level, col, row - 1) !== 'chain') {
-          const attachment = chainAttachment(level, col, row);
-          const runLength = chainRunLength(level, col, row);
-          const pieces = chainRunPieces(attachment, runLength);
-          const capY = destY + runLength * RENDERED_TILE_SIZE;
-          // A wall-hugging shaft's top piece starts a couple of native px
-          // below the cell's own top — its hook art has no top-side neck
-          // margin the way the ceiling/floating pieces do, so without this
-          // it reads as sitting visibly higher than a ceiling-attached
-          // shaft's top would at the same row. Applies to the top piece
-          // only; pieces below it continue directly, no added offset.
-          const isWallAttached = attachment === 'left' || attachment === 'right';
-          let drawY = isWallAttached ? destY + CHAIN_WALL_GAP : destY;
-          for (let index = 0; index < pieces.length; index++) {
-            const piece = pieces[index];
-            const renderedWidth = piece.width * RENDER_SCALE;
-            const renderedHeight = piece.height * RENDER_SCALE;
-            const drawHeight = Math.min(renderedHeight, capY - drawY);
-            if (drawHeight <= 0) break;
-            const pieceDestX = chainPieceDestX(attachment, index === 0, destX, renderedWidth);
-            ctx.drawImage(
-              staticObjects, piece.sx, piece.sy, piece.width, drawHeight / RENDER_SCALE,
-              pieceDestX, drawY, renderedWidth, drawHeight,
-            );
-            drawY += drawHeight;
-          }
-        }
-        continue;
-      }
-
-      const source = tileSource(level, tile, col, row);
-      if (!source) continue;
-
-      ctx.drawImage(
-        tileset, source.sx, source.sy, TILE_SIZE, TILE_SIZE,
-        destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
-      );
+      const rc: TileDrawContext = {
+        ctx,
+        level,
+        col,
+        row,
+        destX: x + originX,
+        destY: y + originY,
+        originX,
+        originY,
+        worldElapsed,
+        images,
+        transient,
+      };
+      drawTileAt(rc, 'terrain');
     }
   }
 }
@@ -848,24 +466,12 @@ export function drawDeployableItems(
 }
 
 /**
- * Draws every crumbling floor tile (O-023) at its current cycle phase —
- * exempted from `drawTerrain`/`tileSource` (see that function's
- * `'crumblingFloor'` case) because it needs per-cell timer state, the same
- * reason the rope-ladder kind's own `draw` is its own pass. Takes the whole
- * `DrawContext` (like `drawHazards`/`drawBlocks`) rather than raw image
- * refs, since it reads two sprites out of `dc.sprites` by source path.
- *
- * `'broken'` draws nothing (the bare gap). `'atRest'`/`'cracking'` draw the
- * full ledge, with the crack overlay's frame 0/1/2 composited on top once
- * cracking starts (picked from the continuous crack ratio) plus a small
- * horizontal shake jitter. `'reforming'` draws the ledge scaled from small
- * to full, anchored to the cell's own top-center so it grows toward where
- * its collision boundary already sits.
+ * Draws the crumbling floor cells through their module's own `draw` — the
+ * `afterHazards` band, preserving this pass's depth between the hazard and
+ * deployable bands exactly as before. The module owns the ledge/crack/rebuild
+ * geometry; this pass only resolves the two sheet images (which a `tiles/`
+ * module cannot import) and hands them to the dispatch.
  */
-function isCrumblingFloorTile(level: LevelDef, col: number, row: number): boolean {
-  return tileAt(level, col, row) === 'crumblingFloor';
-}
-
 export function drawCrumblingFloors(
   ctx: CanvasRenderingContext2D,
   level: LevelDef,
@@ -874,55 +480,43 @@ export function drawCrumblingFloors(
 ): void {
   const ledge = dc.sprites[CRUMBLE_FLOOR_SHEET.src];
   if (!ledge) return;
-  const cracks = dc.sprites[CRUMBLE_CRACKS_SHEET.src];
+  const cracks = dc.sprites[CRUMBLE_CRACKS_SHEET.src] ?? null;
 
   ctx.imageSmoothingEnabled = false;
 
+  // The crumbling floor module reads only `crumblingLedge`/`crumblingCracks`
+  // (and its own transient state) — the other roles are unused by this pass,
+  // so they are filled with the already-loaded ledge image rather than being
+  // resolved again.
+  const images: TerrainImages = {
+    tileset: ledge,
+    groundAtlas: ledge,
+    staticObjects: null,
+    decorations: null,
+    torch: null,
+    mushroom: null,
+    crumblingLedge: ledge,
+    crumblingCracks: cracks,
+  };
+  const transient: TileTransientState = { crumblingFloorTimers: states, mushroomSquashes: [] };
+
   for (let row = 0; row < level.height; row++) {
     for (let col = 0; col < level.width; col++) {
-      if (tileAt(level, col, row) !== 'crumblingFloor') continue;
-
-      const phase = crumblingFloorPhaseFor(states, col, row);
-      if (phase === 'broken') continue;
-
       const { x, y } = tileToPixel(col, row);
-      const destX = x + dc.originX;
-      const destY = y + dc.originY;
-
-      // 'single' (an isolated tile with no crumblingFloor neighbour on
-      // either side) gets its own frame, rounded on both edges — not the
-      // flat middle frame a run's interior tiles use.
-      const runPosition = horizontalRunPosition(level, col, row, isCrumblingFloorTile);
-      const frameIndex =
-        runPosition === 'left' ? 0 : runPosition === 'right' ? 2 : runPosition === 'single' ? 3 : 1;
-      const { sx: ledgeSx } = frameSource(CRUMBLE_FLOOR_SHEET, frameIndex);
-
-      if (phase === 'reforming') {
-        const ratio = crumblingFloorReformRatioFor(states, col, row);
-        if (ratio <= 0) continue;
-        const w = RENDERED_TILE_SIZE * ratio;
-        const h = RENDERED_TILE_SIZE * ratio;
-        const dx = destX + (RENDERED_TILE_SIZE - w) / 2;
-        ctx.drawImage(ledge, ledgeSx, 0, TILE_SIZE, TILE_SIZE, dx, destY, w, h);
-        continue;
-      }
-
-      // atRest or cracking.
-      const elapsedSeconds = phase === 'cracking' ? crumblingFloorElapsedFor(states, col, row) : 0;
-      const shakeX =
-        phase === 'cracking' ? crumblingFloorShakeOffsetXAt(elapsedSeconds) * RENDER_SCALE : 0;
-      ctx.drawImage(ledge, ledgeSx, 0, TILE_SIZE, TILE_SIZE, destX + shakeX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
-
-      if (phase === 'cracking' && cracks) {
-        const ratio = crumblingFloorCrackRatioFor(states, col, row);
-        const frameIndex = Math.min(2, Math.floor(ratio * 3));
-        const { sx, sy } = frameSource(CRUMBLE_CRACKS_SHEET, frameIndex);
-        const destHeight = (CRUMBLE_CRACKS_SHEET.frameHeight / TILE_SIZE) * RENDERED_TILE_SIZE;
-        ctx.drawImage(
-          cracks, sx, sy, CRUMBLE_CRACKS_SHEET.frameWidth, CRUMBLE_CRACKS_SHEET.frameHeight,
-          destX + shakeX, destY, RENDERED_TILE_SIZE, destHeight,
-        );
-      }
+      const rc: TileDrawContext = {
+        ctx,
+        level,
+        col,
+        row,
+        destX: x + dc.originX,
+        destY: y + dc.originY,
+        originX: dc.originX,
+        originY: dc.originY,
+        worldElapsed: 0,
+        images,
+        transient,
+      };
+      drawTileAt(rc, 'afterHazards');
     }
   }
 }

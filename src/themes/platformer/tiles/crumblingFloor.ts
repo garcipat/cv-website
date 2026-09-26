@@ -1,4 +1,4 @@
-import { clamp01 } from '../shared/math';
+﻿import { clamp01 } from '../shared/math';
 import {
   advanceTimedTiles,
   armTimedTile,
@@ -7,6 +7,19 @@ import {
   timedTileShakeOffsetX,
   type TimedTileConfig,
 } from '../shared/timedTile';
+import { RENDER_SCALE, RENDERED_TILE_SIZE, TILE_SIZE, horizontalRunPosition, tileAt } from '../level/Terrain';
+import type { LevelDef } from '../level/LevelData';
+import type { TileDrawContext, TileModule, TileRuleContext, TileSolidRegion, TileStateDescriptor } from './TileModule';
+
+/**
+ * `crumblingFloor` — the crack/break/reform ledge (`g`). This module owns the
+ * tile kind's whole shipped body (R-015 moved it here from
+ * `engine/CrumblingFloor.ts`): its cycle phases, durations, phase/offset
+ * helpers, its declared transient state (routed through `shared/timedTile.ts`),
+ * and its per-phase/inset `solidRegionAt` rule. Deliberately declares no plain
+ * `solid` flag — its solidity is entirely phase- and inset-aware. Fogged;
+ * drawn in the `afterHazards` band (the `draw` lands in US4/T037).
+ */
 
 /**
  * A crumbling floor tile's cycle phase (spec.md's Key Entities). Unlike
@@ -33,6 +46,23 @@ export const CRUMBLING_FLOOR_REFORM_SECONDS = 0.4;
  *  again and its timer entry is pruned (spec FR-010). */
 export const CRUMBLING_FLOOR_CYCLE_SECONDS =
   CRUMBLING_FLOOR_CRACK_SECONDS + CRUMBLING_FLOOR_BROKEN_SECONDS + CRUMBLING_FLOOR_REFORM_SECONDS;
+
+/**
+ * Height, in rendered px, of a crumbling floor tile's solid region (O-023):
+ * its art top-aligns within its cell and is only half a tile tall, and its
+ * collision matches that exactly rather than the full cell every other solid
+ * tile uses. This is the tile's "vertical hitbox inset" — the first one in
+ * this codebase; every existing inset (`hitboxInsetXForBlock`) is horizontal
+ * and block-only.
+ *
+ * Declared as the literal `16` rather than `RENDERED_TILE_SIZE / 2` on
+ * purpose: this module sits on the accepted `level/ ↔ tiles/` cycle, so
+ * reading `level/Terrain`'s const at module-evaluation time would be a TDZ
+ * error. `tiles/crumblingFloor.test.ts` pins the value against
+ * `RENDERED_TILE_SIZE / 2`, the codebase's "declare locally + test agreement"
+ * convention.
+ */
+export const CRUMBLING_FLOOR_SOLID_HEIGHT = 16;
 
 /** One crumbling floor tile's live timer, keyed by grid position. Presence
  *  in the states array means its cycle is running. */
@@ -187,3 +217,105 @@ const SHAKE_AMPLITUDE_NATIVE_PX = 1;
 export function crumblingFloorShakeOffsetXAt(elapsed: number): number {
   return timedTileShakeOffsetX(elapsed, SHAKE_AMPLITUDE_NATIVE_PX);
 }
+
+/** The crumbling floor's phase/inset-aware solidity, dispatched through the registry. */
+function solidRegionAt(
+  _level: LevelDef,
+  col: number,
+  row: number,
+  ctx: TileRuleContext,
+): TileSolidRegion | null {
+  if (isCrumblingFloorBroken(ctx.transient.crumblingFloorTimers, col, row)) return null;
+  return { top: 0, bottom: CRUMBLING_FLOOR_SOLID_HEIGHT };
+}
+
+// The two sheet frame geometries the merged pass needs, declared locally (a
+// `tiles/` module cannot import `entities/sprites/sheets`; the draw's output is
+// pinned by `engine/Renderer.test.ts`).
+const CRUMBLE_FLOOR_FRAME_WIDTH = 16;
+const CRUMBLE_CRACKS_FRAME_WIDTH = 16;
+const CRUMBLE_CRACKS_FRAME_HEIGHT = 8;
+
+/** Whether a cell is a crumbling floor tile — the run classifier's predicate. */
+function isCrumblingFloorTile(level: LevelDef, col: number, row: number): boolean {
+  return tileAt(level, col, row) === 'crumblingFloor';
+}
+
+/**
+ * Draws one crumbling floor cell at its current cycle phase (the moved
+ * `drawCrumblingFloors` body). `'broken'` draws nothing (the bare gap).
+ * `'atRest'`/`'cracking'` draw the full ledge, with the crack overlay's frame
+ * 0/1/2 composited on top once cracking starts (picked from the continuous
+ * crack ratio) plus a small horizontal shake jitter. `'reforming'` draws the
+ * ledge scaled from small to full, anchored to the cell's own top-center so it
+ * grows toward where its collision boundary already sits.
+ */
+function draw(rc: TileDrawContext): void {
+  const { ctx, level, col, row, destX, destY, images, transient } = rc;
+  const ledge = images.crumblingLedge;
+  if (!ledge) return;
+  const cracks = images.crumblingCracks;
+  const states = transient.crumblingFloorTimers;
+
+  const phase = crumblingFloorPhaseFor(states, col, row);
+  if (phase === 'broken') return;
+
+  // 'single' (an isolated tile with no crumblingFloor neighbour on either side)
+  // gets its own frame, rounded on both edges — not the flat middle frame a
+  // run's interior tiles use.
+  const runPosition = horizontalRunPosition(level, col, row, isCrumblingFloorTile);
+  const frameIndex =
+    runPosition === 'left' ? 0 : runPosition === 'right' ? 2 : runPosition === 'single' ? 3 : 1;
+  const ledgeSx = frameIndex * CRUMBLE_FLOOR_FRAME_WIDTH;
+
+  if (phase === 'reforming') {
+    const ratio = crumblingFloorReformRatioFor(states, col, row);
+    if (ratio <= 0) return;
+    const w = RENDERED_TILE_SIZE * ratio;
+    const h = RENDERED_TILE_SIZE * ratio;
+    const dx = destX + (RENDERED_TILE_SIZE - w) / 2;
+    ctx.drawImage(ledge, ledgeSx, 0, TILE_SIZE, TILE_SIZE, dx, destY, w, h);
+    return;
+  }
+
+  // atRest or cracking.
+  const elapsedSeconds = phase === 'cracking' ? crumblingFloorElapsedFor(states, col, row) : 0;
+  const shakeX =
+    phase === 'cracking' ? crumblingFloorShakeOffsetXAt(elapsedSeconds) * RENDER_SCALE : 0;
+  ctx.drawImage(ledge, ledgeSx, 0, TILE_SIZE, TILE_SIZE, destX + shakeX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+
+  if (phase === 'cracking' && cracks) {
+    const ratio = crumblingFloorCrackRatioFor(states, col, row);
+    const crackFrame = Math.min(2, Math.floor(ratio * 3));
+    const crackSx = crackFrame * CRUMBLE_CRACKS_FRAME_WIDTH;
+    const destHeight = (CRUMBLE_CRACKS_FRAME_HEIGHT / TILE_SIZE) * RENDERED_TILE_SIZE;
+    ctx.drawImage(
+      cracks, crackSx, 0, CRUMBLE_CRACKS_FRAME_WIDTH, CRUMBLE_CRACKS_FRAME_HEIGHT,
+      destX + shakeX, destY, RENDERED_TILE_SIZE, destHeight,
+    );
+  }
+}
+
+/**
+ * The crumbling floor's declared transient state (R-004 owns the lifecycle):
+ * key shape, the 2.8 s cycle duration, prune/re-arm policy and the phase
+ * mapping. The module never implements its own arm/advance/prune loop —
+ * `shared/timedTile.ts` does, driven from `PlatformerState.ts`'s single
+ * signal/tick/reset.
+ */
+const STATE: TileStateDescriptor = {
+  keyOf: (state) => ({ col: state.col, row: state.row }),
+  duration: CRUMBLING_FLOOR_CYCLE_SECONDS,
+  prune: true,
+  rearm: 'noop',
+  phaseOf: crumblingFloorPhaseAt,
+};
+
+export const crumblingFloorModule = {
+  char: 'g',
+  fogExempt: false,
+  drawBand: 'afterHazards',
+  solidRegionAt,
+  draw,
+  state: STATE,
+} as const satisfies TileModule;

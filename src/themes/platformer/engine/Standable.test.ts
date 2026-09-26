@@ -7,7 +7,7 @@ import {
   CRUMBLING_FLOOR_CRACK_SECONDS,
   CRUMBLING_FLOOR_BROKEN_SECONDS,
   type CrumblingFloorTimerState,
-} from './CrumblingFloor';
+} from '../tiles/crumblingFloor';
 
 const NO_BLOCKS = placeBlocks([], { crate: [], questionMark: [], fragileRock: [] });
 const NO_CRUMBLING: readonly CrumblingFloorTimerState[] = [];

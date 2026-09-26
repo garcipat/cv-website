@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fallingStalactite } from './FallingStalactite';
 import type { HazardPlacement } from '../../level/HazardMapper';
-import { isStalactiteTwin, stalactiteEntry, TWIN_LEFT_RECT, TWIN_RIGHT_RECT } from '../../engine/StaticObjectsCatalog';
+import { isStalactiteTwin, stalactiteEntry, TWIN_LEFT_RECT, TWIN_RIGHT_RECT } from '../../tiles/stalactite';
 import { DECORATIONS_SHEET } from '../sprites/sheets';
 import { RENDER_SCALE, RENDERED_TILE_SIZE, TILE_SIZE } from '../../level/Terrain';
 import { SIDE_HIT_DAMAGE } from '../Health';

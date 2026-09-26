@@ -1,4 +1,5 @@
-import { TERRAIN_CHARS, SIGN_CHAR, HAZARD_CHARS, type TileChar } from '../level/LevelParser';
+import { SIGN_CHAR, HAZARD_CHARS, type TileChar } from '../level/LevelParser';
+import { TERRAIN_CHARS } from '../tiles/registry';
 import { DEFAULT_HINT_ID } from '../level/HintCatalog';
 import type { LevelDef, MarkerGrid, TileMap } from '../level/LevelData';
 import { tileToPixel, RENDERED_TILE_SIZE } from '../level/Terrain';

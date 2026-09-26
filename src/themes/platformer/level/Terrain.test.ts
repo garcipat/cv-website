@@ -3,8 +3,7 @@ import {
   isSolid,
   isSolidExcludingBridge,
   isClimbable,
-  isStandableLadderTop,
-  isStandableMushroomCap,
+  isStandableTileAt,
   chainAttachment,
   chainRunLength,
   cobwebOrientation,
@@ -27,6 +26,12 @@ import {
 } from './Terrain';
 import { parseLevel } from './LevelParser';
 import type { LevelDef, MarkerEntry } from './LevelData';
+import type { TileRuleContext } from '../tiles/TileModule';
+
+/** Rule context for the one-way standability queries: no transient state. */
+const NO_TRANSIENT: TileRuleContext = {
+  transient: { crumblingFloorTimers: [], mushroomSquashes: [] },
+};
 
 const testLevel: LevelDef = {
   width: 3,
@@ -334,73 +339,73 @@ describe('isSolid/isClimbable torch exception', () => {
   });
 });
 
-describe('isStandableLadderTop', () => {
+describe('isStandableTileAt — ladder shaft top', () => {
   it('ladderWithOpenSpaceAbove-returnsTrue', () => {
     const level = parseLevel(['.', 'H', 'G']);
-    expect(isStandableLadderTop(level, 0, 1)).toBe(true);
+    expect(isStandableTileAt(level, 0, 1, NO_TRANSIENT)).toBe(true);
   });
 
   it('chainWithOpenSpaceAbove-returnsTrue-sameGeneralizationAsLadder', () => {
     const level = parseLevel(['.', 'I', 'G']);
-    expect(isStandableLadderTop(level, 0, 1)).toBe(true);
+    expect(isStandableTileAt(level, 0, 1, NO_TRANSIENT)).toBe(true);
   });
 
   it('ladderWithAnotherLadderAbove-returnsFalse-notTheTopRung', () => {
     const level = parseLevel(['H', 'H', 'G']);
-    expect(isStandableLadderTop(level, 0, 1)).toBe(false);
+    expect(isStandableTileAt(level, 0, 1, NO_TRANSIENT)).toBe(false);
   });
 
   it('ladderWithSolidTileAbove-returnsFalse-noRoomToStand', () => {
     const level = parseLevel(['G', 'H', 'G']);
-    expect(isStandableLadderTop(level, 0, 1)).toBe(false);
+    expect(isStandableTileAt(level, 0, 1, NO_TRANSIENT)).toBe(false);
   });
 
   it('nonLadderTile-returnsFalse-regardlessOfWhatsAbove', () => {
     const level = parseLevel(['.', 'G', 'G']);
-    expect(isStandableLadderTop(level, 0, 1)).toBe(false);
+    expect(isStandableTileAt(level, 0, 1, NO_TRANSIENT)).toBe(false);
   });
 });
 
-describe('isStandableMushroomCap', () => {
+describe('isStandableTileAt — bouncy mushroom cap', () => {
   it('loneMushroomWithOpenSkyAbove-returnsTrue', () => {
     const level = parseLevel(['§', 'G']);
-    expect(isStandableMushroomCap(level, 0, 0)).toBe(true);
+    expect(isStandableTileAt(level, 0, 0, NO_TRANSIENT)).toBe(true);
   });
 
   it('topCellOfARunWithOpenSkyAbove-returnsTrue', () => {
     const level = parseLevel(['§', '§', 'G']);
-    expect(isStandableMushroomCap(level, 0, 0)).toBe(true);
+    expect(isStandableTileAt(level, 0, 0, NO_TRANSIENT)).toBe(true);
   });
 
   it('mushroomWithSolidTileAbove-returnsFalse-noRoomToLand', () => {
     const level = parseLevel(['G', '§', 'G']);
-    expect(isStandableMushroomCap(level, 0, 1)).toBe(false);
+    expect(isStandableTileAt(level, 0, 1, NO_TRANSIENT)).toBe(false);
   });
 
   it('middleCellOfARun-returnsFalse', () => {
     const level = parseLevel(['§', '§', '§']);
-    expect(isStandableMushroomCap(level, 0, 1)).toBe(false);
+    expect(isStandableTileAt(level, 0, 1, NO_TRANSIENT)).toBe(false);
   });
 
   it('bottomCellOfARun-returnsFalse', () => {
     const level = parseLevel(['§', '§', '§']);
-    expect(isStandableMushroomCap(level, 0, 2)).toBe(false);
+    expect(isStandableTileAt(level, 0, 2, NO_TRANSIENT)).toBe(false);
   });
 
   it('capInTheTopRow-outOfBoundsAboveIsOpen-returnsTrue', () => {
     const level = parseLevel(['§']);
-    expect(isStandableMushroomCap(level, 0, 0)).toBe(true);
+    expect(isStandableTileAt(level, 0, 0, NO_TRANSIENT)).toBe(true);
   });
 
   it('decorativeMushroom-returnsFalse', () => {
     const level = parseLevel(['s', 'G']);
-    expect(isStandableMushroomCap(level, 0, 0)).toBe(false);
+    expect(isStandableTileAt(level, 0, 0, NO_TRANSIENT)).toBe(false);
   });
 
   it('emptyAndGroundGrass-returnFalse', () => {
     const level = parseLevel(['.', 'G']);
-    expect(isStandableMushroomCap(level, 0, 0)).toBe(false);
-    expect(isStandableMushroomCap(level, 0, 1)).toBe(false);
+    expect(isStandableTileAt(level, 0, 0, NO_TRANSIENT)).toBe(false);
+    expect(isStandableTileAt(level, 0, 1, NO_TRANSIENT)).toBe(false);
   });
 });
 

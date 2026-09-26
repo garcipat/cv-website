@@ -3,13 +3,12 @@ import type { Pickup } from '../../contracts/Pickup';
 import { BOMB_SHEET } from '../sprites/sheets';
 import { frameSource } from '../sprites/SpriteSheet';
 import { coinBobOffset } from '../pickups/Coin';
-import { isSolid, tileAt, tileToPixel, RENDERED_TILE_SIZE } from '../../level/Terrain';
+import { tileSolidRegionAt, tileToPixel, RENDERED_TILE_SIZE } from '../../level/Terrain';
 import type { LevelDef } from '../../level/LevelData';
 import { isBlockOccupied } from '../../level/BlockMapper';
 import type { BlockPlacement } from '../../level/BlockMapper';
 import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
-import { isCrumblingFloorBroken } from '../../engine/CrumblingFloor';
-import type { CrumblingFloorTimerState } from '../../engine/CrumblingFloor';
+import type { CrumblingFloorTimerState } from '../../tiles/crumblingFloor';
 import { findLandingRow } from '../../engine/Standable';
 import type { DrawContext } from '../../contracts/DrawContext';
 import type {
@@ -85,11 +84,11 @@ export const BOMB_FUSE_SECONDS = BOMB_BURN_SECONDS + BOMB_PULSE_SECONDS;
  * row (i.e. the resting row, which equals `row` when the cell directly below
  * is solid), or `null` when the column has no floor before the level's bottom.
  *
- * "Solid for a bomb" is `isSolid(tileAt(...)) || isBlockOccupied(...)`, with
- * one exception: a crumbling floor tile counts as solid too, as long as it
+ * "Solid for a bomb" is the registry's `tileSolidRegionAt` (a plain solid,
+ * including `bridge`, resolves to a full-cell region) `|| isBlockOccupied(...)`,
+ * with one nuance: a crumbling floor tile counts as solid too, as long as it
  * isn't currently broken/reforming — a bomb rests on it exactly like ordinary
- * ground while it's there. `isSolid` includes `bridge`, so a bridge stops a
- * bomb; `ladder` is not solid and `isStandableLadderTop` is deliberately not
+ * ground while it's there. A `ladder` is not solid and no one-way term is
  * consulted, so a ladder tile is open air. Never throws — `tileAt` resolves
  * out-of-bounds reads to `'empty'`.
  */
@@ -100,10 +99,9 @@ export function bombLandingRow(
   row: number,
   crumblingFloorStates: readonly CrumblingFloorTimerState[] = NO_CRUMBLING_FLOOR_STATES,
 ): number | null {
+  const transient = { crumblingFloorTimers: crumblingFloorStates, mushroomSquashes: [] };
   const landing = findLandingRow(level, col, row, (l, c, r) => {
-    const tile = tileAt(l, c, r);
-    const tileIsGround =
-      tile === 'crumblingFloor' ? !isCrumblingFloorBroken(crumblingFloorStates, c, r) : isSolid(tile);
+    const tileIsGround = tileSolidRegionAt(l, c, r, { transient }) !== null;
     return tileIsGround || isBlockOccupied(blocks, c, r);
   });
   return landing === null ? null : landing - 1;
