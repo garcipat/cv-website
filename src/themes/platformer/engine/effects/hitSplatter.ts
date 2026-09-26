@@ -173,7 +173,7 @@ export function hitSplatterDroplets(
 
 const HIT_SPLATTER_DROPLET_SIZE_PX = 4;
 
-/** The splatter family's registered draw — the former Renderer.ts
+/** The splatter family's registered draw — the former scene renderer
  *  `drawHitSplatterEffects` body. Screen-space, fixed per-effect x/y. */
 export function drawHitSplatterEffect(
   effect: TransientEffect<HitSplatterState>,

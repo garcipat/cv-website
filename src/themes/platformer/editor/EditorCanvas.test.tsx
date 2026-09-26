@@ -17,7 +17,7 @@ import type { EditorImages } from './EditorCanvas';
 import { COIN_SHEET, STATIC_OBJECTS_SHEET, SPEAR_SHEET, BEE_SHEET } from '../entities/sprites/sheets';
 import { PALETTE_TILE_SPRITES } from './paletteTiles';
 
-vi.mock('../engine/Renderer', () => ({
+vi.mock('../engine/render/SceneRenderer', () => ({
   drawTerrain: vi.fn(),
   drawPlayer: vi.fn(),
   drawPickups: vi.fn(),
@@ -47,7 +47,7 @@ import {
   drawDarkness,
   drawEnemyEyes,
   drawHeldTorch,
-} from '../engine/Renderer';
+} from '../engine/render/SceneRenderer';
 import { EDITOR_PREVIEW_DARKNESS } from './caveLightingPreview';
 
 const EMPTY_IMAGES: EditorImages = {
@@ -2192,7 +2192,7 @@ describe('EditorCanvas — scaling the shared renderer', () => {
     const player = {} as HTMLImageElement;
     const backgroundAtlas = {} as HTMLImageElement;
     const { drawTerrain, drawBackgroundTiles: drawBackgroundTilesFn, drawPlayer: drawPlayerFn } =
-      await import('../engine/Renderer');
+      await import('../engine/render/SceneRenderer');
 
     render(
       <EditorCanvas
@@ -2261,7 +2261,7 @@ describe('EditorCanvas — scaling the shared renderer', () => {
 
   it('scalesBy1AndDividesOriginBy1WhenZoomIsOmitted-todaysFramesAreByte-for-byteUnchanged', async () => {
     const ctx = stubCanvasContext() as unknown as { scale: ReturnType<typeof vi.fn> };
-    const { drawTerrain } = await import('../engine/Renderer');
+    const { drawTerrain } = await import('../engine/render/SceneRenderer');
     render(
       <EditorCanvas
         {...BACKGROUND_LAYER_DEFAULT_PROPS}

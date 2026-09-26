@@ -1,61 +1,52 @@
 import {
   drawTerrain,
   drawPlayer,
-  drawHearts,
   drawPickups,
   drawEnemies,
   drawBlocks,
   drawDeployableItems,
-  drawCollectibleCounter,
-  drawChestCounter,
-  drawIrisOverlay,
-  drawRestartPrompt,
   drawSigns,
   drawHazards,
-  drawKeyCounter,
-  drawBombCounter,
-  keyCounterX,
-  bombCounterX,
-  KEY_COUNTER_Y,
-  HEARTS_START_X,
-  CHEST_COUNTER_TEXT_GAP,
-  CHEST_COUNTER_ICON_HEIGHT,
   drawWaterForeground,
   drawBackgroundTiles,
   drawFog,
-  drawLowHealthGlow,
-  lowHealthGlowAlpha,
-  LOW_HEALTH_GLOW_WIDTH_PX,
-  LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS,
   drawCheckpoints,
   drawDarkness,
   drawEnemyEyes,
   drawHeldTorch,
   drawTintedSprite,
+  drawCrumblingFloors,
+  drawCheckpointTwinkles,
   CROUCH_HIT_TINT,
-} from './Renderer';
-import { RESTART_PROMPT_FONT_FAMILY } from './textDraw';
-import type { LevelDef } from '../level/LevelData';
-import { backgroundAtlasCell } from './BackgroundAtlas';
-import { parseLevel } from '../level/LevelParser';
-import type { SignPlacement } from '../level/SignMapper';
-import type { PlayerState } from '../entities/Player';
-import { PLAYER_RENDERED_SIZE, PLAYER_FRAME_SIZE, PLAYER_FOOT_PADDING, PLAYER_HIT_REACTION_SECONDS, PLAYER_LIGHT_RADIUS_PX } from '../entities/Player';
-import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../entities/Health';
-import type { CollectiblePlacement } from '../level/CollectibleMapper';
-import type { BlockPlacement } from '../level/BlockMapper';
-import { toBlockState, blockFrameSource } from '../entities/Block';
-import type { BlockState } from '../entities/Block';
-import { blockBumpOffsetY } from './BlockAI';
-import { crateShatterOpacity } from '../entities/blocks/Crate';
-import { spawnFruit, fruitY } from '../entities/pickups/Fruit';
-import type { EnemyState } from '../entities/Enemy';
-import { fruitFrameSource, FRUIT_FRAME_SIZE, FRUIT_RENDERED_SIZE } from '../entities/pickups/Fruit';
+} from './SceneRenderer';
+import type { LevelDef } from '../../level/LevelData';
+import { backgroundAtlasCell } from '../BackgroundAtlas';
+import { parseLevel } from '../../level/LevelParser';
+import type { SignPlacement } from '../../level/SignMapper';
+import type { PlayerState } from '../../entities/Player';
+import {
+  PLAYER_RENDERED_SIZE,
+  PLAYER_FRAME_SIZE,
+  PLAYER_FOOT_PADDING,
+  PLAYER_HIT_REACTION_SECONDS,
+  PLAYER_LIGHT_RADIUS_PX,
+} from '../../entities/Player';
+import { toBlockState, blockFrameSource } from '../../entities/Block';
+import type { BlockState } from '../../entities/Block';
+import { blockBumpOffsetY } from '../BlockAI';
+import { crateShatterOpacity } from '../../entities/blocks/Crate';
+import { spawnFruit, fruitY } from '../../entities/pickups/Fruit';
+import type { EnemyState } from '../../entities/Enemy';
+import {
+  fruitFrameSource,
+  FRUIT_FRAME_SIZE,
+  FRUIT_RENDERED_SIZE,
+} from '../../entities/pickups/Fruit';
 import {
   ENEMY_RENDERED_SIZE,
   ENEMY_TILE_OFFSET_X,
   ENEMY_TILE_OFFSET_Y,
-} from '../entities/Enemy';
+} from '../../entities/Enemy';
 import {
   KEY_FRAME_WIDTH,
   KEY_FRAME_HEIGHT,
@@ -64,19 +55,24 @@ import {
   KEY_TILE_OFFSET_X,
   KEY_TILE_OFFSET_Y,
   spawnKeyPickup,
-} from '../entities/pickups/Key';
-import type { KeyPickupState } from '../entities/pickups/Key';
-import { spawnHeartPickup, HEART_PICKUP_RENDERED_SIZE, HEART_PICKUP_TILE_OFFSET_X, HEART_PICKUP_TILE_OFFSET_Y } from '../entities/pickups/Heart';
-import type { HeartPickupState } from '../entities/pickups/Heart';
+} from '../../entities/pickups/Key';
+import type { KeyPickupState } from '../../entities/pickups/Key';
+import {
+  spawnHeartPickup,
+  HEART_PICKUP_RENDERED_SIZE,
+  HEART_PICKUP_TILE_OFFSET_X,
+  HEART_PICKUP_TILE_OFFSET_Y,
+} from '../../entities/pickups/Heart';
+import type { HeartPickupState } from '../../entities/pickups/Heart';
 import {
   spawnBombPickup,
   BOMB_PICKUP_RENDERED_SIZE,
   BOMB_PICKUP_TILE_OFFSET_X,
   BOMB_PICKUP_TILE_OFFSET_Y,
   bombDeployableItem,
-} from '../entities/deployableItems/Bomb';
-import type { BombPickupState } from '../entities/deployableItems/Bomb';
-import { createRopeLadderState } from '../entities/deployableItems/RopeLadder';
+} from '../../entities/deployableItems/Bomb';
+import type { BombPickupState } from '../../entities/deployableItems/Bomb';
+import { createRopeLadderState } from '../../entities/deployableItems/RopeLadder';
 import {
   SLIME_GREEN_SHEET,
   SLIME_PURPLE_SHEET,
@@ -91,13 +87,14 @@ import {
   EXPLOSION_SHEET,
   DECORATIONS_SHEET,
   ROPE_LADDER_SHEET,
-} from '../entities/sprites/sheets';
-import { isStalactiteTwin, stalactiteEntry } from '../tiles/stalactite';
-import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
-import type { PotRenderPlan } from '../entities/blocks/potTypes';
-import type { DrawContext } from '../contracts/DrawContext';
-import { TORCH_LIGHT_RADIUS_PX } from '../tiles/torch';
-import type { LightSource } from '../contracts/lighting';
+  CRUMBLE_FLOOR_SHEET,
+} from '../../entities/sprites/sheets';
+import { isStalactiteTwin, stalactiteEntry } from '../../tiles/stalactite';
+import { computePotRenderPlan } from '../../entities/blocks/potRenderPlan';
+import type { PotRenderPlan } from '../../entities/blocks/potTypes';
+import type { DrawContext } from '../../contracts/DrawContext';
+import { TORCH_LIGHT_RADIUS_PX } from '../../tiles/torch';
+import type { LightSource } from '../../contracts/lighting';
 import {
   MAX_DARKNESS,
   ENEMY_EYE_COLOR,
@@ -112,20 +109,13 @@ import {
   fogPuffAt,
   fogPeekStrengthAt,
   FOG_PEEK_RADIUS_PX,
-} from './Lighting';
-
-const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
-import { RENDERED_TILE_SIZE } from '../level/Terrain';
-import {
-  CHEST_CLOSED_WIDTH,
-  CHEST_CLOSED_HEIGHT,
-} from '../entities/chests';
-import { toChestState } from '../entities/chests';
-import type { ChestState } from '../entities/chests';
-import type { ChestPlacement } from '../level/ChestMapper';
-import { CHEST_CLOSED_SHEET, CHEST_OPEN_SHEET, SPEAR_SHEET } from '../entities/sprites/sheets';
-import { spike } from '../entities/hazards/Spike';
-import type { HazardPlacement } from '../level/HazardMapper';
+} from '../Lighting';
+import { RENDERED_TILE_SIZE } from '../../level/Terrain';
+import { toChestState } from '../../entities/chests';
+import type { ChestState } from '../../entities/chests';
+import { CHEST_CLOSED_SHEET, CHEST_OPEN_SHEET, SPEAR_SHEET } from '../../entities/sprites/sheets';
+import { spike } from '../../entities/hazards/Spike';
+import type { HazardPlacement } from '../../level/HazardMapper';
 import {
   toCheckpointState,
   activateCheckpoint,
@@ -134,74 +124,19 @@ import {
   CHECKPOINT_RENDERED_WIDTH,
   CHECKPOINT_RENDERED_HEIGHT,
   CHECKPOINT_RAISE_DURATION_SECONDS,
-} from '../entities/Checkpoint';
-import type { CheckpointState } from '../entities/Checkpoint';
+} from '../../entities/Checkpoint';
+import type { CheckpointState } from '../../entities/Checkpoint';
+import {
+  makeMockContext,
+  makeCoinPlacement,
+  makeBlockPlacement,
+  makeChestPlacement,
+} from './renderTestContext';
 
-function makeMockContext() {
-  return {
-    imageSmoothingEnabled: true,
-    fillStyle: '',
-    font: '',
-    textAlign: '',
-    textBaseline: '',
-    drawImage: vi.fn(),
-    save: vi.fn(),
-    translate: vi.fn(),
-    scale: vi.fn(),
-    rotate: vi.fn(),
-    restore: vi.fn(),
-    beginPath: vi.fn(),
-    rect: vi.fn(),
-    roundRect: vi.fn(),
-    moveTo: vi.fn(),
-    arc: vi.fn(),
-    fill: vi.fn(),
-    fillText: vi.fn(),
-    measureText: vi.fn(() => ({ width: 10 })),
-    fillRect: vi.fn(),
-    lineTo: vi.fn(),
-    closePath: vi.fn(),
-    stroke: vi.fn(),
-    strokeStyle: '',
-    lineWidth: 1,
-    globalAlpha: 1,
-    createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
-    createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
-  } as unknown as CanvasRenderingContext2D;
-}
+const ENEMY_FRAME_SIZE = SLIME_GREEN_SHEET.frameWidth;
 
 const fakeTileset = {} as HTMLImageElement;
 const fakeGroundAtlas = {} as HTMLImageElement;
-
-function makeCoinPlacement(id = 'coin-1', x = 100, y = 100): CollectiblePlacement {
-  return { id, kind: 'coin', x, y, collected: false };
-}
-
-function makeBlockPlacement(
-  id: string,
-  blockKind: 'crate' | 'questionMark' | 'fragileRock' | 'coinPot' | 'potionPot' | 'bombPot',
-  x: number,
-  y: number,
-): BlockPlacement {
-  return { id, blockKind, x, y };
-}
-
-function makeChestPlacement(id = 'c1', x = 10, y = 20, col = 0, row = 0): ChestPlacement {
-  return {
-    id,
-    col,
-    row,
-    x,
-    y,
-    fact: {
-      id,
-      sectionId: 'experience',
-      sectionLabel: 'Experience',
-      data: { company: 'X', role: 'Y', startDate: '2020-01', highlights: [] },
-      sourceType: 'chest',
-    },
-  };
-}
 
 describe('drawPickups — coin', () => {
   it('coinPlacements-drawFromTheCoinSheet', () => {
@@ -331,7 +266,10 @@ describe('drawEnemies', () => {
   it('greenAndPurple-drawEachFromItsOwnSprite', () => {
     const ctx = makeMockCtx() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
-    const enemies = [makeGreenEnemy({ id: 'a', x: 100, y: 100 }), makePurpleEnemy({ id: 'b', x: 300, y: 300 })];
+    const enemies = [
+      makeGreenEnemy({ id: 'a', x: 100, y: 100 }),
+      makePurpleEnemy({ id: 'b', x: 300, y: 300 }),
+    ];
 
     drawEnemies(ctx as unknown as CanvasRenderingContext2D, enemies, dc);
 
@@ -344,7 +282,10 @@ describe('drawEnemies', () => {
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
       sprites: { [SLIME_PURPLE_SHEET.src]: { tag: 'purple' } as unknown as HTMLImageElement },
     });
-    const enemies = [makeGreenEnemy({ id: 'a', x: 100, y: 100 }), makePurpleEnemy({ id: 'b', x: 300, y: 300 })];
+    const enemies = [
+      makeGreenEnemy({ id: 'a', x: 100, y: 100 }),
+      makePurpleEnemy({ id: 'b', x: 300, y: 300 }),
+    ];
 
     drawEnemies(ctx as unknown as CanvasRenderingContext2D, enemies, dc);
 
@@ -384,7 +325,11 @@ describe('drawEnemies', () => {
       originY: 20,
     });
 
-    drawEnemies(ctx as unknown as CanvasRenderingContext2D, [makeGreenEnemy({ id: 'a', x: 100, y: 100 })], dc);
+    drawEnemies(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makeGreenEnemy({ id: 'a', x: 100, y: 100 })],
+      dc,
+    );
 
     const call = ctx.drawImage.mock.calls[0];
     expect(call[5]).toBe(100 + ENEMY_TILE_OFFSET_X + 50);
@@ -421,7 +366,11 @@ describe('drawEnemies', () => {
     const ctx = makeMockCtx() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
 
-    drawEnemies(ctx as unknown as CanvasRenderingContext2D, [makePurpleEnemy({ id: 'a', x: 100, y: 100 })], dc);
+    drawEnemies(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makePurpleEnemy({ id: 'a', x: 100, y: 100 })],
+      dc,
+    );
 
     const calls = ctx.drawImage.mock.calls;
     expect(calls.some((c: unknown[]) => c[0] === dc.sprites[KEY_SHEET.src])).toBe(true);
@@ -440,9 +389,15 @@ describe('drawEnemies', () => {
       },
     });
 
-    drawEnemies(ctx as unknown as CanvasRenderingContext2D, [makeGreenEnemy({ id: 'a', x: 100, y: 100 })], dc);
+    drawEnemies(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makeGreenEnemy({ id: 'a', x: 100, y: 100 })],
+      dc,
+    );
 
-    expect(ctx.drawImage.mock.calls.some((c: unknown[]) => c[0] === dc.sprites[KEY_SHEET.src])).toBe(false);
+    expect(
+      ctx.drawImage.mock.calls.some((c: unknown[]) => c[0] === dc.sprites[KEY_SHEET.src]),
+    ).toBe(false);
   });
 
   it('noKeySpriteProvided-purpleSlimeDrawsWithNoKeyUnderneath', () => {
@@ -451,7 +406,11 @@ describe('drawEnemies', () => {
       sprites: { [SLIME_PURPLE_SHEET.src]: { tag: 'purple' } as unknown as HTMLImageElement },
     });
 
-    drawEnemies(ctx as unknown as CanvasRenderingContext2D, [makePurpleEnemy({ id: 'a', x: 100, y: 100 })], dc);
+    drawEnemies(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makePurpleEnemy({ id: 'a', x: 100, y: 100 })],
+      dc,
+    );
 
     expect(ctx.drawImage.mock.calls).toHaveLength(1);
     expect(ctx.drawImage.mock.calls[0][0]).toBe(dc.sprites[SLIME_PURPLE_SHEET.src]);
@@ -466,7 +425,11 @@ describe('drawEnemies', () => {
       sprites: { [KEY_SHEET.src]: { tag: 'key' } as unknown as HTMLImageElement },
     });
 
-    drawEnemies(ctx as unknown as CanvasRenderingContext2D, [makePurpleEnemy({ id: 'a', x: 100, y: 100 })], dc);
+    drawEnemies(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makePurpleEnemy({ id: 'a', x: 100, y: 100 })],
+      dc,
+    );
 
     expect(ctx.drawImage.mock.calls).toHaveLength(0);
   });
@@ -484,22 +447,42 @@ describe('drawEnemies with type-owned rendering', () => {
     const ctx = makeMockCtx();
     const dc = makeDrawContext(ctx);
     drawEnemies(ctx, [makeGreenEnemy(), makePurpleEnemy()], dc);
-    expect(drawImageCallsFor(ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }, dc.sprites[SLIME_GREEN_SHEET.src])).toHaveLength(1);
-    expect(drawImageCallsFor(ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }, dc.sprites[SLIME_PURPLE_SHEET.src])).toHaveLength(1);
+    expect(
+      drawImageCallsFor(
+        ctx as unknown as { drawImage: ReturnType<typeof vi.fn> },
+        dc.sprites[SLIME_GREEN_SHEET.src],
+      ),
+    ).toHaveLength(1);
+    expect(
+      drawImageCallsFor(
+        ctx as unknown as { drawImage: ReturnType<typeof vi.fn> },
+        dc.sprites[SLIME_PURPLE_SHEET.src],
+      ),
+    ).toHaveLength(1);
   });
 
   it('purpleThatAlreadyGaveItsReward-drawsNoHeldKey', () => {
     const ctx = makeMockCtx();
     const dc = makeDrawContext(ctx);
     drawEnemies(ctx, [makePurpleEnemy({ rewardGiven: true })], dc);
-    expect(drawImageCallsFor(ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }, dc.sprites[KEY_SHEET.src])).toHaveLength(0);
+    expect(
+      drawImageCallsFor(
+        ctx as unknown as { drawImage: ReturnType<typeof vi.fn> },
+        dc.sprites[KEY_SHEET.src],
+      ),
+    ).toHaveLength(0);
   });
 
   it('purpleThatHasNotGivenItsReward-drawsAHeldKey', () => {
     const ctx = makeMockCtx();
     const dc = makeDrawContext(ctx);
     drawEnemies(ctx, [makePurpleEnemy({ rewardGiven: false })], dc);
-    expect(drawImageCallsFor(ctx as unknown as { drawImage: ReturnType<typeof vi.fn> }, dc.sprites[KEY_SHEET.src]).length).toBeGreaterThan(0);
+    expect(
+      drawImageCallsFor(
+        ctx as unknown as { drawImage: ReturnType<typeof vi.fn> },
+        dc.sprites[KEY_SHEET.src],
+      ).length,
+    ).toBeGreaterThan(0);
   });
 });
 
@@ -532,12 +515,25 @@ describe('drawBlocks', () => {
 
   it('originXOriginY-shiftsEveryBlockByTheSameAmount', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { originX: -50, originY: 20 });
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      originX: -50,
+      originY: 20,
+    });
     const states = [makeBlock('crate')];
 
     drawBlocks(ctx as unknown as CanvasRenderingContext2D, states, dc);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(dc.sprites[WORLD_TILESET_SHEET.src], 112, 48, 16, 16, -50, 20, 32, 32);
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      dc.sprites[WORLD_TILESET_SHEET.src],
+      112,
+      48,
+      16,
+      16,
+      -50,
+      20,
+      32,
+      32,
+    );
   });
 
   it('noPlacements-drawsNothing', () => {
@@ -558,7 +554,17 @@ describe('drawBlocks with hit state', () => {
 
     const calls = ctx.drawImage.mock.calls;
     expect(calls).toHaveLength(2);
-    expect(calls[0]).toEqual([dc.sprites[WORLD_TILESET_SHEET.src], 112, 48, 16, 16, 40, 60, 32, 32]);
+    expect(calls[0]).toEqual([
+      dc.sprites[WORLD_TILESET_SHEET.src],
+      112,
+      48,
+      16,
+      16,
+      40,
+      60,
+      32,
+      32,
+    ]);
     expect(calls[1]).toEqual([dc.sprites[CRACK_OVERLAY_SHEET.src], 0, 0, 16, 16, 40, 60, 32, 32]);
   });
 
@@ -575,7 +581,9 @@ describe('drawBlocks with hit state', () => {
   it('crateWithOneHitAndNullCrackOverlaySprite-drawsOnlyBaseTile', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
-      sprites: { [WORLD_TILESET_SHEET.src]: { tag: 'worldTileset' } as unknown as HTMLImageElement },
+      sprites: {
+        [WORLD_TILESET_SHEET.src]: { tag: 'worldTileset' } as unknown as HTMLImageElement,
+      },
     });
     const state = makeBlock('crate', { hitsTaken: 1 });
 
@@ -592,13 +600,26 @@ describe('drawBlocks with hit state', () => {
 
     drawBlocks(ctx as unknown as CanvasRenderingContext2D, [state], dc);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(dc.sprites[WORLD_TILESET_SHEET.src], sx, sy, 16, 16, 0, 0, 32, 32);
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      dc.sprites[WORLD_TILESET_SHEET.src],
+      sx,
+      sy,
+      16,
+      16,
+      0,
+      0,
+      32,
+      32,
+    );
   });
 
   it('bumpingBlock-offsetsDestinationYByBlockBumpOffsetY', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
-    const state = { ...makeBlock('fragileRock', { animState: 'bump' as const, animTimer: 0.05 }), y: 100 };
+    const state = {
+      ...makeBlock('fragileRock', { animState: 'bump' as const, animTimer: 0.05 }),
+      y: 100,
+    };
     const expectedOffset = blockBumpOffsetY(state);
     expect(expectedOffset).not.toBe(0);
 
@@ -614,7 +635,11 @@ describe('drawBlocks with hit state', () => {
       globalAlpha: number;
     };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
-    const state = makeBlock('crate', { hitsTaken: 2, animState: 'shatter' as const, animTimer: 0.1 });
+    const state = makeBlock('crate', {
+      hitsTaken: 2,
+      animState: 'shatter' as const,
+      animTimer: 0.1,
+    });
     const expectedOpacity = crateShatterOpacity(state);
     expect(expectedOpacity).toBeGreaterThan(0);
     expect(expectedOpacity).toBeLessThan(1);
@@ -636,21 +661,33 @@ describe('block drawing delegates to the type modules', () => {
   it('everyBlockKind-drawsFromTheSharedTileset', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [makeBlock('crate'), makeBlock('questionMark'), makeBlock('fragileRock')], dc);
+    drawBlocks(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makeBlock('crate'), makeBlock('questionMark'), makeBlock('fragileRock')],
+      dc,
+    );
     expect(drawImageCallsFor(ctx, dc.sprites[WORLD_TILESET_SHEET.src])).toHaveLength(3);
   });
 
   it('crateOnItsFirstHit-alsoDrawsTheCrackOverlay', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [makeBlock('crate', { hitsTaken: 1 })], dc);
+    drawBlocks(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makeBlock('crate', { hitsTaken: 1 })],
+      dc,
+    );
     expect(drawImageCallsFor(ctx, dc.sprites[CRACK_OVERLAY_SHEET.src])).toHaveLength(1);
   });
 
   it('intactCrate-drawsNoCrackOverlay', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [makeBlock('crate', { hitsTaken: 0 })], dc);
+    drawBlocks(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makeBlock('crate', { hitsTaken: 0 })],
+      dc,
+    );
     expect(drawImageCallsFor(ctx, dc.sprites[CRACK_OVERLAY_SHEET.src])).toHaveLength(0);
   });
 
@@ -672,7 +709,10 @@ describe('drawBlocks with a pot render plan', () => {
     const potion = { ...makeBlock('potionPot'), x: RENDERED_TILE_SIZE };
     const plan = computePotRenderPlan([coin, potion]);
 
-    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [coin, potion], { ...dc, potPlan: plan });
+    drawBlocks(ctx as unknown as CanvasRenderingContext2D, [coin, potion], {
+      ...dc,
+      potPlan: plan,
+    });
 
     // Only the run's owner (the coin pot) draws: one clay base + one clay
     // filler from staticObjects.png, and the bottle once from the shared
@@ -701,7 +741,12 @@ describe('drawDeployableItems', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
 
-    drawDeployableItems(ctx as unknown as CanvasRenderingContext2D, [ladder, bomb, chest], dc, 'terrain');
+    drawDeployableItems(
+      ctx as unknown as CanvasRenderingContext2D,
+      [ladder, bomb, chest],
+      dc,
+      'terrain',
+    );
 
     expect(drawImageCallsFor(ctx, dc.sprites[ROPE_LADDER_SHEET.src]).length).toBeGreaterThan(0);
     expect(drawImageCallsFor(ctx, dc.sprites[BOMB_SHEET.src])).toHaveLength(0);
@@ -712,7 +757,12 @@ describe('drawDeployableItems', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
 
-    drawDeployableItems(ctx as unknown as CanvasRenderingContext2D, [ladder, bomb, chest], dc, 'afterBlocks');
+    drawDeployableItems(
+      ctx as unknown as CanvasRenderingContext2D,
+      [ladder, bomb, chest],
+      dc,
+      'afterBlocks',
+    );
 
     expect(drawImageCallsFor(ctx, dc.sprites[BOMB_SHEET.src]).length).toBeGreaterThan(0);
     expect(drawImageCallsFor(ctx, dc.sprites[ROPE_LADDER_SHEET.src])).toHaveLength(0);
@@ -751,37 +801,6 @@ describe('drawDeployableItems', () => {
     const dc = makeDrawContext(ctx);
     drawDeployableItems(ctx, [], dc);
     expect(ctx.drawImage).not.toHaveBeenCalled();
-  });
-});
-
-describe('drawChestCounter', () => {
-  it('called-drawsIconAndCollectedOverTotalText', () => {
-    const ctx = makeMockContext() as unknown as {
-      drawImage: ReturnType<typeof vi.fn>;
-      fillText: ReturnType<typeof vi.fn>;
-      font: string;
-    };
-    const sprite = {} as HTMLImageElement;
-
-    drawChestCounter(ctx as unknown as CanvasRenderingContext2D, sprite, 2, 5, 100, 50);
-
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      sprite,
-      0,
-      0,
-      CHEST_CLOSED_WIDTH,
-      CHEST_CLOSED_HEIGHT,
-      expect.any(Number),
-      expect.any(Number),
-      expect.any(Number),
-      expect.any(Number),
-    );
-    const expectedIconWidth = (CHEST_CLOSED_WIDTH / CHEST_CLOSED_HEIGHT) * CHEST_COUNTER_ICON_HEIGHT;
-    expect(ctx.fillText).toHaveBeenCalledWith(
-      '2 / 5',
-      100 + expectedIconWidth + CHEST_COUNTER_TEXT_GAP,
-      50,
-    );
   });
 });
 
@@ -849,7 +868,10 @@ describe('drawPickups — fruit band', () => {
 
   it('withOrigin-shiftsEveryFruitByTheSameAmount', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { originX: 50, originY: 20 });
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      originX: 50,
+      originY: 20,
+    });
     const fruit = spawnFruit('bf1', 0, 100, undefined, 0);
 
     drawPickups(ctx as unknown as CanvasRenderingContext2D, { fruit: [fruit] }, dc);
@@ -883,63 +905,6 @@ describe('drawPickups — fruit band', () => {
   });
 });
 
-
-
-
-
-describe('lowHealthGlowAlpha', () => {
-  it('atPulsePeak-returnsBasePlusFullPulse', () => {
-    const peakT = LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS / 4; // sin(2π·0.25) = 1
-    expect(lowHealthGlowAlpha(peakT)).toBeCloseTo(0.25 + 0.45);
-  });
-
-  it('atPulseTrough-returnsBaseAlphaOnly', () => {
-    const troughT = (LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS * 3) / 4; // sin(2π·0.75) = -1
-    expect(lowHealthGlowAlpha(troughT)).toBeCloseTo(0.25);
-  });
-});
-
-describe('drawLowHealthGlow', () => {
-  it('anyElapsed-drawsFourEdgeFillRects', () => {
-    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
-    drawLowHealthGlow(ctx as unknown as CanvasRenderingContext2D, 800, 600, 0);
-    expect(ctx.fillRect).toHaveBeenCalledTimes(4);
-  });
-
-  it('anyElapsed-callsCreateLinearGradientFourTimes', () => {
-    const ctx = makeMockContext() as unknown as { createLinearGradient: ReturnType<typeof vi.fn> };
-    drawLowHealthGlow(ctx as unknown as CanvasRenderingContext2D, 800, 600, 0);
-    expect(ctx.createLinearGradient).toHaveBeenCalledTimes(4);
-  });
-
-  it('canvasSize-edgeRectsSpanTheFullWidthOrHeight', () => {
-    const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
-    drawLowHealthGlow(ctx as unknown as CanvasRenderingContext2D, 800, 600, 0);
-    const calls = ctx.fillRect.mock.calls as number[][];
-    // Left/right edges: height 600. Top/bottom edges: width 800.
-    expect(calls.some(([, , w, h]) => w === LOW_HEALTH_GLOW_WIDTH_PX && h === 600)).toBe(true);
-    expect(calls.some(([, , w, h]) => w === 800 && h === LOW_HEALTH_GLOW_WIDTH_PX)).toBe(true);
-  });
-});
-
-describe('drawCollectibleCounter', () => {
-  it('called-drawsIconThenSpacedText', () => {
-    const ctx = makeMockContext() as unknown as {
-      drawImage: ReturnType<typeof vi.fn>;
-      fillText: ReturnType<typeof vi.fn>;
-      font: string;
-    };
-    const icon = {} as HTMLImageElement;
-
-    drawCollectibleCounter(ctx as unknown as CanvasRenderingContext2D, icon, { sx: 0, sy: 0, size: 16 }, 3, 16, 200, 20);
-
-    expect(ctx.drawImage).toHaveBeenCalledWith(icon, 0, 0, 16, 16, expect.any(Number), expect.any(Number), expect.any(Number), expect.any(Number));
-    expect(ctx.fillText).toHaveBeenCalledWith('3 / 16', expect.any(Number), expect.any(Number));
-    expect(ctx.font).toBe(`22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`);
-  });
-});
-
-
 describe('drawTerrain', () => {
   it('markerLayer-drawsNothing-soAMarkerStaysInvisibleInGame', () => {
     const level: LevelDef = {
@@ -972,7 +937,16 @@ describe('drawTerrain', () => {
     expect(ctx.translate).toHaveBeenCalledWith(16, 16);
     expect(ctx.rotate).toHaveBeenCalledWith(Math.PI);
     expect(ctx.drawImage).toHaveBeenNthCalledWith(
-      1, fakeGroundAtlas, 0, 0, 16, 16, -16, -16, 32, 32,
+      1,
+      fakeGroundAtlas,
+      0,
+      0,
+      16,
+      16,
+      -16,
+      -16,
+      32,
+      32,
     );
   });
 
@@ -987,9 +961,7 @@ describe('drawTerrain', () => {
     drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
     // Down neighbour only -> closed T L R -> c6r0 at 6*19 = 114.
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(
-      1, fakeGroundAtlas, 114, 0, 16, 16, 0, 0, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeGroundAtlas, 114, 0, 16, 16, 0, 0, 32, 32);
   });
 
   it('groundGrassBottomOfTwoTallColumn-draws-fromDarkColumnBottomCellC0R2', () => {
@@ -1005,9 +977,7 @@ describe('drawTerrain', () => {
     // Up neighbour only -> closed B L R -> c0r2 at sx 0, sy 2*19 = 38, drawn
     // into the second row. Asserted in full rather than by filtering on sy,
     // because the grass row shares sy = 38.
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeGroundAtlas, 0, 38, 16, 16, 0, 32, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeGroundAtlas, 0, 38, 16, 16, 0, 32, 32, 32);
   });
 
   it('groundGrassBuriedInterior-draws-fromDarkInteriorCellC5R1', () => {
@@ -1025,9 +995,7 @@ describe('drawTerrain', () => {
     drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
     // The centre cell has all four neighbours -> c5r1 at 5*19, 1*19.
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeGroundAtlas, 95, 19, 16, 16, 32, 32, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeGroundAtlas, 95, 19, 16, 16, 32, 32, 32, 32);
   });
 
   it('groundGrassLeftEdgeOfTallMass-rotatesTheBottomEdgeTile', () => {
@@ -1055,9 +1023,7 @@ describe('drawTerrain', () => {
     // Cell (0,1): destX 0 + half 16, destY 32 + half 16.
     expect(ctx.translate).toHaveBeenCalledWith(16, 48);
     expect(ctx.rotate).toHaveBeenCalledWith(Math.PI / 2);
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeGroundAtlas, 19, 19, 16, 16, -16, -16, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeGroundAtlas, 19, 19, 16, 16, -16, -16, 32, 32);
   });
 
   it('nonGroundGrassTiles-stillDrawFromTheWorldTileset', () => {
@@ -1153,7 +1119,16 @@ describe('drawTerrain', () => {
     expect(ctx.translate).toHaveBeenCalledWith(16, 16);
     expect(ctx.rotate).toHaveBeenCalledWith((3 * Math.PI) / 2);
     expect(ctx.drawImage).toHaveBeenNthCalledWith(
-      1, fakeGroundAtlas, 114, 0, 16, 16, -16, -16, 32, 32,
+      1,
+      fakeGroundAtlas,
+      114,
+      0,
+      16,
+      16,
+      -16,
+      -16,
+      32,
+      32,
     );
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 128, 0, 16, 16, 32, 0, 32, 32);
   });
@@ -1165,13 +1140,29 @@ describe('drawTerrain', () => {
       translate: ReturnType<typeof vi.fn>;
     };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 100);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      100,
+    );
 
     // Mask 0 -> the half-turned c0r0, so the shift lands on the rotated
     // transform's centre (destY 100 + half 16) rather than on drawImage.
     expect(ctx.translate).toHaveBeenCalledWith(16, 116);
     expect(ctx.drawImage).toHaveBeenNthCalledWith(
-      1, fakeGroundAtlas, 0, 0, 16, 16, -16, -16, 32, 32,
+      1,
+      fakeGroundAtlas,
+      0,
+      0,
+      16,
+      16,
+      -16,
+      -16,
+      32,
+      32,
     );
   });
 
@@ -1182,12 +1173,27 @@ describe('drawTerrain', () => {
       translate: ReturnType<typeof vi.fn>;
     };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 100);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      100,
+    );
 
     // Mask 0 -> the half-turned c0r0; destX 100 + half 16.
     expect(ctx.translate).toHaveBeenCalledWith(116, 16);
     expect(ctx.drawImage).toHaveBeenNthCalledWith(
-      1, fakeGroundAtlas, 0, 0, 16, 16, -16, -16, 32, 32,
+      1,
+      fakeGroundAtlas,
+      0,
+      0,
+      16,
+      16,
+      -16,
+      -16,
+      32,
+      32,
     );
   });
 
@@ -1203,7 +1209,16 @@ describe('drawTerrain', () => {
     // Mask 0 -> the half-turned c0r0, centred on the unshifted cell.
     expect(ctx.translate).toHaveBeenCalledWith(16, 16);
     expect(ctx.drawImage).toHaveBeenNthCalledWith(
-      1, fakeGroundAtlas, 0, 0, 16, 16, -16, -16, 32, 32,
+      1,
+      fakeGroundAtlas,
+      0,
+      0,
+      16,
+      16,
+      -16,
+      -16,
+      32,
+      32,
     );
   });
 
@@ -1223,9 +1238,7 @@ describe('drawTerrain', () => {
     drawTerrain(ctx, level, fakeTileset, fakeGroundAtlas);
 
     // c4r2 at 4*19 = 76, 2*19 = 38; 9px tall source, 18px tall destination.
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(
-      2, fakeGroundAtlas, 76, 38, 16, 9, 0, 0, 32, 18,
-    );
+    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeGroundAtlas, 76, 38, 16, 9, 0, 0, 32, 18);
   });
 
   it('grassPass-threeWideRun-drawsLeftMiddleRightVariants', () => {
@@ -1309,79 +1322,105 @@ describe('drawTerrain — bush/fence', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['fence']], width: 1, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
-
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeStaticObjects, 32, 64, 16, 16,
-      0, 0, 32, 32,
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      fakeStaticObjects,
     );
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 32, 64, 16, 16, 0, 0, 32, 32);
   });
 
   it('loneBushTile-drawsTheOnlyRoleArtFromTheTileset', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['bush']], width: 1, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      fakeStaticObjects,
+    );
 
     // (col:0, row:0) picks the 'only' variant at index (0*31+0*17)%4 = 0 -> sx:16, sy:48
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeTileset, 16, 48, 16, 16,
-      0, 0, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 16, 48, 16, 16, 0, 0, 32, 32);
   });
 
   it('twoStackedBushTiles-drawBottomAndTopRoleArtAtTheirOwnCellsFromTheTileset', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['bush'], ['bush']], width: 1, height: 2 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      fakeStaticObjects,
+    );
 
     // row 0 (top of the level, top of the run) draws canopy art at sx:0, sy:48
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeTileset, 0, 48, 16, 16,
-      0, 0, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 48, 16, 16, 0, 0, 32, 32);
     // row 1 (bottom of the run) draws root art at sx:0, sy:80
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeTileset, 0, 80, 16, 16,
-      0, 32, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 80, 16, 16, 0, 32, 32, 32);
   });
 
   it('threeStackedBushTiles-middleTileDrawsTrunkRoleArtFromTheTileset', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['bush'], ['bush'], ['bush']], width: 1, height: 3 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      fakeStaticObjects,
+    );
 
     // row 1 (middle of the run) draws trunk art at sx:0, sy:64
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeTileset, 0, 64, 16, 16,
-      0, 32, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 64, 16, 16, 0, 32, 32, 32);
   });
 
   it('staticObjectsNotLoaded-fenceDrawsNothingButBushAndOtherTerrainStillRender', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['fence', 'wall', 'bush']], width: 3, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+    );
 
     // wall (sx: 8*16=128, sy: 0) still draws from the tileset.
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeTileset, 128, 0, 16, 16,
-      32, 0, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 128, 0, 16, 16, 32, 0, 32, 32);
     // bush (at col:2, row:0) draws from the tileset too — it never depended
     // on `staticObjects`. Variant index (2*31+0*17)%4 = 2 -> sx:16, sy:80.
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeTileset, 16, 80, 16, 16,
-      64, 0, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 16, 80, 16, 16, 64, 0, 32, 32);
     // fence is the only tile that goes dark without staticObjects loaded.
     expect(ctx.drawImage).not.toHaveBeenCalledWith(
-      fakeStaticObjects, expect.anything(), expect.anything(), expect.anything(), expect.anything(),
-      0, 0, expect.anything(), expect.anything(),
+      fakeStaticObjects,
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      0,
+      0,
+      expect.anything(),
+      expect.anything(),
     );
   });
 
@@ -1394,45 +1433,57 @@ describe('drawTerrain — bush/fence', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level = parseLevel(['n', 'n', 'n']);
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      fakeStaticObjects,
+    );
 
     // row 0: top of the run (canopy) at sx:0, sy:48
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeTileset, 0, 48, 16, 16,
-      0, 0, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 48, 16, 16, 0, 0, 32, 32);
     // row 1: middle of the run (trunk) at sx:0, sy:64
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeTileset, 0, 64, 16, 16,
-      0, 32, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 64, 16, 16, 0, 32, 32, 32);
     // row 2: bottom of the run (root) at sx:0, sy:80
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeTileset, 0, 80, 16, 16,
-      0, 64, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 0, 80, 16, 16, 0, 64, 32, 32);
   });
 
   it('chainRun-length1-ceilingAttached-drawsOnlyTheCeilingCapCenteredInItsCell', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['wall'], ['chain']], width: 1, height: 2 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      fakeStaticObjects,
+    );
 
     // (col:0, row:1) has a solid tile above -> 'ceiling', run length 1 -> the
     // ceiling cap alone (sx:91,sy:101,5x13 native -> 10x26 rendered),
     // centered: destX = (32-10)/2 = 11. destY is the cell's own row*32=32.
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeStaticObjects, 91, 101, 5, 13,
-      11, 32, 10, 26,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 91, 101, 5, 13, 11, 32, 10, 26);
   });
 
   it('chainRun-length1-leftAttached-drawsOnlyTheLeftCapFlushHorizontallyButOffsetDownFromTheTop', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['wall', 'chain']], width: 2, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      fakeStaticObjects,
+    );
 
     // (col:1, row:0): nothing above, solid to the left -> 'left', run length
     // 1 -> the left cap (sx:99,sy:102,7x12 native -> 14x24 rendered). It's
@@ -1440,41 +1491,48 @@ describe('drawTerrain — bush/fence', () => {
     // art already reads as attached to the wall) — destX = col1*32 = 32 —
     // but it DOES get the vertical CHAIN_WALL_GAP (4 rendered px), since its
     // hook art has no top-side neck margin: destY = 0 + 4 = 4.
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeStaticObjects, 99, 102, 7, 12,
-      32, 4, 14, 24,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 99, 102, 7, 12, 32, 4, 14, 24);
   });
 
   it('chainRun-length1-rightAttached-drawsOnlyTheRightCapFlushHorizontallyButOffsetDownFromTheTop', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['chain', 'wall']], width: 2, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      fakeStaticObjects,
+    );
 
     // (col:0, row:0): nothing above or left, solid to the right -> 'right',
     // run length 1 -> the right cap (sx:110,sy:102,7x12 native -> 14x24
     // rendered), the run's top (and only) piece — flush horizontally against
     // the RIGHT edge (destX = 0 + 32 - 14 = 18), offset down vertically
     // (destY = 0 + 4 = 4).
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeStaticObjects, 110, 102, 7, 12,
-      18, 4, 14, 24,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 110, 102, 7, 12, 18, 4, 14, 24);
   });
 
   it('chainRun-length1-noSolidNeighbourAnywhere-drawsTheFloatingCapCentered', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['chain']], width: 1, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      fakeStaticObjects,
+    );
 
     // floating cap (sx:119,sy:102,5x12 native -> 10x24 rendered), centered:
     // destX = (32-10)/2 = 11.
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeStaticObjects, 119, 102, 5, 12,
-      11, 0, 10, 24,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 119, 102, 5, 12, 11, 0, 10, 24);
   });
 
   it('chainRun-onlyTheTopCellDraws-noCallsOriginateFromCellsBelowIt', () => {
@@ -1484,7 +1542,15 @@ describe('drawTerrain — bush/fence', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['chain'], ['chain'], ['chain']], width: 1, height: 3 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      fakeStaticObjects,
+    );
 
     // Composing a floating run of length 3: continues(15) + middle(18) +
     // bottom(15) = 48 > 3*16=48? No — 48 == 48 exactly, so one middle fits.
@@ -1505,7 +1571,15 @@ describe('drawTerrain — bush/fence', () => {
       height: 5,
     };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      fakeStaticObjects,
+    );
 
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 91, 120, 5, 16, 11, 32, 10, 32);
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 128, 118, 5, 18, 11, 64, 10, 36);
@@ -1532,7 +1606,15 @@ describe('drawTerrain — bush/fence', () => {
       height: 2,
     };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, fakeStaticObjects);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      fakeStaticObjects,
+    );
 
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 99, 121, 7, 15, 32, 4, 14, 30);
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 137, 118, 5, 15, 36, 34, 10, 30);
@@ -1542,7 +1624,15 @@ describe('drawTerrain — bush/fence', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['chain']], width: 1, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+    );
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
@@ -1564,44 +1654,62 @@ describe('drawTerrain — cave decorations', () => {
       height: 2,
     };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      fakeDecorations,
+    );
 
     // up+right -> rotation 1, so the corner sprite (0,0, 16x16) is drawn
     // rotated about the cell's own center (destX+16, destY+32 at
     // RENDERED_TILE_SIZE=32).
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeDecorations, 0, 0, 16, 16,
-      -16, -16, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeDecorations, 0, 0, 16, 16, -16, -16, 32, 32);
   });
 
   it('cobwebTile-flatOrientation-drawnPlainFromDecorations', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['cobweb']], width: 1, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      fakeDecorations,
+    );
 
     // COBWEB_FLAT_ENTRY: sx 17, sy 0, 16x17 (decorations.png's hand-spaced
     // layout — see StaticObjectsCatalog.ts).
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeDecorations, 17, 0, 16, 17,
-      0, 0, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeDecorations, 17, 0, 16, 17, 0, 0, 32, 32);
   });
 
   it('stalagmiteTile-drawnFromDecorationsAtTheRightDestination', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['stalagmite']], width: 1, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      fakeDecorations,
+    );
 
     // (0, 0)'s position hash deterministically picks the "large" variant
     // (sx 17, sy 17, 16x18) — see StaticObjectsCatalog.test.ts for the
     // general determinism/bounds coverage of stalagmiteEntry itself.
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeDecorations, 17, 17, 16, 18,
-      0, 0, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeDecorations, 17, 17, 16, 18, 0, 0, 32, 32);
   });
 
   it('stalactiteTile-withAFallingStalactiteMarker-skipsTheStaticDecoration', () => {
@@ -1618,7 +1726,16 @@ describe('drawTerrain — cave decorations', () => {
       height: 1,
     };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      fakeDecorations,
+    );
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
@@ -1629,11 +1746,27 @@ describe('drawTerrain — cave decorations', () => {
     // decorations sheet.
     const level: LevelDef = { terrain: [['stalactite']], width: 1, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, fakeDecorations);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      fakeDecorations,
+    );
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeDecorations, expect.anything(), expect.anything(), expect.anything(), expect.anything(),
-      0, 0, 32, 32,
+      fakeDecorations,
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      0,
+      0,
+      32,
+      32,
     );
   });
 
@@ -1641,16 +1774,29 @@ describe('drawTerrain — cave decorations', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['cobweb', 'wall']], width: 2, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      null,
+    );
 
     // wall (sx: 8*16=128, sy: 0) still draws from the tileset.
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeTileset, 128, 0, 16, 16,
-      32, 0, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 128, 0, 16, 16, 32, 0, 32, 32);
     expect(ctx.drawImage).not.toHaveBeenCalledWith(
-      fakeDecorations, expect.anything(), expect.anything(), expect.anything(), expect.anything(),
-      0, 0, expect.anything(), expect.anything(),
+      fakeDecorations,
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      0,
+      0,
+      expect.anything(),
+      expect.anything(),
     );
   });
 });
@@ -1662,16 +1808,24 @@ describe('drawTerrain — torch', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['torch']], width: 1, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, fakeTorch, 0);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      null,
+      fakeTorch,
+      0,
+    );
 
     // (0,0) hashes to phase 0, so frame 0 (sx 0, sy 0) of torch.png draws.
     // The 12x14 frame is centred horizontally (TORCH_INSET_X=2 -> 4 rendered
     // px) and bottom-aligned ((16-14)*2 = 4 rendered px down), scaled 2x to
     // 24x28.
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeTorch, 0, 0, 12, 14,
-      4, 4, 24, 28,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTorch, 0, 0, 12, 14, 4, 4, 24, 28);
   });
 
   it('largerWorldElapsed-advancesToTheNextFrame', () => {
@@ -1680,29 +1834,52 @@ describe('drawTerrain — torch', () => {
 
     // 0.2s is exactly one TORCH_FRAME_DURATION_SECONDS, so (0,0) advances from
     // frame 0 to frame 1 — a 12px stride along the strip.
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, fakeTorch, 0.2);
-
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeTorch, 12, 0, 12, 14,
-      4, 4, 24, 28,
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      null,
+      fakeTorch,
+      0.2,
     );
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTorch, 12, 0, 12, 14, 4, 4, 24, 28);
   });
 
   it('torchNotLoaded-drawsNothingButOtherTerrainStillRenders', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['torch', 'wall']], width: 2, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      null,
+      null,
+      0,
+    );
 
     // wall (sx: 8*16=128, sy: 0) still draws from the tileset.
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeTileset, 128, 0, 16, 16,
-      32, 0, 32, 32,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 128, 0, 16, 16, 32, 0, 32, 32);
     // The unloaded torch contributes no drawImage call at all.
     expect(ctx.drawImage).not.toHaveBeenCalledWith(
-      fakeTorch, expect.anything(), expect.anything(), 12, 14,
-      expect.anything(), expect.anything(), expect.anything(), expect.anything(),
+      fakeTorch,
+      expect.anything(),
+      expect.anything(),
+      12,
+      14,
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
     );
   });
 });
@@ -1717,7 +1894,19 @@ describe('drawTerrain — bouncy mushroom', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['bouncyMushroom']], width: 1, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, fakeMushroom);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      null,
+      null,
+      0,
+      fakeMushroom,
+    );
 
     // `only` role: sx 0, sy 0. Stem sub-rect (rows 11-15) drawn unshifted at
     // destY + 11*RENDER_SCALE = 22; cap sub-rect (rows 0-10) at destY.
@@ -1727,9 +1916,25 @@ describe('drawTerrain — bouncy mushroom', () => {
 
   it('topCellOfARun-drawsTheTopRoleCapAndConnector', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const level: LevelDef = { terrain: [['bouncyMushroom'], ['bouncyMushroom']], width: 1, height: 2 };
+    const level: LevelDef = {
+      terrain: [['bouncyMushroom'], ['bouncyMushroom']],
+      width: 1,
+      height: 2,
+    };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, fakeMushroom);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      null,
+      null,
+      0,
+      fakeMushroom,
+    );
 
     // `top` role: sx 16, sy 0.
     expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeMushroom, 16, 11, 16, 5, 0, 22, 32, 10);
@@ -1741,7 +1946,20 @@ describe('drawTerrain — bouncy mushroom', () => {
     const level: LevelDef = { terrain: [['bouncyMushroom']], width: 1, height: 1 };
     const squashes = [{ col: 0, row: 0, elapsed: 0 }];
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, fakeMushroom, squashes);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      null,
+      null,
+      0,
+      fakeMushroom,
+      squashes,
+    );
 
     // Stem stays put; the cap moves down by the full 2px dip.
     expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeMushroom, 0, 11, 16, 5, 0, 22, 32, 10);
@@ -1752,7 +1970,19 @@ describe('drawTerrain — bouncy mushroom', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level = parseLevel(['§', '§', '§']);
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, fakeMushroom);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      null,
+      null,
+      0,
+      fakeMushroom,
+    );
 
     // row 0 is `top`, row 1 is `middle` (sx 48, sy 0), row 2 is `bottom`
     // (sx 48, sy 16) — both drawn as one whole cell.
@@ -1764,7 +1994,19 @@ describe('drawTerrain — bouncy mushroom', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level = parseLevel(['§', '§', '§']);
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, fakeMushroom);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      null,
+      null,
+      0,
+      fakeMushroom,
+    );
 
     // Top cell: cap + connector, split into stem then cap sub-rects.
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeMushroom, 16, 11, 16, 5, 0, 22, 32, 10);
@@ -1779,7 +2021,19 @@ describe('drawTerrain — bouncy mushroom', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['bouncyMushroom']], width: 1, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, fakeMushroom);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      null,
+      null,
+      0,
+      fakeMushroom,
+    );
 
     // `only` role (sx 0, sy 0), split into its stem and cap sub-rects.
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeMushroom, 0, 11, 16, 5, 0, 22, 32, 10);
@@ -1790,15 +2044,31 @@ describe('drawTerrain — bouncy mushroom', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['bouncyMushroom', 'wall']], width: 2, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, null);
-
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeTileset, 128, 0, 16, 16,
-      32, 0, 32, 32,
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      null,
+      null,
+      0,
+      null,
     );
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 128, 0, 16, 16, 32, 0, 32, 32);
     expect(ctx.drawImage).not.toHaveBeenCalledWith(
-      fakeMushroom, expect.anything(), expect.anything(), expect.anything(), expect.anything(),
-      expect.anything(), expect.anything(), expect.anything(), expect.anything(),
+      fakeMushroom,
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
     );
   });
 });
@@ -1810,7 +2080,19 @@ describe('drawTerrain — decorative mushroom', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['decorativeMushroom']], width: 1, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, fakeMushroom);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      null,
+      null,
+      0,
+      fakeMushroom,
+    );
 
     // The small mushroom's fixed (32, 0) crop, drawn as one whole cell.
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeMushroom, 32, 0, 16, 16, 0, 0, 32, 32);
@@ -1820,7 +2102,19 @@ describe('drawTerrain — decorative mushroom', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const level: LevelDef = { terrain: [['decorativeMushroom']], width: 1, height: 1 };
 
-    drawTerrain(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, fakeGroundAtlas, 0, 0, null, null, null, 0, null);
+    drawTerrain(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      fakeGroundAtlas,
+      0,
+      0,
+      null,
+      null,
+      null,
+      0,
+      null,
+    );
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
@@ -1857,17 +2151,7 @@ describe('drawPlayer', () => {
 
     drawPlayer(ctx, idlePlayer, fakeSpriteSheet);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeSpriteSheet,
-      0,
-      0,
-      32,
-      32,
-      16,
-      256,
-      64,
-      64,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeSpriteSheet, 0, 0, 32, 32, 16, 256, 64, 64);
   });
 
   it('idleFrame2-draws-fromThirdIdleSource', () => {
@@ -1876,17 +2160,7 @@ describe('drawPlayer', () => {
 
     drawPlayer(ctx, player, fakeSpriteSheet);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeSpriteSheet,
-      64,
-      0,
-      32,
-      32,
-      16,
-      256,
-      64,
-      64,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeSpriteSheet, 64, 0, 32, 32, 16, 256, 64, 64);
   });
 
   it('hitState-draws-fromHitTimerNotAnimFrame', () => {
@@ -1899,17 +2173,7 @@ describe('drawPlayer', () => {
 
     drawPlayer(ctx, player, fakeSpriteSheet);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeSpriteSheet,
-      64,
-      192,
-      32,
-      32,
-      16,
-      256,
-      64,
-      64,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeSpriteSheet, 64, 192, 32, 32, 16, 256, 64, 64);
   });
 
   it('originY-shiftsPlayerVertically', () => {
@@ -1917,17 +2181,7 @@ describe('drawPlayer', () => {
 
     drawPlayer(ctx, idlePlayer, fakeSpriteSheet, 0, 100);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeSpriteSheet,
-      0,
-      0,
-      32,
-      32,
-      16,
-      356,
-      64,
-      64,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeSpriteSheet, 0, 0, 32, 32, 16, 356, 64, 64);
   });
 
   it('crouchStateNonHit-drawsFromThePrimarySheetDuckRow', () => {
@@ -1964,11 +2218,7 @@ describe('drawPlayer', () => {
 
     drawPlayer(ctx, idlePlayer, fakeSpriteSheet, 100);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeSpriteSheet,
-      0, 0, 32, 32,
-      116, 256, 64, 64,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeSpriteSheet, 0, 0, 32, 32, 116, 256, 64, 64);
   });
 
   it('crouchedHitWithTintLayer-drawsTheCrouchRowThroughTheTintedLayer', () => {
@@ -2077,17 +2327,7 @@ describe('drawPlayer', () => {
     drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, null, true, layer);
 
     // hitTimer 0.25 -> hitFrameFromTimer = 2 -> sx = 64, sy = 6 frames.
-    expect(raw.drawImage).toHaveBeenCalledWith(
-      fakeSpriteSheet,
-      64,
-      192,
-      32,
-      32,
-      16,
-      256,
-      64,
-      64,
-    );
+    expect(raw.drawImage).toHaveBeenCalledWith(fakeSpriteSheet, 64, 192, 32, 32, 16, 256, 64, 64);
     expect(layerCtx.drawImage).not.toHaveBeenCalled();
   });
 
@@ -2106,10 +2346,7 @@ describe('drawPlayer', () => {
     drawPlayer(ctx, player, fakeSpriteSheet);
 
     expect(ctx.save).toHaveBeenCalled();
-    expect(ctx.translate).toHaveBeenCalledWith(
-      player.x + PLAYER_RENDERED_SIZE,
-      player.y,
-    );
+    expect(ctx.translate).toHaveBeenCalledWith(player.x + PLAYER_RENDERED_SIZE, player.y);
     expect(ctx.scale).toHaveBeenCalledWith(-1, 1);
     expect(ctx.drawImage).toHaveBeenCalledWith(
       fakeSpriteSheet,
@@ -2131,10 +2368,7 @@ describe('drawPlayer', () => {
 
     drawPlayer(ctx, player, fakeSpriteSheet, 100);
 
-    expect(ctx.translate).toHaveBeenCalledWith(
-      player.x + 100 + PLAYER_RENDERED_SIZE,
-      player.y,
-    );
+    expect(ctx.translate).toHaveBeenCalledWith(player.x + 100 + PLAYER_RENDERED_SIZE, player.y);
   });
 
   it('facingRight-draws-withoutFlippingTransform', () => {
@@ -2153,17 +2387,7 @@ describe('drawPlayer', () => {
 
     drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, jumpSheet);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      jumpSheet,
-      2 * 128,
-      0,
-      128,
-      128,
-      16,
-      256,
-      64,
-      64,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(jumpSheet, 2 * 128, 0, 128, 128, 16, 256, 64, 64);
   });
 
   it('jumpStateFalling-withJumpSpriteSheet-drawsFromFallRow', () => {
@@ -2173,17 +2397,7 @@ describe('drawPlayer', () => {
 
     drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, jumpSheet);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      jumpSheet,
-      1 * 128,
-      161,
-      128,
-      128,
-      16,
-      256,
-      64,
-      64,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(jumpSheet, 1 * 128, 161, 128, 128, 16, 256, 64, 64);
   });
 
   it('jumpState-noJumpSpriteSheetProvided-fallsBackToPrimarySheetIdleFrame', () => {
@@ -2192,17 +2406,7 @@ describe('drawPlayer', () => {
 
     drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, null);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeSpriteSheet,
-      0,
-      0,
-      32,
-      32,
-      16,
-      256,
-      64,
-      64,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(fakeSpriteSheet, 0, 0, 32, 32, 16, 256, 64, 64);
   });
 
   it('jumpStateFacingLeft-withJumpSpriteSheet-drawsFlippedFromJumpSheet', () => {
@@ -2227,17 +2431,7 @@ describe('drawPlayer', () => {
 
     drawPlayer(ctx, player, fakeSpriteSheet, 0, 0, jumpSheet);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      jumpSheet,
-      1 * 128,
-      322,
-      128,
-      128,
-      16,
-      256,
-      64,
-      64,
-    );
+    expect(ctx.drawImage).toHaveBeenCalledWith(jumpSheet, 1 * 128, 322, 128, 128, 16, 256, 64, 64);
   });
 
   it('climbState-noJumpSpriteSheetProvided-fallsBackToPrimarySheetIdleFrame', () => {
@@ -2266,117 +2460,29 @@ describe('drawPlayer', () => {
   });
 });
 
-describe('drawHearts', () => {
-  const fakeHeartsSheet = {} as HTMLImageElement;
-
-  it('fullHealth-drawsThreeFullHeartFrames', () => {
-    const ctx = makeMockContext();
-
-    drawHearts(ctx, MAX_HALF_HEARTS, fakeHeartsSheet);
-
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeHeartsSheet, 0, 0, 16, 16, 16, 16, 32, 32);
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeHeartsSheet, 0, 0, 16, 16, 52, 16, 32, 32);
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(3, fakeHeartsSheet, 0, 0, 16, 16, 88, 16, 32, 32);
-  });
-
-  it('threeHalfHearts-drawsOneFullOneHalfOneEmpty', () => {
-    const ctx = makeMockContext();
-
-    drawHearts(ctx, 3, fakeHeartsSheet);
-
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeHeartsSheet, 0, 0, 16, 16, 16, 16, 32, 32);
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeHeartsSheet, 16, 0, 16, 16, 52, 16, 32, 32);
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(3, fakeHeartsSheet, 32, 0, 16, 16, 88, 16, 32, 32);
-  });
-
-  it('zeroHealth-drawsAllEmptyFrames', () => {
-    const ctx = makeMockContext();
-
-    drawHearts(ctx, 0, fakeHeartsSheet);
-
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(1, fakeHeartsSheet, 32, 0, 16, 16, 16, 16, 32, 32);
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(2, fakeHeartsSheet, 32, 0, 16, 16, 52, 16, 32, 32);
-    expect(ctx.drawImage).toHaveBeenNthCalledWith(3, fakeHeartsSheet, 32, 0, 16, 16, 88, 16, 32, 32);
-  });
-
-  it('draws-setsImageSmoothingEnabledFalse', () => {
-    const ctx = makeMockContext();
-
-    drawHearts(ctx, MAX_HALF_HEARTS, fakeHeartsSheet);
-
-    expect(ctx.imageSmoothingEnabled).toBe(false);
-  });
-
-  it('called-withCustomStartX-offsetsAllHeartsHorizontally', () => {
-    const ctx = makeMockContext();
-
-    drawHearts(ctx, MAX_HALF_HEARTS, fakeHeartsSheet, HEARTS_START_X);
-
-    const firstCall = (ctx.drawImage as ReturnType<typeof vi.fn>).mock.calls[0];
-    const secondCall = (ctx.drawImage as ReturnType<typeof vi.fn>).mock.calls[1];
-    expect(firstCall[5]).toBe(HEARTS_START_X); // dx
-    expect(secondCall[5]).toBe(HEARTS_START_X + HEART_RENDERED_SIZE + 4); // + spacing
-  });
-});
-
-describe('drawIrisOverlay', () => {
-  it('positiveRadius-fillsRectAndCutsCircularHoleWithEvenOdd', () => {
-    const ctx = makeMockContext() as unknown as {
-      rect: ReturnType<typeof vi.fn>;
-      moveTo: ReturnType<typeof vi.fn>;
-      arc: ReturnType<typeof vi.fn>;
-      fill: ReturnType<typeof vi.fn>;
-    };
-
-    drawIrisOverlay(ctx as unknown as CanvasRenderingContext2D, 800, 600, 400, 300, 100);
-
-    expect(ctx.rect).toHaveBeenCalledWith(0, 0, 800, 600);
-    expect(ctx.arc).toHaveBeenCalledWith(400, 300, 100, 0, Math.PI * 2, true);
-    expect(ctx.fill).toHaveBeenCalledWith('evenodd');
-  });
-
-  it('zeroRadius-fillsRectWithoutDrawingCircle', () => {
-    const ctx = makeMockContext() as unknown as {
-      rect: ReturnType<typeof vi.fn>;
-      arc: ReturnType<typeof vi.fn>;
-      fill: ReturnType<typeof vi.fn>;
-    };
-
-    drawIrisOverlay(ctx as unknown as CanvasRenderingContext2D, 800, 600, 400, 300, 0);
-
-    expect(ctx.rect).toHaveBeenCalledWith(0, 0, 800, 600);
-    expect(ctx.arc).not.toHaveBeenCalled();
-    expect(ctx.fill).toHaveBeenCalledWith('evenodd');
-  });
-});
-
-describe('drawRestartPrompt', () => {
-  it('called-drawsPromptTextCenteredOnCanvas', () => {
-    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn> };
-
-    drawRestartPrompt(ctx as unknown as CanvasRenderingContext2D, 800, 600);
-
-    expect(ctx.fillText).toHaveBeenCalledWith('Press any button to restart', 400, 300);
-  });
-
-  it('called-usesRestartPromptFontFamilyWithSansSerifFallback', () => {
-    const ctx = makeMockContext() as unknown as { font: string };
-
-    drawRestartPrompt(ctx as unknown as CanvasRenderingContext2D, 800, 600);
-
-    expect(ctx.font).toContain(RESTART_PROMPT_FONT_FAMILY);
-    expect(ctx.font).toContain('sans-serif');
-  });
-});
-
 describe('drawSigns', () => {
   it('onePlacement-drawsSignpostTileAtItsPosition', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const sign: SignPlacement = { id: 'sign-bridgeDropThrough-1-1', hintId: 'bridgeDropThrough', x: 64, y: 96 };
+    const sign: SignPlacement = {
+      id: 'sign-bridgeDropThrough-1-1',
+      hintId: 'bridgeDropThrough',
+      x: 64,
+      y: 96,
+    };
 
     drawSigns(ctx as unknown as CanvasRenderingContext2D, [sign], fakeTileset, 10, 20);
 
-    expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 128, 48, 16, 16, 64 + 10, 96 + 20, 32, 32);
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      fakeTileset,
+      128,
+      48,
+      16,
+      16,
+      64 + 10,
+      96 + 20,
+      32,
+      32,
+    );
   });
 
   it('noPlacements-drawsNothing', () => {
@@ -2396,9 +2502,14 @@ describe('drawPickups — key band', () => {
     drawPickups(ctx, { key: pickups }, dc);
     expect(ctx.drawImage).toHaveBeenCalledWith(
       dc.sprites[KEY_SHEET.src],
-      0, 0, KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT,
-      expect.any(Number), expect.any(Number),
-      KEY_RENDERED_WIDTH, KEY_RENDERED_HEIGHT,
+      0,
+      0,
+      KEY_FRAME_WIDTH,
+      KEY_FRAME_HEIGHT,
+      expect.any(Number),
+      expect.any(Number),
+      KEY_RENDERED_WIDTH,
+      KEY_RENDERED_HEIGHT,
     );
   });
 
@@ -2495,42 +2606,6 @@ describe('drawPickups — bomb band', () => {
   });
 });
 
-describe('drawBombCounter', () => {
-  it('drawsTheUnlitBombIconAndTheCountWithNoDenominator', () => {
-    const ctx = makeMockContext();
-    const fakeBombSprite = {} as HTMLImageElement;
-
-    drawBombCounter(ctx, fakeBombSprite, 3, bombCounterX(ctx, 0, 0, 0), KEY_COUNTER_Y);
-
-    expect(ctx.drawImage).toHaveBeenCalledWith(
-      fakeBombSprite,
-      0,
-      0,
-      BOMB_SHEET.frameWidth,
-      BOMB_SHEET.frameHeight,
-      expect.any(Number),
-      expect.any(Number),
-      expect.any(Number),
-      expect.any(Number),
-    );
-    expect(ctx.fillText).toHaveBeenCalledWith('3', expect.any(Number), KEY_COUNTER_Y);
-  });
-});
-
-describe('bombCounterX', () => {
-  it('withNoKeys-landsExactlyAtTheKeyCounterX', () => {
-    // The key counter is hidden at zero keys, so the bomb group must not
-    // reserve a gap for it.
-    const ctx = makeMockContext();
-    expect(bombCounterX(ctx, 0, 0, 0)).toBe(keyCounterX(ctx, 0, 0));
-  });
-
-  it('withKeys-sitsStrictlyPastTheKeyCountersMeasuredWidth', () => {
-    const ctx = makeMockContext();
-    expect(bombCounterX(ctx, 0, 0, 3)).toBeGreaterThan(bombCounterX(ctx, 0, 0, 0));
-  });
-});
-
 describe('pickup drawing delegates to the type modules', () => {
   const orderedGroups = () => ({
     coin: [makeCoinPlacement()],
@@ -2543,7 +2618,11 @@ describe('pickup drawing delegates to the type modules', () => {
   it('coinsAndFruits-eachDrawFromTheirOwnSheet', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
-    drawPickups(ctx as unknown as CanvasRenderingContext2D, { coin: [makeCoinPlacement()], fruit: [spawnFruit('f1', 40, 100, undefined, 0)] }, dc);
+    drawPickups(
+      ctx as unknown as CanvasRenderingContext2D,
+      { coin: [makeCoinPlacement()], fruit: [spawnFruit('f1', 40, 100, undefined, 0)] },
+      dc,
+    );
     expect(drawImageCallsFor(ctx, dc.sprites[COIN_SHEET.src])).toHaveLength(1);
     expect(drawImageCallsFor(ctx, dc.sprites[FRUIT_SHEET.src])).toHaveLength(1);
   });
@@ -2596,7 +2675,9 @@ describe('drawHazards', () => {
     const ctx = makeMockContext();
     const dc = makeDrawContext(ctx);
     const drawSpy = vi.spyOn(spike, 'draw');
-    const hazards: HazardPlacement[] = [{ id: 'h1', hazardType: 'spike', facing: 'up', x: 0, y: 0, col: 0, row: 0 }];
+    const hazards: HazardPlacement[] = [
+      { id: 'h1', hazardType: 'spike', facing: 'up', x: 0, y: 0, col: 0, row: 0 },
+    ];
 
     drawHazards(ctx, hazards, dc);
 
@@ -2607,7 +2688,9 @@ describe('drawHazards', () => {
     const ctx = makeMockContext();
     const spearImage = { tag: 'spear' } as unknown as HTMLImageElement;
     const dc = makeDrawContext(ctx, { sprites: { [SPEAR_SHEET.src]: spearImage } });
-    const hazards: HazardPlacement[] = [{ id: 's1', hazardType: 'spear', facing: 'up', x: 64, y: 32, col: 0, row: 0 }];
+    const hazards: HazardPlacement[] = [
+      { id: 's1', hazardType: 'spear', facing: 'up', x: 64, y: 32, col: 0, row: 0 },
+    ];
 
     drawHazards(ctx, hazards, dc);
 
@@ -2628,7 +2711,9 @@ describe('drawHazards', () => {
   it('spear-imageMissingFromSprites-isANoOp', () => {
     const ctx = makeMockContext();
     const dc = makeDrawContext(ctx);
-    const hazards: HazardPlacement[] = [{ id: 's1', hazardType: 'spear', facing: 'up', x: 64, y: 32, col: 0, row: 0 }];
+    const hazards: HazardPlacement[] = [
+      { id: 's1', hazardType: 'spear', facing: 'up', x: 64, y: 32, col: 0, row: 0 },
+    ];
 
     drawHazards(ctx, hazards, dc);
 
@@ -2721,16 +2806,6 @@ describe('drawHazards', () => {
   });
 });
 
-describe('drawKeyCounter', () => {
-  it('drawKeyCounter-drawsIconAndCountText', () => {
-    const ctx = makeMockContext();
-    const fakeKeySprite = {} as HTMLImageElement;
-    drawKeyCounter(ctx, fakeKeySprite, 3, keyCounterX(ctx, 0, 0), KEY_COUNTER_Y);
-    expect(ctx.drawImage).toHaveBeenCalled();
-    expect(ctx.fillText).toHaveBeenCalledWith('3', expect.any(Number), KEY_COUNTER_Y);
-  });
-});
-
 describe('drawEnemies spike overlay', () => {
   it('spikedEnemy-drawsFourTrianglesWithOutlineStroke', () => {
     const ctx = makeMockCtx();
@@ -2814,7 +2889,13 @@ describe('drawWaterForeground', () => {
     const canvasWidth = RENDERED_TILE_SIZE * 2;
     const canvasHeight = RENDERED_TILE_SIZE * 3;
 
-    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, canvasWidth, canvasHeight);
+    drawWaterForeground(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      canvasWidth,
+      canvasHeight,
+    );
 
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 0, 16, 32, 32);
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 32, 16, 32, 32);
@@ -2823,7 +2904,11 @@ describe('drawWaterForeground', () => {
   it('crestOnly-noBodyTileIsEverDrawn', () => {
     // Water renders as a single crest tile per column — the body below it is
     // a flat fill (see the next tests), never a repeated tile.
-    const level: LevelDef = { width: 1, height: 3, terrain: [['groundGrass'], ['groundGrass'], ['groundGrass']] };
+    const level: LevelDef = {
+      width: 1,
+      height: 3,
+      terrain: [['groundGrass'], ['groundGrass'], ['groundGrass']],
+    };
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
     drawWaterForeground(
@@ -2869,7 +2954,13 @@ describe('drawWaterForeground', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
-    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, 100, RENDERED_TILE_SIZE);
+    drawWaterForeground(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      100,
+      RENDERED_TILE_SIZE,
+    );
 
     // Tiles at x = 0, 32, 64, 96 (the next, 128, is past canvasWidth 100).
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 0, 16, 32, 32);
@@ -2883,7 +2974,15 @@ describe('drawWaterForeground', () => {
     const level: LevelDef = { width: 1, height: 1, terrain: [['groundGrass']] };
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
 
-    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, 42, 200, 10, -20);
+    drawWaterForeground(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      42,
+      200,
+      10,
+      -20,
+    );
 
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeTileset, 64, 144, 16, 16, 10, -4, 32, 32);
   });
@@ -2895,7 +2994,15 @@ describe('drawWaterForeground', () => {
       fillRect: ReturnType<typeof vi.fn>;
     };
 
-    drawWaterForeground(ctx as unknown as CanvasRenderingContext2D, level, fakeTileset, 32, 10, 0, 50);
+    drawWaterForeground(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      fakeTileset,
+      32,
+      10,
+      0,
+      50,
+    );
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
     expect(ctx.fillRect).not.toHaveBeenCalled();
@@ -2933,14 +3040,25 @@ describe('drawBackgroundTiles', () => {
       ],
     };
 
-    drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement, 0, 0);
+    drawBackgroundTiles(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      {} as HTMLImageElement,
+      0,
+      0,
+    );
 
     const isolated = backgroundAtlasCell('dirt', 0);
     expect(ctx.drawImage).toHaveBeenCalledWith(
       expect.anything(),
-      isolated.sx, isolated.sy, 16, 16,
-      1 * 32, 1 * 32,
-      32, 32,
+      isolated.sx,
+      isolated.sy,
+      16,
+      16,
+      1 * 32,
+      1 * 32,
+      32,
+      32,
     );
   });
 
@@ -2953,14 +3071,25 @@ describe('drawBackgroundTiles', () => {
       background: [['dirt']],
     };
 
-    drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement, 100, -50);
+    drawBackgroundTiles(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      {} as HTMLImageElement,
+      100,
+      -50,
+    );
 
     const isolated = backgroundAtlasCell('dirt', 0);
     expect(ctx.drawImage).toHaveBeenCalledWith(
       expect.anything(),
-      isolated.sx, isolated.sy, 16, 16,
-      100, -50,
-      32, 32,
+      isolated.sx,
+      isolated.sy,
+      16,
+      16,
+      100,
+      -50,
+      32,
+      32,
     );
   });
 
@@ -2992,10 +3121,28 @@ describe('drawBackgroundTiles', () => {
     const isolatedDirt = backgroundAtlasCell('dirt', 0);
     const isolatedCharcoal = backgroundAtlasCell('charcoal', 0);
     expect(ctx.drawImage).toHaveBeenNthCalledWith(
-      1, expect.anything(), isolatedDirt.sx, isolatedDirt.sy, 16, 16, 0, 0, 32, 32,
+      1,
+      expect.anything(),
+      isolatedDirt.sx,
+      isolatedDirt.sy,
+      16,
+      16,
+      0,
+      0,
+      32,
+      32,
     );
     expect(ctx.drawImage).toHaveBeenNthCalledWith(
-      2, expect.anything(), isolatedCharcoal.sx, isolatedCharcoal.sy, 16, 16, 32, 0, 32, 32,
+      2,
+      expect.anything(),
+      isolatedCharcoal.sx,
+      isolatedCharcoal.sy,
+      16,
+      16,
+      32,
+      0,
+      32,
+      32,
     );
   });
 
@@ -3042,7 +3189,14 @@ describe('drawBackgroundTiles', () => {
       ],
     };
 
-    drawBackgroundTiles(ctx as unknown as CanvasRenderingContext2D, level, {} as HTMLImageElement, 0, 0, null);
+    drawBackgroundTiles(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      {} as HTMLImageElement,
+      0,
+      0,
+      null,
+    );
 
     expect(ctx.drawImage).toHaveBeenCalledTimes(9);
   });
@@ -3051,7 +3205,12 @@ describe('drawBackgroundTiles', () => {
 describe('drawFog', () => {
   it('atOrBelowZero-drawsNothingAtAll', () => {
     const { ctx, raw } = makeLightingContext();
-    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+    const level: LevelDef = {
+      terrain: [['empty']],
+      width: 1,
+      height: 1,
+      background: [['charcoal']],
+    };
 
     drawFog(ctx, level, 0);
 
@@ -3061,15 +3220,35 @@ describe('drawFog', () => {
 
   it('caveFamilyCell-drawsASoftPuffGradientAtTheFogAlpha', () => {
     const { ctx, raw } = makeLightingContext();
-    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+    const level: LevelDef = {
+      terrain: [['empty']],
+      width: 1,
+      height: 1,
+      background: [['charcoal']],
+    };
 
     drawFog(ctx, level, 0.5, 0, 0, 0);
 
     const puff = fogPuffAt(0, 0, 0);
-    expect(raw.createRadialGradient).toHaveBeenCalledWith(puff.x, puff.y, 0, puff.x, puff.y, puff.radius);
+    expect(raw.createRadialGradient).toHaveBeenCalledWith(
+      puff.x,
+      puff.y,
+      0,
+      puff.x,
+      puff.y,
+      puff.radius,
+    );
     const gradient = raw.createRadialGradient.mock.results[0].value;
-    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`);
-    expect(gradient.addColorStop).toHaveBeenNthCalledWith(2, FOG_PUFF_PLATEAU, `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`);
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(
+      1,
+      0,
+      `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`,
+    );
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(
+      2,
+      FOG_PUFF_PLATEAU,
+      `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`,
+    );
     expect(gradient.addColorStop).toHaveBeenNthCalledWith(3, 1, `rgba(${FOG_TINT_RGB}, 0)`);
     expect(raw.arc).toHaveBeenCalledWith(puff.x, puff.y, puff.radius, 0, Math.PI * 2);
     expect(raw.fill).toHaveBeenCalledTimes(1);
@@ -3104,7 +3283,12 @@ describe('drawFog', () => {
 
   it('originOffset-shiftsThePuffCentre', () => {
     const { ctx, raw } = makeLightingContext();
-    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['caveStone']] };
+    const level: LevelDef = {
+      terrain: [['empty']],
+      width: 1,
+      height: 1,
+      background: [['caveStone']],
+    };
 
     drawFog(ctx, level, 0.5, 100, -50, 0);
 
@@ -3152,7 +3336,12 @@ describe('drawFog', () => {
 
   it('worldElapsed-breathesThePuffsRadiusOverTime', () => {
     const { ctx, raw } = makeLightingContext();
-    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+    const level: LevelDef = {
+      terrain: [['empty']],
+      width: 1,
+      height: 1,
+      background: [['charcoal']],
+    };
 
     drawFog(ctx, level, 0.5, 0, 0, 1.7);
 
@@ -3194,7 +3383,12 @@ describe('drawFog', () => {
 
   it('playerRightOnAPuff-skipsItEntirely', () => {
     const { ctx, raw } = makeLightingContext();
-    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+    const level: LevelDef = {
+      terrain: [['empty']],
+      width: 1,
+      height: 1,
+      background: [['charcoal']],
+    };
     const puff = fogPuffAt(0, 0, 0);
 
     drawFog(ctx, level, 0.5, 0, 0, 0, { x: puff.x, y: puff.y });
@@ -3204,18 +3398,32 @@ describe('drawFog', () => {
 
   it('playerFarFromAPuff-drawsItAtFullFogAlpha', () => {
     const { ctx, raw } = makeLightingContext();
-    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+    const level: LevelDef = {
+      terrain: [['empty']],
+      width: 1,
+      height: 1,
+      background: [['charcoal']],
+    };
     const puff = fogPuffAt(0, 0, 0);
 
     drawFog(ctx, level, 0.5, 0, 0, 0, { x: puff.x + FOG_PEEK_RADIUS_PX * 10, y: puff.y });
 
     const gradient = raw.createRadialGradient.mock.results[0].value;
-    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`);
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(
+      1,
+      0,
+      `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`,
+    );
   });
 
   it('playerPartWayIntoThePeekRadius-drawsThePuffAtAThinnedAlpha', () => {
     const { ctx, raw } = makeLightingContext();
-    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+    const level: LevelDef = {
+      terrain: [['empty']],
+      width: 1,
+      height: 1,
+      background: [['charcoal']],
+    };
     const puff = fogPuffAt(0, 0, 0);
     const playerPosition = { x: puff.x + FOG_PEEK_RADIUS_PX / 2, y: puff.y };
 
@@ -3226,17 +3434,30 @@ describe('drawFog', () => {
     expect(peek).toBeGreaterThan(0);
     expect(peek).toBeLessThan(1);
     const gradient = raw.createRadialGradient.mock.results[0].value;
-    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, ${expectedAlpha})`);
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(
+      1,
+      0,
+      `rgba(${FOG_TINT_RGB}, ${expectedAlpha})`,
+    );
   });
 
   it('noPlayerPosition-drawsEveryPuffAtFullFogAlpha', () => {
     const { ctx, raw } = makeLightingContext();
-    const level: LevelDef = { terrain: [['empty']], width: 1, height: 1, background: [['charcoal']] };
+    const level: LevelDef = {
+      terrain: [['empty']],
+      width: 1,
+      height: 1,
+      background: [['charcoal']],
+    };
 
     drawFog(ctx, level, 0.5, 0, 0, 0);
 
     const gradient = raw.createRadialGradient.mock.results[0].value;
-    expect(gradient.addColorStop).toHaveBeenNthCalledWith(1, 0, `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`);
+    expect(gradient.addColorStop).toHaveBeenNthCalledWith(
+      1,
+      0,
+      `rgba(${FOG_TINT_RGB}, ${0.5 * FOG_DENSITY})`,
+    );
   });
 });
 
@@ -3249,9 +3470,18 @@ describe('drawCheckpoints', () => {
 
   it('dormantState-drawsTheDormantFrameBottomAnchoredAndCentredOnItsTile', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
-    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { originX: 5, originY: 7 });
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      originX: 5,
+      originY: 7,
+    });
 
-    drawCheckpoints(ctx as unknown as CanvasRenderingContext2D, [makeCheckpoint('c', 32, 64)], image, null, dc);
+    drawCheckpoints(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makeCheckpoint('c', 32, 64)],
+      image,
+      null,
+      dc,
+    );
 
     expect(ctx.drawImage).toHaveBeenCalledWith(
       image,
@@ -3304,7 +3534,13 @@ describe('drawCheckpoints', () => {
     const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
 
-    drawCheckpoints(ctx as unknown as CanvasRenderingContext2D, [makeCheckpoint('a', 0, 0)], image, null, dc);
+    drawCheckpoints(
+      ctx as unknown as CanvasRenderingContext2D,
+      [makeCheckpoint('a', 0, 0)],
+      image,
+      null,
+      dc,
+    );
 
     expect(ctx.fillRect).not.toHaveBeenCalled();
   });
@@ -3314,12 +3550,17 @@ describe('drawCheckpoints', () => {
     const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
 
     expect(() =>
-      drawCheckpoints(ctx as unknown as CanvasRenderingContext2D, [makeCheckpoint('a', 0, 0)], null, null, dc),
+      drawCheckpoints(
+        ctx as unknown as CanvasRenderingContext2D,
+        [makeCheckpoint('a', 0, 0)],
+        null,
+        null,
+        dc,
+      ),
     ).not.toThrow();
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
 });
-
 
 /**
  * Records every assignment to a string property (e.g.
@@ -3327,6 +3568,7 @@ describe('drawCheckpoints', () => {
  * it ends back at `initial`, that it restored it. The shared setup mock has no
  * such property, and a plain object field would only show the final value.
  */
+
 function trackStringProperty(
   target: Record<string, unknown>,
   key: string,
@@ -3387,6 +3629,7 @@ function makeLightingLayer(width = 320, height = 180) {
 
 /** A fake offscreen layer for `drawTintedSprite` — a `drawImage`-capable
  *  context with the composite-operation tracking the tint pass needs. */
+
 function makeTintLayer() {
   const layerCtx = {
     fillStyle: '',
@@ -3405,6 +3648,7 @@ function makeTintLayer() {
 
 /** A hand-built light — independent of the torch/player adapters, so the pass
  *  is proven generic (Story 1's independent test / SC-003). */
+
 function makeLightSource(overrides: Partial<LightSource> = {}): LightSource {
   return {
     x: 100,
@@ -3420,6 +3664,7 @@ function makeLightSource(overrides: Partial<LightSource> = {}): LightSource {
 
 /** The player's carried light as a hand-built `LightSource` (radius `1.75 × 32`,
  *  softer intensity and mid stop than a torch). */
+
 const PLAYER_LIGHT: LightSource = {
   x: 100,
   y: 100,
@@ -3585,9 +3830,7 @@ describe('drawDarkness', () => {
       drawDarkness(withDefault.ctx, defaultLayer.layer, 320, 180, 0.5, [light], -40, 10);
       drawDarkness(withExplicit.ctx, explicitLayer.layer, 320, 180, 0.5, [light], -40, 10, 1);
 
-      expect(explicitLayer.layerCtx.arc.mock.calls).toEqual(
-        defaultLayer.layerCtx.arc.mock.calls,
-      );
+      expect(explicitLayer.layerCtx.arc.mock.calls).toEqual(defaultLayer.layerCtx.arc.mock.calls);
       expect(withExplicit.raw.arc.mock.calls).toEqual(withDefault.raw.arc.mock.calls);
       // Compare the destination rect only — arg 0 is each run's own distinct
       // layer stub, which deep-equality would (correctly) call different.
@@ -3814,3 +4057,85 @@ describe('drawTintedSprite', () => {
   });
 });
 
+describe('drawCrumblingFloors', () => {
+  const ledge = { tag: 'ledge' } as unknown as HTMLImageElement;
+
+  it('atRestTile-drawsTheFullLedgeAtItsCellsPixelPosition', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      sprites: { [CRUMBLE_FLOOR_SHEET.src]: ledge },
+    });
+    const level = parseLevel(['g']);
+
+    drawCrumblingFloors(ctx as unknown as CanvasRenderingContext2D, level, [], dc);
+
+    expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+      ledge,
+      expect.any(Number),
+      0,
+      expect.any(Number),
+      expect.any(Number),
+      0,
+      0,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
+  });
+
+  it('brokenTile-drawsNothingForTheBareGap', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, {
+      sprites: { [CRUMBLE_FLOOR_SHEET.src]: ledge },
+    });
+    const level = parseLevel(['g']);
+
+    drawCrumblingFloors(
+      ctx as unknown as CanvasRenderingContext2D,
+      level,
+      [{ col: 0, row: 0, elapsed: 1 }],
+      dc,
+    );
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+
+  it('missingLedgeSprite-drawsNothingRatherThanThrowing', () => {
+    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D, { sprites: {} });
+    const level = parseLevel(['g']);
+
+    drawCrumblingFloors(ctx as unknown as CanvasRenderingContext2D, level, [], dc);
+
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('drawCheckpointTwinkles', () => {
+  it('inactiveMarker-drawsNothingAtAll', () => {
+    const ctx = makeMockContext() as unknown as {
+      save: ReturnType<typeof vi.fn>;
+      fillRect: ReturnType<typeof vi.fn>;
+    };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+
+    drawCheckpointTwinkles(makeCheckpoint('c', 32, 64), dc, false);
+
+    expect(ctx.save).not.toHaveBeenCalled();
+    expect(ctx.fillRect).not.toHaveBeenCalled();
+  });
+
+  it('activeMarker-drawsTheFixedSparkleSpotsCrisply', () => {
+    const ctx = makeMockContext() as unknown as {
+      fillRect: ReturnType<typeof vi.fn>;
+      imageSmoothingEnabled: boolean;
+    };
+    const dc = makeDrawContext(ctx as unknown as CanvasRenderingContext2D);
+
+    drawCheckpointTwinkles(makeCheckpoint('c', 32, 64), dc, true);
+
+    // Three fixed sparkle spots, each drawn as a two-rect pixel-plus.
+    expect(ctx.fillRect).toHaveBeenCalledTimes(6);
+    expect(ctx.imageSmoothingEnabled).toBe(false);
+  });
+});

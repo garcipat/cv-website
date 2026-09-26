@@ -15,7 +15,7 @@ export type BlockHitOutcome = PlayerEffects & RewardEffects;
 /**
  * Everything the engine needs to know about one block kind, owned entirely by
  * that kind's own module. Adding a block means writing one of these and adding
- * one line to `blocks/index.ts` — nothing in Renderer.ts needs to change. If
+ * one line to `blocks/index.ts` — nothing in SceneRenderer.ts needs to change. If
  * the new kind draws from an already-registered sheet (`WORLD_TILESET_SHEET`,
  * as every kind does today), PlatformerPage.tsx's loader needs no edit either
  * — it discovers `sprite.sheet` from `BLOCK_TYPES` directly. A kind

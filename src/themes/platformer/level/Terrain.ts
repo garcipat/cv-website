@@ -224,7 +224,7 @@ export function chainAttachment(level: LevelDef, col: number, row: number): Chai
 /**
  * How many consecutive `chain` tiles make up the vertical run starting at
  * (col, row) and continuing downward — 1 if the tile below isn't `chain`.
- * Only ever called with (col, row) at the TOP of a run (Renderer.ts checks
+ * Only ever called with (col, row) at the TOP of a run (SceneRenderer.ts checks
  * `tileAt(level, col, row - 1) !== 'chain'` first) since only the top cell
  * of a run draws anything; every other cell in it is skipped.
  */
@@ -246,7 +246,7 @@ export function chainRunLength(level: LevelDef, col: number, row: number): numbe
  * as attached to anything. Checked in that exact order, first match wins,
  * which also resolves the ambiguous case of 3 or 4 solid sides by always
  * preferring up+left. `rotation` is a quarter-turn COUNT (0-3), read the same
- * way `GroundAtlasEntry.rotation` already is by Renderer.ts's
+ * way `GroundAtlasEntry.rotation` already is by SceneRenderer.ts's
  * `drawGroundTile` (`ctx.rotate((entry.rotation * Math.PI) / 2)` about the
  * cell's own center): the corner sprite's native art already nests into an
  * up+left corner (ceiling above, wall to the left), so up+left is rotation 0

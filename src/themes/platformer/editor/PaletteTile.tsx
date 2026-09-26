@@ -108,7 +108,7 @@ export const PaletteTile = ({
                 // before. 'top' instead sits flush with the base sprite's
                 // own top edge — the crumbling floor's crack overlay needs
                 // this because its base art (crumble_floor.png) is itself
-                // top-aligned in its cell, matching Renderer.ts's live
+                // top-aligned in its cell, matching SceneRenderer.ts's live
                 // compositing at the same y as the ledge's own top. Also
                 // follows the base's own `topOffset` nudge, so the overlay
                 // stays flush with the ledge's shifted position rather than

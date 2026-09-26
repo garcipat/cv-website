@@ -5,14 +5,14 @@ import {
   RENDER_SCALE,
   RENDERED_TILE_SIZE,
   backgroundNeighbourMask,
-} from '../level/Terrain';
-import { drawRotatedTile } from '../tiles/draw';
-import { drawTileAt, isFogExempt } from '../tiles/registry';
-import type { TerrainImages, TileDrawContext, TileTransientState } from '../tiles/TileModule';
-import { backgroundAtlasCell } from './BackgroundAtlas';
-import { backgroundRockEntry } from './BackgroundDecorCatalog';
-import type { LevelDef } from '../level/LevelData';
-import type { SignPlacement } from '../level/SignMapper';
+} from '../../level/Terrain';
+import { drawRotatedTile } from '../../tiles/draw';
+import { drawTileAt, isFogExempt } from '../../tiles/registry';
+import type { TerrainImages, TileDrawContext, TileTransientState } from '../../tiles/TileModule';
+import { backgroundAtlasCell } from '../BackgroundAtlas';
+import { backgroundRockEntry } from '../BackgroundDecorCatalog';
+import type { LevelDef } from '../../level/LevelData';
+import type { SignPlacement } from '../../level/SignMapper';
 import {
   PLAYER_FRAME_SIZE,
   PLAYER_RENDERED_SIZE,
@@ -23,34 +23,25 @@ import {
   hitFrameFromTimer,
   HIT_RED_FRAME_INDEX,
   heldTorchPlacement,
-} from '../entities/Player';
-import type { PlayerState } from '../entities/Player';
-import {
-  MAX_HEARTS,
-  HEART_FRAME_SIZE,
-  HEART_RENDERED_SIZE,
-  heartRemaining,
-  heartFrameIndex,
-} from '../entities/Health';
-import { PICKUP_TYPES } from '../entities/pickups';
-import type { Pickup, PickupGroups } from '../contracts/Pickup';
-import type { PickupKind } from '../contracts/PickupKind';
-import type { PickupDrawLayer } from '../entities/pickups/PickupType';
-import { typeOf } from '../entities/enemies';
-import type { EnemyState } from '../entities/Enemy';
-import { typeOf as hazardTypeOf } from '../entities/hazards';
-import type { HazardPlacement } from '../level/HazardMapper';
-import type { DrawContext } from '../contracts/DrawContext';
-import type { PotRenderPlan } from '../entities/blocks/potTypes';
-import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from '../entities/pickups/Key';
-import type { BlockState } from '../entities/Block';
-import { BLOCK_TYPES } from '../entities/blocks';
-import { CHEST_CLOSED_WIDTH, CHEST_CLOSED_HEIGHT } from '../entities/chests';
-import { DEPLOYABLE_ITEM_TYPES } from '../entities/deployableItems';
+} from '../../entities/Player';
+import type { PlayerState } from '../../entities/Player';
+import { PICKUP_TYPES } from '../../entities/pickups';
+import type { Pickup, PickupGroups } from '../../contracts/Pickup';
+import type { PickupKind } from '../../contracts/PickupKind';
+import type { PickupDrawLayer } from '../../entities/pickups/PickupType';
+import { typeOf } from '../../entities/enemies';
+import type { EnemyState } from '../../entities/Enemy';
+import { typeOf as hazardTypeOf } from '../../entities/hazards';
+import type { HazardPlacement } from '../../level/HazardMapper';
+import type { DrawContext } from '../../contracts/DrawContext';
+import type { PotRenderPlan } from '../../entities/blocks/potTypes';
+import type { BlockState } from '../../entities/Block';
+import { BLOCK_TYPES } from '../../entities/blocks';
+import { DEPLOYABLE_ITEM_TYPES } from '../../entities/deployableItems';
 import type {
   DeployableItemDrawLayer,
   DeployableItemState,
-} from '../entities/deployableItems/DeployableItemType';
+} from '../../entities/deployableItems/DeployableItemType';
 import {
   CHECKPOINT_FLAG_SHEET,
   CHECKPOINT_FRAME_WIDTH,
@@ -58,17 +49,16 @@ import {
   CHECKPOINT_RENDERED_WIDTH,
   CHECKPOINT_RENDERED_HEIGHT,
   checkpointFrameIndex,
-} from '../entities/Checkpoint';
-import type { CheckpointState } from '../entities/Checkpoint';
-import { frameSource } from '../entities/sprites/SpriteSheet';
-import { pulse } from '../shared/math';
-import { fillTextWithOutline, RESTART_PROMPT_FONT_FAMILY } from './textDraw';
-import { TORCH_SHEET, BOMB_SHEET, CRUMBLE_FLOOR_SHEET, CRUMBLE_CRACKS_SHEET } from '../entities/sprites/sheets';
-import type { CrumblingFloorTimerState } from '../tiles/crumblingFloor';
-import type { MushroomSquashState } from '../tiles/bouncyMushroom';
-import { TORCH_FRAME_WIDTH, TORCH_FRAME_HEIGHT, torchFrameIndex } from '../tiles/torch';
-import type { Point } from './Lighting';
-import type { LightSource } from '../contracts/lighting';
+} from '../../entities/Checkpoint';
+import type { CheckpointState } from '../../entities/Checkpoint';
+import { frameSource } from '../../entities/sprites/SpriteSheet';
+import { pulse } from '../../shared/math';
+import { TORCH_SHEET, CRUMBLE_FLOOR_SHEET, CRUMBLE_CRACKS_SHEET } from '../../entities/sprites/sheets';
+import type { CrumblingFloorTimerState } from '../../tiles/crumblingFloor';
+import type { MushroomSquashState } from '../../tiles/bouncyMushroom';
+import { TORCH_FRAME_WIDTH, TORCH_FRAME_HEIGHT, torchFrameIndex } from '../../tiles/torch';
+import type { Point } from '../Lighting';
+import type { LightSource } from '../../contracts/lighting';
 import {
   localDarknessAt,
   enemyEyeOpacity,
@@ -82,7 +72,7 @@ import {
   fogPuffAt,
   fogPeekStrengthAt,
   isCellDarkening,
-} from './Lighting';
+} from '../Lighting';
 
 /** Water tiles live in `world_tileset.png` column 4, row 9: the wave-crest
  *  (foam edge over blue). */
@@ -134,7 +124,17 @@ export function drawWaterForeground(
   ctx.imageSmoothingEnabled = false;
 
   for (let x = originX; x < canvasWidth; x += RENDERED_TILE_SIZE) {
-    ctx.drawImage(tileset, WATER_TILE_SX, WATER_CREST_SY, TILE_SIZE, TILE_SIZE, x, topY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    ctx.drawImage(
+      tileset,
+      WATER_TILE_SX,
+      WATER_CREST_SY,
+      TILE_SIZE,
+      TILE_SIZE,
+      x,
+      topY,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
   }
 
   const bodyTop = topY + RENDERED_TILE_SIZE;
@@ -373,8 +373,18 @@ export function drawEnemyEyes(
     const halfGap = ENEMY_EYE_GAP_PX / 2;
     const halfSize = ENEMY_EYE_SIZE_PX / 2;
     ctx.globalAlpha = opacity;
-    ctx.fillRect(Math.round(centerX - halfGap - halfSize), eyeY, ENEMY_EYE_SIZE_PX, ENEMY_EYE_SIZE_PX);
-    ctx.fillRect(Math.round(centerX + halfGap - halfSize), eyeY, ENEMY_EYE_SIZE_PX, ENEMY_EYE_SIZE_PX);
+    ctx.fillRect(
+      Math.round(centerX - halfGap - halfSize),
+      eyeY,
+      ENEMY_EYE_SIZE_PX,
+      ENEMY_EYE_SIZE_PX,
+    );
+    ctx.fillRect(
+      Math.round(centerX + halfGap - halfSize),
+      eyeY,
+      ENEMY_EYE_SIZE_PX,
+      ENEMY_EYE_SIZE_PX,
+    );
   }
 
   ctx.restore();
@@ -561,8 +571,15 @@ export function drawBackgroundTiles(
       if (decorations && mask === 15) {
         const rock = backgroundRockEntry(col, row);
         ctx.drawImage(
-          decorations, rock.sx, rock.sy, TILE_SIZE, TILE_SIZE,
-          destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+          decorations,
+          rock.sx,
+          rock.sy,
+          TILE_SIZE,
+          TILE_SIZE,
+          destX,
+          destY,
+          RENDERED_TILE_SIZE,
+          RENDERED_TILE_SIZE,
         );
       }
     }
@@ -856,108 +873,6 @@ export function drawHeldTorch(
   ctx.restore();
 }
 
-const HUD_MARGIN = 16;
-const HEART_SPACING = 4;
-
-/**
- * Reserves room at the HUD's top-left for the journal icon button (a DOM
- * `<img>`/`<button>`, not canvas-drawn — see `PlatformerPage.tsx`) so the
- * heart HUD doesn't render underneath it. 40 is the icon button's size
- * (`size-10` in Tailwind), 8 is the gap between it and the first heart —
- * both must stay in sync with `PlatformerPage.tsx`'s icon button sizing if
- * either changes.
- */
-export const HEARTS_START_X = HUD_MARGIN + 40 + 8;
-
-/**
- * Draws the heart HUD at a fixed screen position (top-left by default),
- * unlike `drawTerrain`/`drawPlayer` which take camera-scroll
- * `originX`/`originY` — the HUD must stay put on screen regardless of how
- * far the camera has scrolled into the level. `startX` defaults to
- * `HUD_MARGIN` (the original, unshifted position) so existing callers are
- * unaffected; `PlatformerPage.tsx` passes `HEARTS_START_X` explicitly to
- * make room for the journal icon button.
- */
-export function drawHearts(
-  ctx: CanvasRenderingContext2D,
-  halfHearts: number,
-  heartsSheet: HTMLImageElement,
-  startX: number = HUD_MARGIN,
-): void {
-  ctx.imageSmoothingEnabled = false;
-
-  for (let i = 0; i < MAX_HEARTS; i++) {
-    const remaining = heartRemaining(halfHearts, i);
-    const sx = heartFrameIndex(remaining) * HEART_FRAME_SIZE;
-    const x = startX + i * (HEART_RENDERED_SIZE + HEART_SPACING);
-    ctx.drawImage(
-      heartsSheet,
-      sx,
-      0,
-      HEART_FRAME_SIZE,
-      HEART_FRAME_SIZE,
-      x,
-      HUD_MARGIN,
-      HEART_RENDERED_SIZE,
-      HEART_RENDERED_SIZE,
-    );
-  }
-}
-
-/**
- * Paints solid black over the whole canvas except a circular hole of
- * `radius` centered on (centerX, centerY), using the canvas 2D API's
- * even-odd fill rule on two subpaths (the full-canvas rect, then the
- * circle) instead of an offscreen buffer + composite-operation punch —
- * simpler and avoids an extra canvas. `centerX`/`centerY` are screen-space
- * (caller adds the camera originX/originY, matching drawTerrain/drawPlayer's
- * convention). `radius <= 0` draws solid black with no hole at all — the
- * `awaitingRestart` phase and the very start of a death both rely on this.
- */
-export function drawIrisOverlay(
-  ctx: CanvasRenderingContext2D,
-  canvasWidth: number,
-  canvasHeight: number,
-  centerX: number,
-  centerY: number,
-  radius: number,
-): void {
-  ctx.save();
-  ctx.fillStyle = '#000';
-  ctx.beginPath();
-  ctx.rect(0, 0, canvasWidth, canvasHeight);
-  if (radius > 0) {
-    ctx.moveTo(centerX + radius, centerY);
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
-  }
-  ctx.fill('evenodd');
-  ctx.restore();
-}
-
-const RESTART_PROMPT_TEXT = 'Press any button to restart';
-
-/** Public path to the font file loaded for RESTART_PROMPT_FONT_FAMILY. */
-export const RESTART_PROMPT_FONT_URL = '/fonts/bytebounce.medium.ttf';
-
-/** Draws the death-screen restart prompt, centered on the canvas. Only ever
- *  drawn on top of a fully-closed drawIrisOverlay (radius 0), so no
- *  background/contrast handling is needed here. Falls back to the
- *  sans-serif stack if RESTART_PROMPT_FONT_FAMILY hasn't finished loading
- *  (or failed to) by the time this is drawn. */
-export function drawRestartPrompt(
-  ctx: CanvasRenderingContext2D,
-  canvasWidth: number,
-  canvasHeight: number,
-): void {
-  ctx.save();
-  ctx.fillStyle = '#fff';
-  ctx.font = `24px "${RESTART_PROMPT_FONT_FAMILY}", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(RESTART_PROMPT_TEXT, canvasWidth / 2, canvasHeight / 2);
-  ctx.restore();
-}
-
 /** Tile coordinates of the signpost sprite within world_tileset.png (col 8,
  *  row 3 -> pixel 128,48) — sits immediately right of the crate tile (col 7,
  *  row 3). */
@@ -1177,329 +1092,4 @@ export function drawCheckpoints(
 
     drawCheckpointTwinkles(state, dc, state.id === activeCheckpointId);
   }
-}
-
-/** Border thickness of the low-health glow, in canvas px — a fixed HUD-style
- *  size, not scaled to canvas width/height (same convention as the fixed-size
- *  heart/journal HUD icons). */
-export const LOW_HEALTH_GLOW_WIDTH_PX = 18;
-/** Full breathe-in/breathe-out cycle length for the pulse. */
-export const LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS = 1.4;
-const LOW_HEALTH_GLOW_BASE_ALPHA = 0.25;
-const LOW_HEALTH_GLOW_PULSE_ALPHA = 0.45;
-const LOW_HEALTH_GLOW_COLOR = '#ff1f1f';
-
-/** 0..1 sine breathing curve mapped to [BASE, BASE+PULSE] alpha, driven by a
- *  plain elapsed-seconds counter (not tied to any one effect's lifetime —
- *  the glow is ambient and open-ended for as long as health stays critical,
- *  see PlatformerPage.tsx's `worldAnimElapsed`). */
-export function lowHealthGlowAlpha(elapsedSeconds: number): number {
-  const wave = (pulse(elapsedSeconds / LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS) + 1) / 2;
-  return LOW_HEALTH_GLOW_BASE_ALPHA + wave * LOW_HEALTH_GLOW_PULSE_ALPHA;
-}
-
-/** Draws a soft red glow pulsing inward from all four canvas edges — the
- *  low-health warning (spec.md FR-007/FR-008). The caller gates WHETHER
- *  this is called at all (critical health, live gameplay only); this
- *  function only draws, unconditionally, whenever it's invoked. */
-export function drawLowHealthGlow(
-  ctx: CanvasRenderingContext2D,
-  canvasWidth: number,
-  canvasHeight: number,
-  elapsedSeconds: number,
-): void {
-  const alpha = lowHealthGlowAlpha(elapsedSeconds);
-  const w = LOW_HEALTH_GLOW_WIDTH_PX;
-  ctx.save();
-  ctx.globalAlpha = alpha;
-
-  const left = ctx.createLinearGradient(0, 0, w, 0);
-  left.addColorStop(0, LOW_HEALTH_GLOW_COLOR);
-  left.addColorStop(1, 'rgba(255,31,31,0)');
-  ctx.fillStyle = left;
-  ctx.fillRect(0, 0, w, canvasHeight);
-
-  const right = ctx.createLinearGradient(canvasWidth, 0, canvasWidth - w, 0);
-  right.addColorStop(0, LOW_HEALTH_GLOW_COLOR);
-  right.addColorStop(1, 'rgba(255,31,31,0)');
-  ctx.fillStyle = right;
-  ctx.fillRect(canvasWidth - w, 0, w, canvasHeight);
-
-  const top = ctx.createLinearGradient(0, 0, 0, w);
-  top.addColorStop(0, LOW_HEALTH_GLOW_COLOR);
-  top.addColorStop(1, 'rgba(255,31,31,0)');
-  ctx.fillStyle = top;
-  ctx.fillRect(0, 0, canvasWidth, w);
-
-  const bottom = ctx.createLinearGradient(0, canvasHeight, 0, canvasHeight - w);
-  bottom.addColorStop(0, LOW_HEALTH_GLOW_COLOR);
-  bottom.addColorStop(1, 'rgba(255,31,31,0)');
-  ctx.fillStyle = bottom;
-  ctx.fillRect(0, canvasHeight - w, canvasWidth, w);
-
-  ctx.restore();
-}
-
-// Matches HEART_RENDERED_SIZE so the coin/fruit counter icons read as the
-// same HUD "row height" as the hearts, not a smaller secondary element.
-const COUNTER_ICON_SIZE = HEART_RENDERED_SIZE;
-const COUNTER_TEXT_GAP = 6;
-
-/**
- * Draws one "[icon] collected / max" counter at a caller-chosen fixed screen
- * position — generalized from step 11's single hardcoded-position
- * drawCoinCounter so PlatformerPage.tsx (Task 8) can place a coin counter
- * and a fruit counter side by side, each with its own sprite icon so it's
- * visually unambiguous which counter measures what.
- */
-export function drawCollectibleCounter(
-  ctx: CanvasRenderingContext2D,
-  icon: HTMLImageElement,
-  iconFrame: { sx: number; sy: number; size: number },
-  collected: number,
-  max: number,
-  x: number,
-  y: number,
-  // Nudges only the icon (never the text) vertically from its default
-  // centered position — coin.png/fruit.png's artwork is already centered
-  // within its native frame, but a slime's sprite frames (entities/sprites/
-  // sheets.ts, drawn via each type's sprite descriptor) are bottom-anchored
-  // (no transparent padding below the feet, per enemyTileOffsetY's doc
-  // comment in Enemy.ts), which reads as sitting too low once scaled into this counter's
-  // fixed-size icon box. Defaults to 0 (coin/fruit's existing behavior,
-  // unchanged); the enemy-defeated counter (PlatformerPage.tsx) passes a
-  // small negative value to compensate.
-  iconYOffset = 0,
-  // Shrinks only the drawn icon (never the text's start position, which
-  // stays anchored to the full COUNTER_ICON_SIZE-wide slot) — a crate's
-  // edge-to-edge terrain art (no transparent padding the way
-  // coin.png/fruit.png's centered icons have) reads as noticeably bigger
-  // than the other counters' icons at the same draw size otherwise.
-  // Defaults to COUNTER_ICON_SIZE (every pre-existing call site's unchanged
-  // behavior).
-  iconDisplaySize = COUNTER_ICON_SIZE,
-): void {
-  ctx.imageSmoothingEnabled = false;
-  const iconX = x + (COUNTER_ICON_SIZE - iconDisplaySize) / 2;
-  const iconY = y - iconDisplaySize / 2 + iconYOffset;
-  ctx.drawImage(
-    icon,
-    iconFrame.sx,
-    iconFrame.sy,
-    iconFrame.size,
-    iconFrame.size,
-    iconX,
-    iconY,
-    iconDisplaySize,
-    iconDisplaySize,
-  );
-
-  ctx.save();
-  ctx.fillStyle = '#fff';
-  ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  fillTextWithOutline(ctx, `${collected} / ${max}`, x + COUNTER_ICON_SIZE + COUNTER_TEXT_GAP, y);
-  ctx.restore();
-}
-
-/** Total on-screen width of the 3-heart row (drawHearts), used to position
- *  the chest counter just past it in the same HUD row. */
-const HEARTS_ROW_WIDTH = MAX_HEARTS * HEART_RENDERED_SIZE + (MAX_HEARTS - 1) * HEART_SPACING;
-
-/** Shared horizontal gap between HUD groups (hearts→chest, chest→key) — one
- *  constant reused for every gap on this row, rather than separately
- *  hand-tuned numbers, so the rhythm between groups is equal by
- *  construction instead of by coincidence. */
-export const HUD_GROUP_GAP = 24;
-
-/** Horizontal screen position for the persistent chest counter — placed
- *  just to the right of the heart row, same HUD row as the hearts (not a
- *  second row below them). */
-export const CHEST_COUNTER_X = HEARTS_START_X + HEARTS_ROW_WIDTH + HUD_GROUP_GAP;
-
-/** Vertical screen position for the persistent chest counter — vertically
- *  centered on the same row the hearts occupy (drawHearts draws hearts with
- *  their top edge at HUD_MARGIN; drawChestCounter treats its y as a
- *  vertical CENTER, so this is offset by half a heart's height to align). */
-export const CHEST_COUNTER_Y = HUD_MARGIN + HEART_RENDERED_SIZE / 2;
-
-/**
- * Draws the persistent "[chest icon] collected / total" HUD counter —
- * unlike drawCollectibleCounter (which crops one frame out of a shared
- * sheet), chest_closed.png is always the icon (a chest, once opened, still
- * represents "one of the objectives" the same way) and is a standalone
- * image at its own native aspect ratio, scaled to match the hearts' row
- * height rather than forced into a square icon box.
- */
-// Chest art is edge-to-edge with no transparent padding (unlike hearts), so
-// it reads oversized at HEART_RENDERED_SIZE — shrunk down from that, but not
-// all the way to 20 (read as too small next to the other HUD icons).
-export const CHEST_COUNTER_ICON_HEIGHT = 26;
-
-// Wider gap than the shared COUNTER_TEXT_GAP (used by drawCollectibleCounter)
-// between the chest icon and its "N / M" text — a dedicated constant so this
-// counter's spacing can be tuned without affecting the unrelated
-// drawCollectibleCounter. Exported so tests can pin the exact text x
-// position instead of only asserting `any(Number)`.
-export const CHEST_COUNTER_TEXT_GAP = 12;
-
-export function drawChestCounter(
-  ctx: CanvasRenderingContext2D,
-  chestClosedSprite: HTMLImageElement,
-  collected: number,
-  total: number,
-  x: number,
-  y: number,
-): void {
-  ctx.imageSmoothingEnabled = false;
-  const iconHeight = CHEST_COUNTER_ICON_HEIGHT;
-  const iconWidth = (CHEST_CLOSED_WIDTH / CHEST_CLOSED_HEIGHT) * iconHeight;
-  ctx.drawImage(
-    chestClosedSprite,
-    0,
-    0,
-    CHEST_CLOSED_WIDTH,
-    CHEST_CLOSED_HEIGHT,
-    x,
-    y - iconHeight / 2,
-    iconWidth,
-    iconHeight,
-  );
-
-  ctx.save();
-  ctx.fillStyle = '#fff';
-  ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  fillTextWithOutline(ctx, `${collected} / ${total}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
-  ctx.restore();
-}
-
-/**
- * The chest counter's actual on-screen content width (icon + gap + the real
- * measured "N / M" text, via ctx.measureText — NOT a hand-picked estimate).
- * Used to position the key counter's X so the chest→key gap always exactly
- * matches HUD_GROUP_GAP regardless of how many digits `collected`/`total`
- * happen to have, instead of drifting whenever the guessed text width and
- * the real one disagree. `ctx.font` is set here to the same font
- * drawChestCounter itself uses, so the measurement is accurate regardless of
- * whatever the context's font was left at beforehand.
- */
-export function chestCounterWidth(ctx: CanvasRenderingContext2D, collected: number, total: number): number {
-  const iconWidth = (CHEST_CLOSED_WIDTH / CHEST_CLOSED_HEIGHT) * CHEST_COUNTER_ICON_HEIGHT;
-  ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
-  const textWidth = ctx.measureText(`${collected} / ${total}`).width;
-  return iconWidth + CHEST_COUNTER_TEXT_GAP + textWidth;
-}
-
-/** Horizontal screen position for the key counter — placed just to the right
- *  of the chest counter's actual measured width, same HUD row, separated by
- *  the same HUD_GROUP_GAP the hearts→chest gap uses. Callers (both
- *  PlatformerPage.tsx's render loop and its key-collection flying-text effect
- *  target) must call this with the CURRENT chest collected/total — it is a
- *  function, not a static constant, precisely because that width isn't
- *  fixed. */
-export function keyCounterX(ctx: CanvasRenderingContext2D, chestCollected: number, chestTotal: number): number {
-  return CHEST_COUNTER_X + chestCounterWidth(ctx, chestCollected, chestTotal) + HUD_GROUP_GAP;
-}
-
-export const KEY_COUNTER_Y = CHEST_COUNTER_Y;
-
-/** Between CHEST_COUNTER_ICON_HEIGHT (26) and HEART_RENDERED_SIZE (32) — the
- *  current key.png is a bold, chunky shape (unlike an earlier thin 14x28
- *  version, which needed the full heart height to avoid looking shrunk), so
- *  a smaller HUD icon than the world sprite reads fine without looking
- *  undersized next to the hearts/chest icons on the same row. */
-const KEY_COUNTER_ICON_HEIGHT = 24;
-
-/** Draws the "[key icon] N" HUD counter — no "/ total" denominator (unlike
- *  drawChestCounter): a key count has no fixed total to compare against, it
- *  just goes up and down as keys are found and spent. */
-export function drawKeyCounter(
-  ctx: CanvasRenderingContext2D,
-  keySprite: HTMLImageElement,
-  count: number,
-  x: number,
-  y: number,
-): void {
-  ctx.imageSmoothingEnabled = false;
-  const iconHeight = KEY_COUNTER_ICON_HEIGHT;
-  const iconWidth = (KEY_FRAME_WIDTH / KEY_FRAME_HEIGHT) * iconHeight;
-  ctx.drawImage(keySprite, 0, 0, KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT, x, y - iconHeight / 2, iconWidth, iconHeight);
-
-  ctx.save();
-  ctx.fillStyle = '#fff';
-  ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  fillTextWithOutline(ctx, `${count}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
-  ctx.restore();
-}
-
-/** Between CHEST_COUNTER_ICON_HEIGHT (26) and HEART_RENDERED_SIZE (32) —
- *  matches the key counter's own icon height so the two HUD groups read at
- *  the same scale. */
-const BOMB_COUNTER_ICON_HEIGHT = 24;
-
-/** Draws the "[bomb icon] N" HUD counter — the unlit bomb (bomb.png frame 0)
- *  plus the carried count, no denominator (FR-010). Called only while the
- *  count is at least 1; at 0 the whole group is hidden. */
-export function drawBombCounter(
-  ctx: CanvasRenderingContext2D,
-  bombSprite: HTMLImageElement,
-  count: number,
-  x: number,
-  y: number,
-): void {
-  ctx.imageSmoothingEnabled = false;
-  const iconHeight = BOMB_COUNTER_ICON_HEIGHT;
-  const iconWidth = (BOMB_SHEET.frameWidth / BOMB_SHEET.frameHeight) * iconHeight;
-  ctx.drawImage(
-    bombSprite,
-    0,
-    0,
-    BOMB_SHEET.frameWidth,
-    BOMB_SHEET.frameHeight,
-    x,
-    y - iconHeight / 2,
-    iconWidth,
-    iconHeight,
-  );
-
-  ctx.save();
-  ctx.fillStyle = '#fff';
-  ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  fillTextWithOutline(ctx, `${count}`, x + iconWidth + CHEST_COUNTER_TEXT_GAP, y);
-  ctx.restore();
-}
-
-/** The key counter's actual on-screen content width — the same measurement
- *  `chestCounterWidth` does for the chest counter, used to position the bomb
- *  counter just past it. */
-function keyCounterWidth(ctx: CanvasRenderingContext2D, count: number): number {
-  const iconWidth = (KEY_FRAME_WIDTH / KEY_FRAME_HEIGHT) * KEY_COUNTER_ICON_HEIGHT;
-  ctx.font = `22px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
-  const textWidth = ctx.measureText(`${count}`).width;
-  return iconWidth + CHEST_COUNTER_TEXT_GAP + textWidth;
-}
-
-/**
- * Horizontal screen position for the bomb counter — placed just to the right
- * of the key counter, separated by `HUD_GROUP_GAP`. The key counter is itself
- * hidden while `keyCount` is 0, so this adds its measured width plus the gap
- * only when keys are actually shown; otherwise the bomb group takes the key
- * counter's own position (FR-010).
- */
-export function bombCounterX(
-  ctx: CanvasRenderingContext2D,
-  chestCollected: number,
-  chestTotal: number,
-  keyCount: number,
-): number {
-  const base = keyCounterX(ctx, chestCollected, chestTotal);
-  if (keyCount <= 0) return base;
-  return base + keyCounterWidth(ctx, keyCount) + HUD_GROUP_GAP;
 }

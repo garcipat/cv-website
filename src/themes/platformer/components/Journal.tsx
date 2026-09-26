@@ -199,7 +199,7 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
   // emoji) for the personality page's collectibles summary, per user
   // feedback — cropped to each sheet's first frame (matching the HUD
   // counter's static icon, `frameSource(COIN_SHEET, 0)`/`fruitFrameSource(0)` in
-  // PlatformerPage.tsx, passed into Renderer.ts's drawCollectibleCounter as
+  // PlatformerPage.tsx, passed into the HUD counter drawer as
   // its `iconFrame`) at a small fixed display size, scaling the whole
   // sheet's `background-size` up so that one frame lands exactly on the crop.
   const COLLECTIBLE_ICON_DISPLAY_SIZE = 32;

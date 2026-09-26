@@ -54,7 +54,7 @@ const NO_CRUMBLING_FLOOR_STATES: readonly CrumblingFloorTimerState[] = [];
 /**
  * Width of the actual collision hitbox — narrower than PLAYER_RENDERED_SIZE
  * (the full render slot) and centered within it, matching where the visible
- * sprite is always drawn (see Renderer.ts's drawPlayer: it draws at this
+ * sprite is always drawn (see SceneRenderer.ts's drawPlayer: it draws at this
  * same fixed offset within the slot regardless of facing — only the
  * artwork mirrors, never the position). Used uniformly below for horizontal
  * wall collision, vertical ground/ceiling collision, and world bounds, so

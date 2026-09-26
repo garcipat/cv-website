@@ -42,7 +42,7 @@ export interface ThankYouScreenProps {
  * text, since they're URLs meant to be followed — email/phone/location stay
  * plain text. The "press any button to continue" line uses
  * `RESTART_PROMPT_FONT_FAMILY` (the same pixel font, 'ByteBounce', the
- * death-screen restart prompt draws on canvas via `Renderer.ts`'s
+ * death-screen restart prompt draws on canvas via `HudRenderer.ts`'s
  * `drawRestartPrompt`), for stylistic consistency with the rest of the
  * game's on-screen text — that font file is loaded via `document.fonts`
  * (`PlatformerPage.tsx`'s `loadFont` call), so it's just as usable in

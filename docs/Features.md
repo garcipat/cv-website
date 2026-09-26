@@ -74,7 +74,7 @@ graph RL
         R006["✅ R-006: Platformer Pickup Unification"]
         R007["✅ R-007: Platformer Registry Dispatch Completion"]
         R008["✅ R-008: Platformer Placeable World Items"]
-        R009["R-009: Platformer Renderer Split"]
+        R009["✅ R-009: Platformer Renderer Split"]
         R010["R-010: Platformer Mapper & Editor Unification"]
         R011["R-011: Platformer Player Damage & Bomb Systems"]
         R012["R-012: Platformer State Stores & Asset/HUD Extraction"]
@@ -318,6 +318,7 @@ graph RL
     class R002 done
     class R004 done
     class R008 done
+    class R009 done
     class R015 done
     class R005 done
     class R006 done

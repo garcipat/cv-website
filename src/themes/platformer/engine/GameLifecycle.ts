@@ -74,7 +74,7 @@ export interface LifecycleState {
    *  (not advanced) once 'playing' or 'awaitingRestart' is reached. */
   elapsed: number;
   /** World-space point (not screen-space — the caller adds camera offset at
-   *  render time, matching Renderer.ts's originX/originY convention) the
+   *  render time, matching SceneRenderer.ts's originX/originY convention) the
    *  iris circle is centered on for the current animation. */
   centerX: number;
   centerY: number;

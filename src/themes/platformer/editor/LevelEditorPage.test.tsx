@@ -58,7 +58,7 @@ vi.mock('../engine/SpriteLoader', () => ({
   loadImage: vi.fn((src: string) => Promise.resolve({ src } as unknown as HTMLImageElement)),
 }));
 
-vi.mock('../engine/Renderer', () => ({
+vi.mock('../engine/render/SceneRenderer', () => ({
   drawTerrain: vi.fn(),
   drawPlayer: vi.fn(),
   drawPickups: vi.fn(),
@@ -106,7 +106,7 @@ vi.mock('../level/levelRegistry', async (importOriginal) => {
   };
 });
 
-import { drawTerrain } from '../engine/Renderer';
+import { drawTerrain } from '../engine/render/SceneRenderer';
 
 beforeEach(() => {
   vi.clearAllMocks();

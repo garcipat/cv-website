@@ -55,7 +55,7 @@ export function explosionFrameIndex(effect: TransientEffect<ExplosionState>): nu
   return Math.min(Math.floor(progress * EXPLOSION_FRAME_COUNT), EXPLOSION_FRAME_COUNT - 1);
 }
 
-/** The explosion family's registered draw — the former Renderer.ts
+/** The explosion family's registered draw — the former scene renderer
  *  `drawExplosions` body. */
 export function drawExplosionEffect(
   effect: TransientEffect<ExplosionState>,

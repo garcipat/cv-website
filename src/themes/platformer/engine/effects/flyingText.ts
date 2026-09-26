@@ -116,7 +116,7 @@ const COLLECTION_EFFECT_FONT_SIZE = 28;
 const COLLECTION_EFFECT_ICON_FONT_SIZE = 20;
 const COLLECTION_EFFECT_ICON_GAP = 6;
 
-/** The flying-text family's registered draw — the former Renderer.ts collection-text
+/** The flying-text family's registered draw — the former scene renderer collection-text
  *  draw body. Screen-space (no camera offset). */
 export function drawFlyingText(effect: TransientEffect<FlyingTextState>, rc: EffectRenderContext): void {
   const ctx = rc.ctx;

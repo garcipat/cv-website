@@ -11,7 +11,7 @@ import type { PlayerState } from '../Player';
 import type { CollectedFact } from '../../types';
 import type { BubbleMessageId } from '../../level/HintCatalog';
 
-/** Which band `drawDeployableItems` draws this kind in (see Renderer.ts). */
+/** Which band `drawDeployableItems` draws this kind in (see SceneRenderer.ts). */
 export type DeployableItemDrawLayer = 'terrain' | 'afterBlocks' | 'afterCrumblingFloors';
 
 /** One cell an item writes into the effective terrain grid. */
@@ -118,7 +118,7 @@ export interface DeployableSpawnContext {
  * Everything a player-affected low-count object's lifecycle, appearance,
  * player interaction, self-owned consequences and reset scope needs, owned
  * entirely by that kind's own module. A new kind is one module plus one
- * registry line; nothing in `Renderer.ts`, `Collision.ts` or the page's
+ * registry line; nothing in `SceneRenderer.ts`, `Collision.ts` or the page's
  * tick/draw/interaction dispatch needs to change (R-008 FR-001).
  *
  * Composition is `WorldType<S>`, NOT `Boxed<S>`: a non-solid placed bomb and

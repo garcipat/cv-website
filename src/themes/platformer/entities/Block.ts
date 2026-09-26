@@ -15,7 +15,7 @@ export const BLOCK_RENDERED_SIZE = RENDERED_TILE_SIZE;
  * visual state, by kind and `hitsTaken`. A hit question-mark does not swap
  * to a `!` indicator tile — that would read as still-a-special-block rather
  * than "used up" — so it swaps to the plain top-exposed `groundRock` terrain
- * tile instead, at tile (col 1, row 0) — the same coordinates
+ * tile instead, at tile (col 1, row 0) - the same coordinates
  * `tiles/groundRock.ts`'s `draw` uses for exposed `groundRock` terrain, so a used-up
  * question-mark blends into ordinary ground rather than reading as a
  * distinct block type. Every other kind/hit-count combination keeps

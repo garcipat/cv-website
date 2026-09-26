@@ -5,25 +5,11 @@ import { loadFont } from './engine/FontLoader';
 import {
   drawTerrain,
   drawPlayer,
-  drawHearts,
   drawPickups,
   drawEnemies,
   drawBlocks,
-  drawChestCounter,
-  drawIrisOverlay,
-  drawRestartPrompt,
-  RESTART_PROMPT_FONT_URL,
-  HEARTS_START_X,
-  CHEST_COUNTER_X,
-  CHEST_COUNTER_Y,
   drawSigns,
-  drawLowHealthGlow,
   drawHazards,
-  drawKeyCounter,
-  drawBombCounter,
-  keyCounterX,
-  bombCounterX,
-  KEY_COUNTER_Y,
   drawWaterForeground,
   drawBackgroundTiles,
   drawCheckpoints,
@@ -33,7 +19,25 @@ import {
   drawHeldTorch,
   drawDeployableItems,
   drawCrumblingFloors,
-} from './engine/Renderer';
+} from './engine/render/SceneRenderer';
+import {
+  drawHearts,
+  drawHudCounter,
+  drawIrisOverlay,
+  drawRestartPrompt,
+  hudCounterX,
+  scaledImageCounter,
+  RESTART_PROMPT_FONT_URL,
+  BOMB_COUNTER_ICON_HEIGHT,
+  CHEST_COUNTER_ICON_HEIGHT,
+  CHEST_COUNTER_TEXT_GAP,
+  CHEST_COUNTER_X,
+  CHEST_COUNTER_Y,
+  HEARTS_START_X,
+  KEY_COUNTER_ICON_HEIGHT,
+  KEY_COUNTER_Y,
+  drawLowHealthGlow,
+} from './engine/render/HudRenderer';
 import { RESTART_PROMPT_FONT_FAMILY } from './engine/textDraw';
 import type { CounterPopupLabelKey } from './contracts/counters';
 import { drawBackgroundLayers, backgroundBandGeometry } from './engine/BackgroundLayers';
@@ -81,7 +85,8 @@ import {
 import { proposeDeployableItemInteraction, DEPLOYABLE_ITEM_TYPES } from './entities/deployableItems';
 import { blastTiles, blocksInBlast, enemiesInBlast, playerInBlast } from './engine/Blast';
 import { resolveCheckpointContacts } from './engine/CheckpointLogic';
-import { allChestsOpen, chestDeployableItem } from './entities/chests';
+import { allChestsOpen, chestDeployableItem, CHEST_CLOSED_WIDTH, CHEST_CLOSED_HEIGHT } from './entities/chests';
+import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from './entities/pickups/Key';
 import { stepBlockAnimation } from './engine/BlockAI';
 import {
   applyBlockHit,
@@ -300,7 +305,7 @@ export const PlatformerPage = () => {
   // shine-through), discovered from the type registry rather than loaded via
   // individual refs — see the mount effect below.
   const spritesRef = useRef<SpriteLookup>({});
-  // Kept alongside spritesRef: drawChestCounter (the HUD) still reads this
+  // Kept alongside spritesRef: the HUD chest counter descriptor reads this
   // directly, unlike the chest's own draw, which reads the closed/open sprites
   // from spritesRef via the chest kind's `draw`.
   const chestClosedSpriteRef = useRef<HTMLImageElement | null>(null);
@@ -950,36 +955,51 @@ export const PlatformerPage = () => {
         drawHearts(ctx, playerState.value.hitPoints, heartsSpriteRef.current, HEARTS_START_X);
       }
 
+      // Persistent HUD counters (chest → key → bomb) are declared as
+      // descriptors and drawn through the one generic drawer; the chest
+      // descriptor is built even while its group is hidden so the X-chain
+      // position is unchanged (FR-005/FR-006).
+      const chestDescriptor = scaledImageCounter({
+        image: chestClosedSpriteRef.current,
+        sourceWidth: CHEST_CLOSED_WIDTH,
+        sourceHeight: CHEST_CLOSED_HEIGHT,
+        height: CHEST_COUNTER_ICON_HEIGHT,
+        count: chestsOpened.value,
+        total: levelTotals.value.chests,
+        textGap: CHEST_COUNTER_TEXT_GAP,
+      });
+      const keyX = hudCounterX(ctx, chestDescriptor, CHEST_COUNTER_X);
+
       if (chestClosedSpriteRef.current && levelTotals.value.chests > 0) {
-        drawChestCounter(
-          ctx,
-          chestClosedSpriteRef.current,
-          chestsOpened.value,
-          levelTotals.value.chests,
-          CHEST_COUNTER_X,
-          CHEST_COUNTER_Y,
-        );
+        drawHudCounter(ctx, chestDescriptor, CHEST_COUNTER_X, CHEST_COUNTER_Y);
       }
 
+      const keyDescriptor = scaledImageCounter({
+        image: keySpriteRef.current,
+        sourceWidth: KEY_FRAME_WIDTH,
+        sourceHeight: KEY_FRAME_HEIGHT,
+        height: KEY_COUNTER_ICON_HEIGHT,
+        count: collectedKeys.value,
+        textGap: CHEST_COUNTER_TEXT_GAP,
+      });
       if (keySpriteRef.current && collectedKeys.value > 0) {
-        const keyX = keyCounterX(
-          ctx,
-          chestsOpened.value,
-          levelTotals.value.chests,
-        );
-        drawKeyCounter(ctx, keySpriteRef.current, collectedKeys.value, keyX, KEY_COUNTER_Y);
+        drawHudCounter(ctx, keyDescriptor, keyX, KEY_COUNTER_Y);
       }
 
-      // The bomb HUD group is hidden while the carried count is 0 (FR-010).
+      // The bomb HUD group is hidden while the carried count is 0 (FR-010);
+      // a hidden key group does not advance the bomb group's X.
       const bombSprite = spritesRef.current[BOMB_SHEET.src];
+      const bombX = collectedKeys.value > 0 ? hudCounterX(ctx, keyDescriptor, keyX) : keyX;
       if (bombSprite && carriedBombs.value > 0) {
-        const bombX = bombCounterX(
-          ctx,
-          chestsOpened.value,
-          levelTotals.value.chests,
-          collectedKeys.value,
-        );
-        drawBombCounter(ctx, bombSprite, carriedBombs.value, bombX, KEY_COUNTER_Y);
+        const bombDescriptor = scaledImageCounter({
+          image: bombSprite,
+          sourceWidth: BOMB_SHEET.frameWidth,
+          sourceHeight: BOMB_SHEET.frameHeight,
+          height: BOMB_COUNTER_ICON_HEIGHT,
+          count: carriedBombs.value,
+          textGap: CHEST_COUNTER_TEXT_GAP,
+        });
+        drawHudCounter(ctx, bombDescriptor, bombX, KEY_COUNTER_Y);
       }
 
       if (lifecycleState.value.phase === 'playing' && isHealthCritical(playerState.value.hitPoints)) {
@@ -1330,9 +1350,20 @@ export const PlatformerPage = () => {
               let targetY = canvas.height - 32;
               if (text.target === 'keyCounter') {
                 const hudCtx = canvas.getContext('2d');
-                targetX = hudCtx
-                  ? keyCounterX(hudCtx, chestsOpened.value, levelTotals.value.chests)
-                  : CHEST_COUNTER_X;
+                if (hudCtx) {
+                  const chestDescriptor = scaledImageCounter({
+                    image: null,
+                    sourceWidth: CHEST_CLOSED_WIDTH,
+                    sourceHeight: CHEST_CLOSED_HEIGHT,
+                    height: CHEST_COUNTER_ICON_HEIGHT,
+                    count: chestsOpened.value,
+                    total: levelTotals.value.chests,
+                    textGap: CHEST_COUNTER_TEXT_GAP,
+                  });
+                  targetX = hudCounterX(hudCtx, chestDescriptor, CHEST_COUNTER_X);
+                } else {
+                  targetX = CHEST_COUNTER_X;
+                }
                 targetY = KEY_COUNTER_Y;
               }
               spawnEffect(
@@ -2380,7 +2411,7 @@ export const PlatformerPage = () => {
       })
       .catch(() => {
         // Jump falls back to the primary sheet's current frame if this one
-        // fails to load (see Renderer.ts's drawPlayer).
+        // fails to load (see SceneRenderer.ts's drawPlayer).
       });
     loadImage('/sprites/hearts.png')
       .then((img) => {
@@ -2421,7 +2452,7 @@ export const PlatformerPage = () => {
     // hand-listing each one — adding an enemy, pickup, block, deployable item
     // or chest type needs no new loadImage call here. coin.png and fruit.png
     // are also loaded individually above into coinSpriteRef/fruitSpriteRef,
-    // which the HUD counters (drawCollectibleCounter) still read directly —
+    // which the HUD counters still read directly —
     // the two loads race harmlessly (same convention KEY_SHEET already
     // established alongside keySpriteRef's own individual load below).
     // world_tileset.png is likewise still loaded individually above into
@@ -2528,7 +2559,7 @@ export const PlatformerPage = () => {
         {/* Sits top-left, left of the hearts HUD, which HEARTS_START_X shifts
             right to make room — top-left keeps it easy to spot against the
             terrain. size-10 (40px) must match the 40 baked into
-            HEARTS_START_X's computation in Renderer.ts. */}
+            HEARTS_START_X's computation in HudRenderer.ts. */}
         <button
           ref={journalButtonRef}
           type="button"

@@ -41,7 +41,7 @@ export interface BaseEnemyState extends EnemyPlacement, Moving, SelfAnimated, Da
  * Everything the engine needs to know about one enemy type, owned entirely by
  * that type's own module. Adding an enemy means writing one of these and
  * adding one line to `enemies/index.ts` — nothing in Collision.ts,
- * Renderer.ts, EnemyAI.ts, or PlatformerPage.tsx needs to change, and no
+ * SceneRenderer.ts, EnemyAI.ts, or PlatformerPage.tsx needs to change, and no
  * sprite registry needs editing either: the loader discovers assets from
  * `sprite.sheet`.
  */
@@ -90,7 +90,7 @@ export interface EnemyType<S extends BaseEnemyState>
    */
   box(enemy: S): Rect;
   /** Renders this enemy. Owning rendering here is what lets a new enemy type
-   *  ship as one file: Renderer.ts iterates and supplies the camera, and
+   *  ship as one file: SceneRenderer.ts iterates and supplies the camera, and
    *  never branches on type. */
   draw(enemy: S, dc: DrawContext): void;
   /** Decides what a contact means for this type. The engine supplies the

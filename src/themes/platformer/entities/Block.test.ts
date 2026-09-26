@@ -48,7 +48,7 @@ describe('blockFrameSource with hitsTaken', () => {
 
   it('questionMark-hitsTakenAtLeastOne-returnsPlainGroundRockTerrainTile', () => {
     // A used-up question-mark blends into ordinary ground terrain instead of
-    // showing a distinct `!` indicator — same coordinates tiles/groundRock.ts's
+    // showing a distinct `!` indicator - same coordinates tiles/groundRock.ts's
     // draw uses for exposed groundRock.
     expect(blockFrameSource('questionMark', 1)).toEqual({ sx: 16, sy: 0 });
   });
