@@ -7,7 +7,7 @@ import {
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { TileChar } from '../level/LevelParser';
 import { PLAYER_LIGHT_RADIUS_PX, PLAYER_GLOW_COLOR } from '../entities/Player';
-import { TORCH_GLOW_COLOR } from '../entities/Torch';
+import { TORCH_GLOW_COLOR } from '../tiles/torch';
 
 const SPAWN_GRID: TileChar[][] = [
   ['.', '.', '.'],

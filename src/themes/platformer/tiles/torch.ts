@@ -1,15 +1,16 @@
-/**
- * The torch's flame animation — a pure module (no React, no canvas, no
- * signals), mirroring `StaticObjectsCatalog.ts`/`Terrain.ts`.
- *
- * The torch is a stateless decorative terrain tile: it holds no per-instance
- * state and no timer. Its visible frame is a pure function of its grid
- * position and the shared world clock, so every torch animates for free and
- * neighbouring torches flicker out of phase (spec FR-009).
+﻿/**
+ * The torch's flame animation and its tile module (R-015 moved the whole
+ * shipped body here from `entities/Torch.ts`): a pure module (no React, no
+ * canvas, no signals). The torch is a stateless decorative terrain tile: it
+ * holds no per-instance state and no timer. Its visible frame is a pure function
+ * of its grid position and the shared world clock, so every torch animates for
+ * free and neighbouring torches flicker out of phase (spec FR-009).
  */
 
 import { hash2D, pulse, radialFalloffAt } from '../shared/math';
 import type { LightSource } from '../contracts/lighting';
+import { RENDER_SCALE, TILE_SIZE } from '../level/Terrain';
+import type { TileDrawContext, TileModule } from './TileModule';
 
 /**
  * A wall torch's light strength, `0`-`9`. `5` is the default
@@ -18,8 +19,7 @@ import type { LightSource } from '../contracts/lighting';
  * roughly double.
  *
  * Owned here rather than in `level/LevelData.ts` so the whole torch module —
- * type, constants, frame animation and validator — stays together and free of
- * any `level/` dependency (the `level/ → engine/` edge R-001 removes).
+ * type, constants, frame animation and validator — stays together.
  */
 export type TorchStrength = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
@@ -36,14 +36,14 @@ export const TORCH_FRAME_WIDTH = 12;
 export const TORCH_FRAME_HEIGHT = 14;
 
 /** The torch artwork's visible width — 6px (the flame and bracket at their
- *  widest). Narrower than the 12px frame, whose extra 3px-per-side margin
- *  gives the flickering flame horizontal breathing room. */
+ *  widest). Narrower than the 12px frame, whose extra 3px-per-side margin gives
+ *  the flickering flame horizontal breathing room. */
 export const TORCH_CONTENT_WIDTH = 6;
 
 /**
  * Horizontal inset (native px) centring the 12px frame in a 16px cell:
- * (16 - 12) / 2 = 2. Drawing the full frame at this inset also centres the
- * 6px artwork — it sits at frame offset 3, so its own inset is 2 + 3 = 5 =
+ * (16 - 12) / 2 = 2. Drawing the full frame at this inset also centres the 6px
+ * artwork — it sits at frame offset 3, so its own inset is 2 + 3 = 5 =
  * (16 - 6) / 2. The artwork is bottom-aligned, so the only vertical slack is
  * the 16 - 14 = 2px gap at the top.
  */
@@ -81,12 +81,12 @@ export function torchFrameIndex(col: number, row: number, worldElapsed: number):
 export const DEFAULT_TORCH_STRENGTH: TorchStrength = 5;
 
 /**
- * Every strength, in ascending order — the order the torch tool's re-click
- * cycle follows.
+ * Every strength, in ascending order — the order the torch tool's re-click cycle
+ * follows.
  */
 export const TORCH_STRENGTHS: readonly TorchStrength[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-/** The editor badge's code for a strength — its own digit, `'0'`–`'9'`. */
+/** The editor badge's code for a strength — its own digit, `'0'`-`'9'`. */
 export function torchStrengthCode(strength: TorchStrength): string {
   return String(strength);
 }
@@ -111,14 +111,14 @@ export function torchLightScale(strength: TorchStrength): number {
 }
 
 /**
- * A torch light source, derived from a `torch` terrain tile (R-003 finding X5
- * — the light half now lives with its subject). `col`/`row` drive the pulse
- * phase and `strength` scales the radius, so the generic `LightSource` cannot
- * replace this descriptor; it is the adapter's input.
+ * A torch light source, derived from a `torch` terrain tile (R-003 finding X5 —
+ * the light half now lives with its subject). `col`/`row` drive the pulse phase
+ * and `strength` scales the radius, so the generic `LightSource` cannot replace
+ * this descriptor; it is the adapter's input.
  *
  * `x`/`y` are declared inline rather than extending `engine/Lighting.ts`'s
  * `Point`, so this module keeps reaching only `shared/math` and
- * `contracts/lighting` (no `entities/ → engine/` edge; FR-017).
+ * `contracts/lighting`.
  */
 export interface TorchLight {
   col: number;
@@ -132,18 +132,18 @@ export interface TorchLight {
 }
 
 /** Soft glow radius in rendered pixels — roughly a 3.5-tile radius (FR-009).
- *  3.5 × `RENDERED_TILE_SIZE` (16 native px × 2 render scale = 32) is inlined
- *  so this module takes no `level/` import. */
+ *  3.5 × `RENDERED_TILE_SIZE` (16 native px × 2 render scale = 32) is inlined so
+ *  this module takes no `level/` geometry dependency. */
 export const TORCH_LIGHT_RADIUS_PX = 3.5 * 32;
 
 /** Pulse depth as a fraction of the light radius (FR-013, SC-007). */
 export const TORCH_PULSE_AMPLITUDE = 0.05;
 
 /**
- * Seconds per full pulse breath. Deliberately much slower than the torch's
- * 0.8 s flame loop: the light should read as a slow, calm breathing, not a
- * flicker locked to the fast frame changes (FR-013, SC-007). Each torch keeps
- * its own phase offset (from `torchPhase`) so they never breathe in unison.
+ * Seconds per full pulse breath. Deliberately much slower than the torch's 0.8 s
+ * flame loop: the light should read as a slow, calm breathing, not a flicker
+ * locked to the fast frame changes (FR-013, SC-007). Each torch keeps its own
+ * phase offset (from `torchPhase`) so they never breathe in unison.
  */
 export const TORCH_PULSE_PERIOD_SECONDS = 2.6;
 
@@ -151,11 +151,11 @@ export const TORCH_PULSE_PERIOD_SECONDS = 2.6;
 export const TORCH_GLOW_COLOR = 'rgb(255, 176, 74)';
 
 /**
- * A multiplier around `1` whose depth is `TORCH_PULSE_AMPLITUDE` and whose
- * period is the slow `TORCH_PULSE_PERIOD_SECONDS` — a calm breathing rather
- * than a nervous flicker (FR-013, SC-007). Each torch keeps its own phase
- * offset from `torchPhase` so neighbouring torches do not breathe in unison.
- * Always within `[1 - TORCH_PULSE_AMPLITUDE, 1 + TORCH_PULSE_AMPLITUDE]`.
+ * A multiplier around `1` whose depth is `TORCH_PULSE_AMPLITUDE` and whose period
+ * is the slow `TORCH_PULSE_PERIOD_SECONDS` — a calm breathing rather than a
+ * nervous flicker (FR-013, SC-007). Each torch keeps its own phase offset from
+ * `torchPhase` so neighbouring torches do not breathe in unison. Always within
+ * `[1 - TORCH_PULSE_AMPLITUDE, 1 + TORCH_PULSE_AMPLITUDE]`.
  */
 export function torchPulseScale(torch: TorchLight, worldElapsed: number): number {
   const phaseOffset = torchPhase(torch.col, torch.row) / TORCH_FRAME_COUNT;
@@ -173,9 +173,9 @@ export function torchLightRadius(torch: TorchLight, worldElapsed: number): numbe
 }
 
 /**
- * A torch's light contribution at `(x, y)` in `[0, 1]`: `1` at the torch
- * centre, falling smoothly to `0` at `torchLightRadius`, and `0` beyond it.
- * Distance alone decides — no occlusion (FR-011). Delegates the falloff to
+ * A torch's light contribution at `(x, y)` in `[0, 1]`: `1` at the torch centre,
+ * falling smoothly to `0` at `torchLightRadius`, and `0` beyond it. Distance
+ * alone decides — no occlusion (FR-011). Delegates the falloff to
  * `shared/math.ts`'s `radialFalloffAt` so the formula has one implementation
  * (FR-010).
  */
@@ -206,3 +206,34 @@ export function torchLightSource(torch: TorchLight, worldElapsed: number): Light
     punchHole: true,
   };
 }
+
+/**
+ * The flame frame for this cell: bottom-aligned and horizontally centred in the
+ * 16px cell, never mirrored or rotated (single fixed front-facing sprite, spec
+ * FR-007). The frame is a pure function of the cell's grid position and the
+ * shared world clock, so neighbouring torches flicker out of phase.
+ */
+function draw(rc: TileDrawContext): void {
+  const { ctx, col, row, destX, destY, worldElapsed, images } = rc;
+  const torch = images.torch;
+  if (!torch) return;
+  const frame = torchFrameIndex(col, row, worldElapsed);
+  ctx.drawImage(
+    torch,
+    frame * TORCH_FRAME_WIDTH,
+    0,
+    TORCH_FRAME_WIDTH,
+    TORCH_FRAME_HEIGHT,
+    destX + TORCH_INSET_X * RENDER_SCALE,
+    destY + (TILE_SIZE - TORCH_FRAME_HEIGHT) * RENDER_SCALE,
+    TORCH_FRAME_WIDTH * RENDER_SCALE,
+    TORCH_FRAME_HEIGHT * RENDER_SCALE,
+  );
+}
+
+export const torchModule = {
+  char: '¥',
+  fogExempt: false,
+  drawBand: 'terrain',
+  draw,
+} as const satisfies TileModule;

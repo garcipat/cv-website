@@ -2,7 +2,8 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Collapsible } from '@base-ui/react/collapsible';
 import { ChevronDownIcon } from 'lucide-react';
-import { TERRAIN_CHARS, ENTITY_CHARS } from '../level/LevelParser';
+import { ENTITY_CHARS } from '../level/LevelParser';
+import { TERRAIN_CHARS } from '../tiles/registry';
 import type { TileChar } from '../level/LevelParser';
 import type { EditorTool } from './editorState';
 import {

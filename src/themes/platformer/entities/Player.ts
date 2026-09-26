@@ -1,7 +1,7 @@
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../level/Terrain';
 import type { Moving, SelfAnimated, Damageable } from '../contracts/capabilities';
 import { isInvulnerable } from '../contracts/capabilities';
-import { TORCH_FRAME_WIDTH, TORCH_FRAME_HEIGHT } from './Torch';
+import { TORCH_FRAME_WIDTH, TORCH_FRAME_HEIGHT } from '../tiles/torch';
 import type { LightSource } from '../contracts/lighting';
 import { radialFalloffAt } from '../shared/math';
 

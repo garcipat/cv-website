@@ -26,7 +26,7 @@ import {
   playerLightSource,
 } from './Player';
 import type { PlayerState } from './Player';
-import { TORCH_FRAME_WIDTH, TORCH_FRAME_HEIGHT, TORCH_LIGHT_RADIUS_PX } from './Torch';
+import { TORCH_FRAME_WIDTH, TORCH_FRAME_HEIGHT, TORCH_LIGHT_RADIUS_PX } from '../tiles/torch';
 import type { Moving, SelfAnimated, Damageable } from '../contracts/capabilities';
 import { isInvulnerable } from '../contracts/capabilities';
 import { resolveCrouching } from '../engine/Crouch';

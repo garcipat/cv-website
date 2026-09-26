@@ -1,112 +1,14 @@
 import type { SignHintId } from './HintCatalog';
-import type { TorchStrength } from '../entities/Torch';
-
-export type TileType =
-  | 'groundGrass'
-  | 'groundRock'
-  | 'wall'
-  | 'bridge'
-  | 'ladder'
-  /** Climbs exactly like `'ladder'` (see Terrain.ts's `isClimbable`) — a
-   *  purely visual alternative skin. Renders centered when hanging free
-   *  from a solid ceiling, or offset toward whichever side (if any) has
-   *  solid terrain next to it (Terrain.ts's `chainAttachment`). */
-  | 'chain'
-  | 'bush'
-  | 'fence'
-  /** Purely decorative cave-dressing tiles from `decorations.png`, never
-   *  solid, never form multi-tile runs, and carry no CVData mapping.
-   *  `crystalCluster` is a single-fixed-sprite tile (same convention as
-   *  `fence` — see StaticObjectsCatalog.ts's `staticObjectEntry`).
-   *  `stalactite`/`stalagmite` each cover two size variants (large/twin)
-   *  picked automatically by position hash (StaticObjectsCatalog.ts's
-   *  `stalactiteEntry`/`stalagmiteEntry`), the same way `bush` already picks
-   *  its own size variants — the level author places one tile, not a size
-   *  choice. `cobweb` covers both the corner and flat art, with the
-   *  corner-vs-flat choice and its rotation auto-detected from neighbouring
-   *  solid terrain (Terrain.ts's `cobwebOrientation`). */
-  | 'cobweb'
-  | 'crystalCluster'
-  | 'stalactite'
-  | 'stalagmite'
-  /** A wall-mounted torch — purely decorative, non-solid cave dressing.
-   *  Unlike every other decorative tile it animates: its flame cycles through
-   *  a 4-frame sparkle loop, with each cell's phase derived deterministically
-   *  from its own grid position plus the shared world clock (see
-   *  `engine/Torch.ts`'s `torchFrameIndex`). It carries no per-instance state. */
-  | 'torch'
-  /** A curled-up rope-ladder bundle the player deploys with Up — an
-   *  author-placeable terrain tile (`@`). Non-solid and not climbable, but
-   *  standable from above only (see Terrain.ts's `isStandableLadderBundleTop`),
-   *  so a character can stand on a rolled bundle. Its deployed shaft writes the
-   *  `ropeLadder` tile below it at runtime (see engine/DeployableLadder.ts). */
-  | 'ladderBundle'
-  /** A deployed rope-ladder rung cell — never author-placeable; it exists only
-   *  in the effective grid `applyDeployedLadders` produces from a completed
-   *  bundle. Climbable exactly like `ladder`/`chain` (see Terrain.ts's
-   *  `isClimbable`), so every climbing consumer treats it identically. */
-  | 'ropeLadder'
-  /** The red bouncy mushroom. Non-solid and non-climbable: passable from the
-   *  side and from below. Its top cap is one-way ground — standable from above
-   *  only while the cell directly above is not solid (Terrain.ts's
-   *  `isStandableMushroomCap`). Art role (only/top/middle/bottom) is derived
-   *  from its vertical run by `verticalRunRole`, like `bush`. */
-  | 'bouncyMushroom'
-  /** The small non-solid dressing mushroom. No behaviour of any kind: never
-   *  solid, never standable, never bounces. Art is a single fixed cell. */
-  | 'decorativeMushroom'
-  /** Ground that cracks and shakes underfoot, breaks apart into falling
-   *  debris after a fixed cycle, and reforms after a fixed delay (O-023).
-   *  Solid while at rest or cracking; non-solid while broken or reforming.
-   *  Its art top-aligns within its cell and is only half a tile tall — its
-   *  solid region matches that height exactly rather than the full cell
-   *  (see Terrain.ts's `CRUMBLING_FLOOR_SOLID_HEIGHT` and Physics.ts's
-   *  ceiling branch). Per-cell cycle state (`engine/CrumblingFloor.ts`) is
-   *  the only runtime state this tile kind carries — the grid cell itself
-   *  never changes. */
-  | 'crumblingFloor'
-  | 'empty';
+import type { TorchStrength } from '../tiles/torch';
+import type { TILE_MODULES } from '../tiles/registry';
 
 /**
- * Whether a terrain tile stays visible through cave fog (O-028) even on a
- * cave-family background cell — declared once, exhaustively, as a lookup
- * `Record` (the same pattern `BACKGROUND_MATERIAL_FAMILY` above uses for
- * `BackgroundMaterialId`), so a new `TileType` member forces an explicit
- * choice here at compile time rather than silently inheriting whatever an
- * unrelated helper (e.g. `isSolid`) happens to say. Exempt today: solid
- * rock/structure (`groundGrass`/`groundRock`/`wall`/`bridge`) — a cave's
- * walls and floor carry no information a visitor could act on, so leaving
- * them visible reads as "you can see the cave's shape, not what's inside
- * it." Every other tile (open space, ladders, decorations, blocks-in-
- * waiting...) stays fogged, since any of them could be the thing worth
- * hiding until the player is actually inside.
+ * Every shipped tile kind, derived from the tile module registry: adding a kind
+ * is one module plus one registry line, never an edit here. The per-kind
+ * contract (capabilities, rules, appearance, declared state) lives in
+ * `tiles/TileModule.ts` and each kind's module under `tiles/`.
  */
-export const TILE_FOG_EXEMPT: Record<TileType, boolean> = {
-  groundGrass: true,
-  groundRock: true,
-  wall: true,
-  bridge: true,
-  ladder: false,
-  chain: false,
-  bush: false,
-  fence: false,
-  cobweb: false,
-  crystalCluster: false,
-  stalactite: false,
-  stalagmite: false,
-  torch: false,
-  ladderBundle: false,
-  ropeLadder: false,
-  bouncyMushroom: false,
-  decorativeMushroom: false,
-  crumblingFloor: false,
-  empty: false,
-};
-
-/** Whether `tile` should be skipped by cave fog — see `TILE_FOG_EXEMPT`. */
-export function isFogExempt(tile: TileType): boolean {
-  return TILE_FOG_EXEMPT[tile];
-}
+export type TileType = keyof typeof TILE_MODULES;
 
 export type TileMap = TileType[][];
 

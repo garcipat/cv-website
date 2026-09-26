@@ -1,5 +1,6 @@
 import { growGrid, type GrowResult } from './growGrid';
-import { TERRAIN_CHARS, HAZARD_CHARS, type TileChar, type HazardFacing } from '../level/LevelParser';
+import { HAZARD_CHARS, type TileChar, type HazardFacing } from '../level/LevelParser';
+import { TERRAIN_CHARS } from '../tiles/registry';
 import type { HazardKind } from '../entities/hazards';
 import { isSolid } from '../level/Terrain';
 

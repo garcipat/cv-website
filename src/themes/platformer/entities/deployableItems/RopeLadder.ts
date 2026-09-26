@@ -13,7 +13,7 @@ import {
   ROPE_STEP,
   ROPE_BOTTOM_CAP,
   ropeLadderShaftPieces,
-} from '../../engine/StaticObjectsCatalog';
+} from '../../tiles/ropeLadder';
 import { ROPE_LADDER_SHEET } from '../sprites/sheets';
 import type { DrawContext } from '../../contracts/DrawContext';
 import type {

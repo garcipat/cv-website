@@ -1,6 +1,6 @@
 import { signal, computed } from '@preact/signals-react';
 import { tileToPixel, RENDERED_TILE_SIZE, markerAt } from './level/Terrain';
-import { DEFAULT_TORCH_STRENGTH, type TorchLight } from './entities/Torch';
+import { DEFAULT_TORCH_STRENGTH, type TorchLight } from './tiles/torch';
 import { createRopeLadderState } from './entities/deployableItems/RopeLadder';
 import type { RopeLadderState } from './entities/deployableItems/RopeLadder';
 import {
@@ -11,15 +11,15 @@ import type {
   BlastRequest,
   DeployableItemTickContext,
 } from './entities/deployableItems/DeployableItemType';
-import { advanceMushroomSquashes } from './entities/blocks/Mushroom';
-import type { MushroomSquashState } from './entities/blocks/Mushroom';
+import { advanceMushroomSquashes } from './tiles/bouncyMushroom';
+import type { MushroomSquashState } from './tiles/bouncyMushroom';
 import {
   armFloorSpike,
   advanceFloorSpikes,
   type FloorSpikeTimerState,
 } from './entities/hazards/FloorSpike';
-import { armCrumblingFloor, advanceCrumblingFloors } from './engine/CrumblingFloor';
-import type { CrumblingFloorTimerState } from './engine/CrumblingFloor';
+import { armCrumblingFloor, advanceCrumblingFloors } from './tiles/crumblingFloor';
+import type { CrumblingFloorTimerState } from './tiles/crumblingFloor';
 import {
   armFallingStalactite,
   advanceFallingStalactites,

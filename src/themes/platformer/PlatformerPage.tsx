@@ -47,7 +47,7 @@ import type { DrawContext } from './contracts/DrawContext';
 import { drawDebugOverlay, drawCameraDeadZoneOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
 import { stepPlayerPhysics, checkPitFall, resolvePitFall, playerOnMushroomCap } from './engine/Physics';
-import { startMushroomSquash } from './entities/blocks/Mushroom';
+import { startMushroomSquash } from './tiles/bouncyMushroom';
 import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
 import { stepEnemyHitReaction } from './entities/enemies/hitReaction';
 import { updateCamera, updateCameraY, initialCameraX, initialCameraY } from './engine/Camera';
@@ -132,7 +132,7 @@ import {
 } from './entities/hazards/FallingStalactite';
 import { typeOf as hazardTypeOf } from './entities/hazards';
 import type { HazardTickContext } from './entities/hazards/HazardType';
-import { crumblingFloorPhaseFor, CRUMBLING_FLOOR_CRACK_SECONDS } from './engine/CrumblingFloor';
+import { crumblingFloorPhaseFor, CRUMBLING_FLOOR_CRACK_SECONDS } from './tiles/crumblingFloor';
 import { COIN_FRAME_SIZE } from './entities/pickups/Coin';
 import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/pickups/Fruit';
 import { createRewardReveal } from './state/rewards';
@@ -153,7 +153,7 @@ import {
 } from './entities/Player';
 import type { BlockContact } from './entities/Player';
 import { playerLightSource } from './entities/Player';
-import { torchLightSource } from './entities/Torch';
+import { torchLightSource } from './tiles/torch';
 import type { LightSource } from './contracts/lighting';
 import { strongerBounce } from './contracts/Outcome';
 import { isInvulnerable } from './contracts/capabilities';

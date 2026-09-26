@@ -112,7 +112,7 @@ widen({
 
 Some platformer timers are **grid-cell-keyed timed tiles**, not transient
 effects — the bouncy-mushroom cap squash is the reference example
-(`entities/blocks/Mushroom.ts`). They share `shared/timedTile.ts`'s
+(`tiles/bouncyMushroom.ts`). They share `shared/timedTile.ts`'s
 arm/advance/prune scaffolding, but their state is a `{ col, row, elapsed }`
 entry per cell (not a `TransientEffect` with an `id`/`kind`/`draw`) and they are
 **never** registered in `EFFECT_REGISTRY`. They have no `EffectKind`, are not

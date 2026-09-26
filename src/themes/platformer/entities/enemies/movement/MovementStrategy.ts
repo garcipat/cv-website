@@ -1,6 +1,6 @@
 import type { LevelDef } from '../../../level/LevelData';
 import type { BaseEnemyState } from '../EnemyType';
-import type { CrumblingFloorTimerState } from '../../../engine/CrumblingFloor';
+import type { CrumblingFloorTimerState } from '../../../tiles/crumblingFloor';
 
 /**
  * The per-tick inputs a movement strategy receives. Built once per tick by

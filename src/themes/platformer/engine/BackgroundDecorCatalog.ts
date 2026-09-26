@@ -5,7 +5,7 @@
  * new small catalog instead of extending `StaticObjectsCatalog`").
  */
 
-import { pickVariant } from './StaticObjectsCatalog';
+import { pickVariant } from '../shared/variants';
 
 export interface BackgroundDecorEntry {
   sx: number;

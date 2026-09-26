@@ -13,7 +13,6 @@ import {
   findBombPotTiles,
   findChestTiles,
   findCheckpointTiles,
-  TERRAIN_CHARS,
   ENTITY_CHARS,
   SIGN_CHAR,
   LEGACY_MARKER_CHARS,
@@ -28,8 +27,9 @@ import {
   type BackgroundChar,
 } from './LevelParser';
 import { DEFAULT_HINT_ID } from './HintCatalog';
-import { DEFAULT_TORCH_STRENGTH } from '../entities/Torch';
-import type { TorchStrength } from '../entities/Torch';
+import { DEFAULT_TORCH_STRENGTH } from '../tiles/torch';
+import type { TorchStrength } from '../tiles/torch';
+import { TERRAIN_CHARS } from '../tiles/registry';
 
 describe('parseLevel', () => {
   it('charLayout-parsesInto-matchingTileMap', () => {

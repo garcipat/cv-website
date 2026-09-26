@@ -1,7 +1,6 @@
 import type {
   LevelDef,
   TileMap,
-  TileType,
   BackgroundGrid,
   BackgroundMaterialId,
   MarkerEntry,
@@ -10,8 +9,9 @@ import type {
 } from './LevelData';
 import type { SignHintId } from './HintCatalog';
 import { DEFAULT_HINT_ID, isSignHintId } from './HintCatalog';
-import { DEFAULT_TORCH_STRENGTH, isTorchStrength } from '../entities/Torch';
+import { DEFAULT_TORCH_STRENGTH, isTorchStrength } from '../tiles/torch';
 import type { HazardKind } from '../entities/hazards';
+import { TERRAIN_CHARS, type TerrainChar } from '../tiles/registry';
 
 /** An entity marker's kind — what it means, not what it looks like on the
  *  ground (every entity marker sits on `empty` terrain, see parseLevel). */
@@ -30,33 +30,9 @@ export type EntityKind =
   | 'chest'
   | 'checkpoint';
 
-/**
- * Maps each terrain character usable in a level layout to its tile type.
- * Shared by every level's raw ASCII layout, not just `currentLevel`.
- */
-export const TERRAIN_CHARS: Record<string, TileType | undefined> = {
-  '.': 'empty',
-  G: 'groundGrass',
-  R: 'groundRock',
-  '#': 'wall',
-  B: 'bridge',
-  H: 'ladder',
-  I: 'chain',
-  n: 'bush',
-  N: 'fence',
-  X: 'cobweb',
-  c: 'crystalCluster',
-  '⊤': 'stalactite',
-  '⊥': 'stalagmite',
-  '¥': 'torch',
-  '@': 'ladderBundle',
-  // '§' is not a valid JS identifier, so its key is quoted.
-  '§': 'bouncyMushroom',
-  s: 'decorativeMushroom',
-  // O-023's crumbling floor. Half-height ledge art, own runtime cycle state
-  // (engine/CrumblingFloor.ts) — the grid holds only its fixed placement.
-  g: 'crumblingFloor',
-};
+// `TERRAIN_CHARS` is derived from the tile module registry (FR-002) and lives in
+// `tiles/registry.ts`; it is imported above and re-used by the parser and the
+// char-ownership guard below.
 
 /**
  * Maps each entity-marker character usable in a level layout to what it
@@ -184,24 +160,12 @@ if (sharedChars.length > 0) {
 }
 
 /**
- * Every character a level layout string may legally contain — the union of
- * every `TERRAIN_CHARS`, `ENTITY_CHARS`, `SIGN_CHAR`, and `HAZARD_CHARS` key.
- * Deliberately NOT derived via `keyof typeof TERRAIN_CHARS | keyof typeof
- * ENTITY_CHARS`: the maps are annotated `Record<string, ... | undefined>`
- * (required so `parseLevel`'s and finder functions' lookups can index by a
- * plain `string`), which makes `keyof typeof` widen to plain `string` — a
- * `TileChar` derived that way would carry no type safety at all. Kept in sync
- * with the maps by a test asserting every key of all appears here, not by
- * direct derivation.
+ * Entity-marker characters (`ENTITY_CHARS`' keys). Hand-listed rather than
+ * derived from `keyof typeof ENTITY_CHARS` because that map is annotated
+ * `Record<string, … | undefined>` (so `keyof` widens to plain `string`). Kept
+ * in sync with the map by the test asserting every key appears in `TileChar`.
  */
-export type TileChar =
-  | '.'
-  | 'G'
-  | 'R'
-  | '#'
-  | 'B'
-  | 'H'
-  | 'I'
+type EntityChar =
   | 'S'
   | 'M'
   | 'm'
@@ -214,25 +178,21 @@ export type TileChar =
   | 'u'
   | 'p'
   | 'b'
-  | 'n'
-  | 'N'
-  | 'X'
-  | 'c'
-  | '⊤'
-  | '⊥'
-  | '¥'
-  | '^'
-  | 'v'
-  | '<'
-  | '>'
-  | '¦'
-  | 'A'
-  | 'T'
-  | 'C'
-  | '@'
-  | '§'
-  | 's'
-  | 'g';
+  | 'C';
+
+/** Hazard characters (`HAZARD_CHARS`' keys), hand-listed for the same reason. */
+type HazardChar = '^' | 'v' | '<' | '>' | '¦' | 'A';
+
+/**
+ * Every character a level layout string may legally contain — composed from the
+ * registry-derived terrain half (`TerrainChar`, extracted from each tile
+ * module's declared `char`) plus the entity/sign/hazard literals this module
+ * owns. Adding a terrain character is a tile-module edit, never an edit here;
+ * the entity/sign/hazard halves stay hand-listed because their maps widen to
+ * `Record<string, …>` (see the note this replaced). Kept in sync with the maps
+ * by a test asserting every key of all appears here.
+ */
+export type TileChar = TerrainChar | EntityChar | typeof SIGN_CHAR | HazardChar;
 
 /**
  * Parses a level's raw ASCII layout (one character per tile, see

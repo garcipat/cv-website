@@ -4,6 +4,7 @@ import {
   CRUMBLING_FLOOR_BROKEN_SECONDS,
   CRUMBLING_FLOOR_REFORM_SECONDS,
   CRUMBLING_FLOOR_CYCLE_SECONDS,
+  CRUMBLING_FLOOR_SOLID_HEIGHT,
   armCrumblingFloor,
   advanceCrumblingFloors,
   crumblingFloorPhaseAt,
@@ -17,7 +18,39 @@ import {
   crumblingFloorReformRatioAt,
   crumblingFloorReformRatioFor,
   crumblingFloorShakeOffsetXAt,
-} from './CrumblingFloor';
+  crumblingFloorModule,
+} from './crumblingFloor';
+import { RENDERED_TILE_SIZE } from '../level/Terrain';
+import type { LevelDef } from '../level/LevelData';
+
+const EMPTY_LEVEL: LevelDef = { terrain: [], width: 0, height: 0 };
+
+describe('CRUMBLING_FLOOR_SOLID_HEIGHT', () => {
+  it('declaredValue-matchesHalfARenderedTile', () => {
+    expect(CRUMBLING_FLOOR_SOLID_HEIGHT).toBe(RENDERED_TILE_SIZE / 2);
+  });
+});
+
+describe('crumblingFloorModule.solidRegionAt', () => {
+  it('unbrokenCell-resolvesTheTopHalfOfTheCell', () => {
+    expect(
+      crumblingFloorModule.solidRegionAt?.(EMPTY_LEVEL, 0, 0, {
+        transient: { crumblingFloorTimers: [], mushroomSquashes: [] },
+      }),
+    ).toEqual({ top: 0, bottom: CRUMBLING_FLOOR_SOLID_HEIGHT });
+  });
+
+  it('brokenCell-resolvesNoSolidRegion', () => {
+    expect(
+      crumblingFloorModule.solidRegionAt?.(EMPTY_LEVEL, 0, 0, {
+        transient: {
+          crumblingFloorTimers: [{ col: 0, row: 0, elapsed: CRUMBLING_FLOOR_CRACK_SECONDS + 0.1 }],
+          mushroomSquashes: [],
+        },
+      }),
+    ).toBeNull();
+  });
+});
 
 describe('armCrumblingFloor', () => {
   it('unarmedCell-addsANewZeroElapsedEntry', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ATLAS_STRIDE } from './TileAtlas';
+import { ATLAS_STRIDE } from '../shared/tileAtlas';
 import {
   BACKGROUND_ATLAS_ROW_PITCH,
   backgroundAtlasCell,

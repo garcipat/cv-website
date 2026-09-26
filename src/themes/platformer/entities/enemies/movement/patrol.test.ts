@@ -6,7 +6,7 @@ import { RENDERED_TILE_SIZE } from '../../../level/Terrain';
 import { PHYSICS_CONFIG } from '../../../contracts/PhysicsConfig';
 import type { LevelDef, MarkerEntry, TileType } from '../../../level/LevelData';
 import type { EnemyPlacement } from '../../../level/EnemyMapper';
-import type { CrumblingFloorTimerState } from '../../../engine/CrumblingFloor';
+import type { CrumblingFloorTimerState } from '../../../tiles/crumblingFloor';
 
 /**
  * The parity proof for SC-001: every case the pre-seam

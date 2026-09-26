@@ -1,10 +1,15 @@
-import { NEIGHBOUR_UP } from '../level/Terrain';
+﻿import { NEIGHBOUR_UP, RENDER_SCALE, RENDERED_TILE_SIZE, TILE_SIZE, horizontalRunPosition, neighbourMask, tileAt } from '../level/Terrain';
 import type { RunPosition } from '../level/Terrain';
-// `tile_atlas.png` holds 16px tiles on the shared 19px atlas stride (16px tile
-// plus a 3px transparent gutter), 7 columns by 3 rows. The gutter is why the
-// stride is not the tile size — a cell's origin is `index * ATLAS_STRIDE`,
-// while the source rect drawn from it stays `TILE_SIZE` square.
-import { atlasCell, type TileAtlasEntry } from './TileAtlas';
+import type { LevelDef } from '../level/LevelData';
+import { atlasCell, type TileAtlasEntry } from '../shared/tileAtlas';
+import { drawRotatedTile } from './draw';
+import type { TileDrawContext, TileModule } from './TileModule';
+
+/**
+ * `groundGrass` — the bright surface soil tile (`G`). Solid, fog-exempt, drawn
+ * in the terrain band. Owns the ground atlas tables relocated from
+ * `engine/GroundAtlas.ts` (US4/T024).
+ */
 
 /** Grass sprites occupy only the top 9px of their cell; the rest is
  *  transparent so the ground tile beneath shows through. */
@@ -23,7 +28,7 @@ export interface GroundAtlasEntry extends TileAtlasEntry {
  * just as much a surface as the top of a deep mass.
  *
  * This is deliberately independent of `GROUND_ATLAS` below.
- * `GroundAtlas.test.ts` asserts every table entry's `kind` agrees with it, so
+ * `groundGrass.test.ts` asserts every table entry's `kind` agrees with it, so
  * editing this function surfaces exactly which entries need re-pointing.
  */
 export function groundTileKind(mask: number): GroundTileKind {
@@ -32,19 +37,19 @@ export function groundTileKind(mask: number): GroundTileKind {
 
 /**
  * Which atlas cell each of the 16 neighbour masks draws from. Pure data, so
- * re-pointing a shape — or swapping the whole sheet for another material —
- * is an edit to values only.
+ * re-pointing a shape — or swapping the whole sheet for another material — is an
+ * edit to values only.
  *
  * Comments name the sides whose borders ARE drawn (the mask's clear bits).
  *
- * A one-tile-tall shape (masks 0/2/8/10) closes its bottom edge, so it does
- * NOT share a cell with the top of a taller run (4/6/12/14), which leaves that
- * edge open. Masks 2, 8 and 10 get their shapes by rotating `c6r0` and `c6r1`,
- * whose artwork is flat enough that turning a border onto an adjacent edge
- * reads correctly. Mask 0 uses `c0r0`, the sheet's only all-four-sides-closed
- * cell; its artwork still carries the old vertical ramp, and it is kept anyway
- * — deliberately — because nothing else borders all four sides, with a half
- * turn putting the bright end of the ramp in the band visible below the grass.
+ * A one-tile-tall shape (masks 0/2/8/10) closes its bottom edge, so it does NOT
+ * share a cell with the top of a taller run (4/6/12/14), which leaves that edge
+ * open. Masks 2, 8 and 10 get their shapes by rotating `c6r0` and `c6r1`, whose
+ * artwork is flat enough that turning a border onto an adjacent edge reads
+ * correctly. Mask 0 uses `c0r0`, the sheet's only all-four-sides-closed cell;
+ * its artwork still carries the old vertical ramp, and it is kept anyway —
+ * deliberately — because nothing else borders all four sides, with a half turn
+ * putting the bright end of the ramp in the band visible below the grass.
  *
  * Cells `c1r0`, `c2r0` and `c3r1` are unreferenced — still in the sheet, just
  * not used by any mask. `c6r1` is referenced (mask 10) and is not a spare.
@@ -76,8 +81,8 @@ export function groundAtlasCell(mask: number): GroundAtlasEntry {
   return entry;
 }
 
-/** Grass is a separate overlay keyed by horizontal run position, so no
- *  ground tile carries grass of its own. */
+/** Grass is a separate overlay keyed by horizontal run position, so no ground
+ *  tile carries grass of its own. */
 const GRASS_CELLS: Record<RunPosition, { sx: number; sy: number }> = {
   left: atlasCell(1, 2),
   middle: atlasCell(2, 2),
@@ -88,3 +93,42 @@ const GRASS_CELLS: Record<RunPosition, { sx: number; sy: number }> = {
 export function grassCell(position: RunPosition): { sx: number; sy: number } {
   return GRASS_CELLS[position];
 }
+
+/**
+ * Grass continues into a horizontal neighbour only when that neighbour is
+ * itself a grass-topped surface cell. A `groundRock` neighbour, or a
+ * `groundGrass` one that is buried because the terrain steps up, caps the run
+ * instead — so this adds a material check on top of the ground mask's notion of
+ * exposure. Exposure is read from the mask's UP bit rather than `isTopExposed`
+ * so that a bridge overhead counts as open space here exactly as it does when
+ * the ground cell is chosen.
+ */
+function isGrassSurface(level: LevelDef, col: number, row: number): boolean {
+  return (
+    tileAt(level, col, row) === 'groundGrass' &&
+    (neighbourMask(level, col, row) & NEIGHBOUR_UP) === 0
+  );
+}
+
+/** The ground-atlas cell plus the grass overlay for this cell. */
+function draw(rc: TileDrawContext): void {
+  const { ctx, level, col, row, destX, destY, images } = rc;
+  const mask = neighbourMask(level, col, row);
+  drawRotatedTile(ctx, images.groundAtlas, groundAtlasCell(mask), destX, destY);
+
+  if ((mask & NEIGHBOUR_UP) === 0) {
+    const grass = grassCell(horizontalRunPosition(level, col, row, isGrassSurface));
+    ctx.drawImage(
+      images.groundAtlas, grass.sx, grass.sy, TILE_SIZE, GRASS_SOURCE_HEIGHT,
+      destX, destY, RENDERED_TILE_SIZE, GRASS_SOURCE_HEIGHT * RENDER_SCALE,
+    );
+  }
+}
+
+export const groundGrassModule = {
+  char: 'G',
+  fogExempt: true,
+  solid: true,
+  drawBand: 'terrain',
+  draw,
+} as const satisfies TileModule;

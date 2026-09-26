@@ -1,10 +1,10 @@
-import { ATLAS_STRIDE } from './TileAtlas';
+import { ATLAS_STRIDE } from '../shared/tileAtlas';
 import {
   GRASS_SOURCE_HEIGHT,
   groundTileKind,
   groundAtlasCell,
   grassCell,
-} from './GroundAtlas';
+} from './groundGrass';
 import {
   NEIGHBOUR_UP,
   NEIGHBOUR_RIGHT,

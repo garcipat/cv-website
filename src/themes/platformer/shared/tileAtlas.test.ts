@@ -4,7 +4,7 @@ import {
   atlasCell,
   type QuarterTurns,
   type TileAtlasEntry,
-} from './TileAtlas';
+} from './tileAtlas';
 
 describe('ATLAS_STRIDE', () => {
   it('value-isTheSixteenPixelTilePlusThreePixelGutter', () => {

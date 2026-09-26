@@ -64,7 +64,7 @@ import {
   hazardPlacements,
   hazardPlacementsForTick,
 } from './PlatformerState';
-import { MUSHROOM_SQUASH_DURATION_SECONDS } from './entities/blocks/Mushroom';
+import { MUSHROOM_SQUASH_DURATION_SECONDS } from './tiles/bouncyMushroom';
 import { FLOOR_SPIKE_CYCLE_SECONDS, FLOOR_SPIKE_DELAY_SECONDS, FLOOR_SPIKE_WARNING_SECONDS } from './entities/hazards/FloorSpike';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { toBlockState } from './entities/Block';
