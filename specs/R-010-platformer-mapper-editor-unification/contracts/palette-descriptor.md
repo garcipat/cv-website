@@ -50,6 +50,14 @@ Rules:
   from R-015's shipped `tiles/` registry (`TILE_MODULES` / `TERRAIN_CHARS`), not from a palette-local
   table. `terrainPaletteTools()` enumerates `TILE_MODULES` and joins each author-placeable module
   with its `PALETTE_TOOLS` descriptor entry.
+- `terrainPaletteTools()` returns exactly the tile modules whose `PALETTE_TOOLS` entry has
+  `group === 'terrain'` — it excludes `'.'` (the Eraser, group `'tools'`), every non-author-placeable
+  kind (`ropeLadder`), and the decoration chars (group `'decoration'`). The Eraser MUST NOT be
+  produced or duplicated by the enumeration.
+- `Palette.tsx` derives each button's group from `PaletteTool.group`, reproducing today's split
+  exactly: terrain = `TERRAIN_CHARS` minus `'.'` and the decoration chars; decoration = the eight
+  decoration chars (`n N X c ⊤ ⊥ ¥ s`); entities = `ENTITY_CHARS`; hazards = `HAZARD_PALETTE_KEYS` +
+  `fallingStalactite`; tools = sign + patrol (+ connection point on the blueprint canvas) + eraser.
 - Non-terrain tools (entity characters, hazard characters, marker tools, the eraser, the blueprint)
   declare their own descriptor fields.
 - Each tool's label/description/glyph/**icon sprite spec** stays in `PALETTE_TOOLS`; R-015 carries

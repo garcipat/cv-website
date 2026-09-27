@@ -26,7 +26,7 @@ New R-010 edges that must hold:
 
 | Source | May import |
 | --- | --- |
-| `level/layoutChars.ts`, `level/ids.ts`, `level/cvFacts.ts`, `level/placement.ts`, `level/LayoutFile.ts` | `level/**`, `tiles/` (reads), `shared/`, `contracts/`, `@/types` only |
+| `level/layoutChars.ts`, `level/ids.ts`, `level/cvFacts.ts`, `level/placement.ts`, `level/rawLayoutFile.ts` | `level/**`, `tiles/` (reads), `shared/`, `contracts/`, `@/types` only |
 | `editor/ops/**` | anything below `editor/` **except** React and `editor/**/*.tsx` UI modules |
 | `editor/dev/**` | anything below `editor/` **except** React and `editor/**/*.tsx` UI modules |
 
@@ -47,28 +47,33 @@ New R-010 edges that must hold:
 available, test-only) and asserts each check with a frozen expectation so it is non-vacuous:
 
 1. **No editor-local finder/synthesizer pipeline** — `editor/gridRenderState.ts` no longer exists;
-   no source module defines `findAllPositions`; no `synthesize*` symbol survives except the one
-   sanctioned editor-only player-preview helper (`previewPlayerState`, renamed), which MUST call
-   the shared `findOptionalSpawnTile` rather than a local scan.
+   no source module defines `findAllPositions`; no `synthesize*` symbol survives at all. The one
+   sanctioned editor-only player-preview helper is `previewPlayerState`, which MUST call the shared
+   `findOptionalSpawnTile` rather than a local scan.
 2. **One palette descriptor** — exactly one `PALETTE_TOOLS` declaration and zero
    `PALETTE_TILE_SPRITES` / `PALETTE_TILE_GLYPHS` / `PALETTE_TILE_DESCRIPTIONS` /
    `PALETTE_TILE_LABELS` declarations; every `EditorTool` key present; every terrain char in
    `TERRAIN_CHARS` maps to a descriptor and its `char`/`fogExempt`/`drawBand` resolve from
-   `TILE_MODULES`.
+   `TILE_MODULES`; grouping matches today's split (`'.'` stays in `tools`, the eight decoration chars
+   in `decoration`, and no terrain entry is a non-placeable kind).
 3. **One mapper-placement contract** — exactly one `placeAtMarkers` and one `placeWithFactPool`
    definition; every `level/*Mapper.ts` imports at least one of them; no `markers.map(` /
    `markers.forEach(` placement loop remains in a mapper (excluding the shared helper itself);
    `slugify` is declared only in `level/ids.ts`; no mapper imports `slugify` from another mapper.
 4. **One paint / walk / crop / save** — exactly one `stampGridCells`/`paintGridCell` definition
    (paint); one `walkLayout` definition (layout-character walk); one `cropLayoutToBox` definition
-   (grid-crop); one `saveFile` definition. `cropLevelForExport` calls `cropLayoutToBox` and defines
-   no crop loop.
+   (grid-crop); one `saveFile` definition. `cropLevelForExport` obtains **both** `layout` and
+   `background` from `cropLayoutToBox` (no character/background row-serialization loop of its own;
+   its marker-collection walk is allowed).
 5. **One `LayoutFile`** — exactly one `interface/type LayoutFile`; `LevelEntry` and `Blueprint`
    extend it and declare no `layout`/`background`/`markers` field of their own.
 6. **`editor/` concern split** — `editor/ops/` and `editor/dev/` exist; no `.tsx` or React import
    under either; the D11 pure-transform modules all live under `ops/` and none remain at the editor
    root (the root holds only `.tsx` UI + `editorState.ts` + `editorActions.ts`).
 7. **Layer edges** — scanning every `src/themes/platformer/**/*.ts(x)` import specifier enforces §2.
+8. **Shared apply-tool op** — `EditorCanvas`'s `applyToolAt` holds no per-tool placement semantics
+   (no `sign` / `fallingStalactite` / `torch` branch and no marker-removal set); those rules live in
+   `editor/ops/applyTool.ts` (FR-012).
 
 The guard uses `{method}-{condition}-{expected-result}` naming and fails the build/suite on any
 regression.

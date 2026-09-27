@@ -46,16 +46,20 @@ Rules:
 ## 2. One `LayoutFile` raw shape (FR-013)
 
 ```ts
-// level/LayoutFile.ts
+// level/rawLayoutFile.ts
 export interface LayoutFile {
-  name?: string;
-  layout: readonly string[];
-  background?: readonly string[];
-  markers?: readonly MarkerPlacement[];
+  readonly name?: string;
+  readonly layout: readonly string[];
+  readonly background?: readonly string[];
+  readonly markers?: readonly MarkerPlacement[];
 }
 ```
 
 Rules:
+
+- The sibling filename is deliberate: `level/LayoutFile.ts` would collide with the existing
+  `level/layoutFile.ts` on the case-insensitive Windows filesystem (and under TypeScript's default
+  `forceConsistentCasingInFileNames`).
 
 - `LevelEntry` and `Blueprint` each `extend LayoutFile { id: string; name: string }` and MUST NOT
   redeclare `layout`/`background`/`markers`.

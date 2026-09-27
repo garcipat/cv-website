@@ -19,14 +19,16 @@ planning (spec Assumptions), plus one newly discovered parity issue (OQ-1). Each
     stored placements (the export shape `parseLevel`/parse-side reads).
   `editor/ops/previewPlacements.ts` then builds every preview collection by calling the **runtime**
   finders and mappers directly: `placeCollectibles(findCoinTiles(layout))`,
-  `placeEnemies(mapCVDataToEnemies(cv), { slimeGreen: findGreenEnemyTiles(layout), slimePurple: findPurpleEnemyTiles(layout), bee: findBeeTiles(layout) }).map(toEnemyState)`,
+  `placeEnemies(mapCVDataToEnemies(cv), { slimeGreen: findGreenEnemyTiles(layout), slimePurple: findPurpleEnemyTiles(layout), bee: findBeeTiles(layout) }).map((p) => toEnemyState(p))`
+  (the explicit `(p) =>` keeps today's lockstep starting frame — `.map(toEnemyState)` would pass the
+  index and stagger animation phases, a visible change FR-015/SC-007 forbid),
   `placeBlocks(mapCVDataToBlocks(cv), { crate: findCrateTiles(layout), … }).map(toBlockState)`,
   `placeChests(padChestDefs(mapCVDataToChests(cv), findChestTiles(layout)), findChestTiles(layout)).map(toChestState)`
   (the def list is padded so every `$` marker previews — see OQ-1),
   `placeCheckpoints(findCheckpointTiles(layout)).map(toCheckpointState)`,
   `placeSigns(findSignTiles(layout, markers))`, `placeHazards(findHazardTiles(layout, markers))`,
-  `findLadderBundleTiles(layout).map(({col,row}) => createRopeLadderState(level, col, row))`.
-  `editor/ops/gridRenderState.ts`'s `findAllPositions` and every `synthesize*` (except the player
+  `findLadderBundleTiles(layout).map(({col,row}) => createRopeLadderState(previewLevelDef(grid, markers), col, row))`.
+  `editor/gridRenderState.ts`'s `findAllPositions` and every `synthesize*` (except the player
   placeholder, D2) are deleted.
 - **Rationale**: It is FR-001/M1 verbatim, and it makes SC-001 ("preview placements equal the
   runtime chain") a direct consequence rather than a second implementation kept in sync.
@@ -190,27 +192,31 @@ planning (spec Assumptions), plus one newly discovered parity issue (OQ-1). Each
 - **Alternatives considered**: A class/factory — rejected, no state; a functional module is
   smaller and matches the codebase.
 
-## D10 — `LayoutFile` in `level/LayoutFile.ts`, aliased by `LevelEntry` and `Blueprint`
+## D10 — `LayoutFile` in `level/rawLayoutFile.ts`, aliased by `LevelEntry` and `Blueprint`
 
-- **Decision**: `level/LayoutFile.ts` declares
+- **Decision**: `level/rawLayoutFile.ts` declares
   ```ts
   export interface LayoutFile {
-    name?: string;
-    layout: readonly string[];
-    background?: readonly string[];
-    markers?: readonly MarkerPlacement[];
+    readonly name?: string;
+    readonly layout: readonly string[];
+    readonly background?: readonly string[];
+    readonly markers?: readonly MarkerPlacement[];
   }
   ```
   `LevelEntry extends LayoutFile { id: string; name: string }`; `Blueprint extends LayoutFile { id: string; name: string }`.
   Neither redeclares `layout`/`background`/`markers`. M4's `level/layoutFile.ts` keeps being the
   single validation home (`isLayout`/`isBackground`/`isMarkers`/`idFromPath`/`parse*Modules`) and
   imports the type. `LevelDef` is **not** conflated with `LayoutFile`.
+  The module is deliberately **not** named `LayoutFile.ts`: it would differ from `layoutFile.ts`
+  only by the case of the first letter, and the two cannot coexist on the case-insensitive Windows
+  filesystem (nor under TypeScript's default `forceConsistentCasingInFileNames`).
 - **Rationale**: FR-013 + spec Edge Case (M4's single validation home must not be undone; `LevelDef`
   stays the parsed runtime artifact). A dedicated leaf module avoids adding a runtime import to
   `layoutFile.ts`'s existing type-only cycle with `levelRegistry`/`BlueprintData`.
 - **Alternatives considered**: Declaring `LayoutFile` inside `level/layoutFile.ts` — acceptable
   (type-only cycle already exists) but a sibling file keeps the type import direction one-way and
-  is easier to guard.
+  is easier to guard; naming the sibling `LayoutFile.ts` — rejected (case collision with
+  `layoutFile.ts` on Windows and under `forceConsistentCasingInFileNames`).
 
 ## D11 — `editor/ops/` vs `editor/dev/` membership
 
@@ -265,8 +271,8 @@ planning (spec Assumptions), plus one newly discovered parity issue (OQ-1). Each
 
 - `gridRenderState.synthesizeChestStates` placed **one chest per `$` marker** (stub fact).
 - `PlatformerState` uses `placeChests(mapCVDataToChests(cv), CHEST_TILES.value)`, and
-  `placeChests` iterates **defs**, stopping at `defs.length` (not markers): it places
-  `min(#experience, #chestMarkers)`.
+  `placeChests` iterates the **defs** array, stopping once it runs out of markers
+  (`index >= markers.length` for the rest): it places `min(#experience, #chestMarkers)`.
 - `level/levels/main.json` contains **7** `$` markers; `cv.en.json` and `cv.de.json` each contain
   **5** experience entries. So the runtime shows 5 chests and today's editor preview shows 7.
 

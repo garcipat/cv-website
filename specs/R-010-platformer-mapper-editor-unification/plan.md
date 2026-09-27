@@ -126,10 +126,11 @@ src/themes/platformer/
 │   ├── cvFacts.ts               # NEW — one CVData→CollectedFact flattening helper
 │   ├── placement.ts             # NEW — placeAtMarkers + placeWithFactPool + MarkerPosition contract
 │   ├── LevelParser.ts           # finders unchanged; parseLevel builds on layoutChars.walkLayout; + findOptionalSpawnTile
-│   ├── LayoutFile.ts            # NEW — one raw { name?, layout, background?, markers? } type
+│   ├── rawLayoutFile.ts         # NEW — one raw { name?, layout, background?, markers? } LayoutFile type
+│   │                            #       (NOT LayoutFile.ts: that case-clashes with layoutFile.ts on Windows)
 │   ├── levelRegistry.ts         # LevelEntry aliases LayoutFile + id/name
 │   ├── BlueprintData.ts         # Blueprint aliases LayoutFile + id/name (isBlueprint unchanged)
-│   ├── layoutFile.ts            # unchanged validation home (M4); re-exports/uses LayoutFile
+│   ├── layoutFile.ts            # unchanged validation home (M4); imports/uses LayoutFile
 │   ├── BlockMapper.ts           # placeBlocks/placeCrates → placeAtMarkers/placeWithFactPool + cvFacts/ids
 │   ├── EnemyMapper.ts           # placeX → placeAtMarkers/placeWithFactPool + cvFacts/ids
 │   ├── ChestMapper.ts           # placeChests → placeAtMarkers + cvFacts/ids

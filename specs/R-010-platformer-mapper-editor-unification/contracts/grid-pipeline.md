@@ -67,8 +67,10 @@ Rules:
   (`TileChar`, empty `'.'`) and background (`BackgroundChar`, empty `'.'`) share it.
 - `cropLevelForExport` keeps its public shape `{ layout, background, markers }` and its exact
   current semantics (box = union of non-`.` foreground cells and non-null markers; all-empty ⇒
-  `layout: ['.']`, `background: []`, `markers: []`), but obtains `layout` and `background` from
-  `cropLayoutToBox` rather than a second crop loop. It defines no loop over columns.
+  `layout: ['.']`, `background: []`, `markers: []`), but obtains **both** `layout` and `background`
+  from `cropLayoutToBox` rather than serializing them itself. It may still walk the box to collect
+  the sparse marker layer (that loop only reads `markers` and shifts coordinates), but it MUST
+  define no character/background row-serialization loop.
 - `exportLayout(grid)` = `cropLayoutToBox(grid, boundingBoxOfContent(grid, '.'), '.')`.
 - The registries (`levelRegistry`/`blueprintRegistry`) parse layouts and never crop; the "shared
   with the runtime registries" clause of FR-010 applies to the §1 walk only.

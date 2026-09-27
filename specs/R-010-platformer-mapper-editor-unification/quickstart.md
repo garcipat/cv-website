@@ -34,12 +34,12 @@ manual cross-check (run from the repo root). Each must print the stated result.
 ```bash
 # SC-001: the parallel preview pipeline is gone
 rg "findAllPositions|synthesizeCollectiblePlacements|synthesizeEnemyStates|synthesizeBlockStates|synthesizeChestStates|synthesizeCheckpointStates|synthesizeSignPlacements|synthesizeHazardPlacements|synthesizeRopeLadderBundleStates" src/themes/platformer/editor
-# → no matches (only the renamed player-preview helper remains)
+# → no matches (the player-preview helper is `previewPlayerState`, not a `synthesize*`)
 
 # SC-002: one place helper + one ids home + no cross-mapper slugify
 rg "function placeAtMarkers|function placeWithFactPool" src/themes/platformer/level          # → one each
 rg "function slugify" src/themes/platformer/level                                             # → only level/ids.ts
-rg "from '\./CollectibleMapper'" src/themes/platformer/level                                   # → no slugify import
+rg "import \{[^}]*slugify[^}]*\} from '\./CollectibleMapper'" src/themes/platformer/level   # → no slugify import
 
 # SC-003: one palette descriptor, no parallel tables, R-015 consumed
 rg "PALETTE_TILE_SPRITES|PALETTE_TILE_GLYPHS|PALETTE_TILE_DESCRIPTIONS|PALETTE_TILE_LABELS" src/themes/platformer/editor

@@ -12,12 +12,14 @@ signatures live in the [contracts](./contracts/); this is the model view.
 ## 1. `LayoutFile` — the one raw file shape (FR-013)
 
 ```ts
-// level/LayoutFile.ts  (NEW)
+// level/rawLayoutFile.ts  (NEW)
+// Name is deliberate: level/LayoutFile.ts would collide with the existing
+// level/layoutFile.ts on the case-insensitive Windows filesystem.
 export interface LayoutFile {
-  name?: string;
-  layout: readonly string[];              // one string per row, one char per column
-  background?: readonly string[];         // optional; same row shape
-  markers?: readonly MarkerPlacement[];   // optional; sparse tile meta layer
+  readonly name?: string;
+  readonly layout: readonly string[];              // one string per row, one char per column
+  readonly background?: readonly string[];         // optional; same row shape
+  readonly markers?: readonly MarkerPlacement[];   // optional; sparse tile meta layer
 }
 ```
 
@@ -25,7 +27,7 @@ export interface LayoutFile {
 | --- | --- |
 | `LevelEntry` (`level/levelRegistry.ts`) | `extends LayoutFile { id: string; name: string }` — no redeclared `layout`/`background`/`markers`. |
 | `Blueprint` (`level/BlueprintData.ts`) | `extends LayoutFile { id: string; name: string }` — same. |
-| `level/layoutFile.ts` (M4 validation home) | `isLayout`/`isBackground`/`isMarkers`/`idFromPath`/`parse*Modules` unchanged; imports/uses `LayoutFile`. |
+| `level/layoutFile.ts` (M4 validation home) | `isLayout`/`isBackground`/`isMarkers`/`idFromPath`/`parse*Modules` unchanged; imports/uses `LayoutFile` from `rawLayoutFile.ts`. |
 | `LevelDef` (`level/LevelData.ts`) | **Not** the same type — the parsed runtime artifact (`terrain`, `width`, `height`, `background?`, `markers?`). Deliberately not conflated. |
 
 **Invariant**: exactly one declaration of `layout`/`background`/`markers` in the file-shape family.
@@ -97,10 +99,15 @@ export function placeWithFactPool<M extends MarkerPosition, P extends FactPoolPl
 | `BlockMapper.placeCrates` | own slice loop | `placeWithFactPool(..., { idPrefix:'crate', build:()=>({ blockKind:'crate' }) })` |
 | `BlockMapper` fragileRock/coinPot/potionPot/bombPot | `for..of push` | `placeAtMarkers` per kind |
 | `BlockMapper` questionMark zip | inline `forEach` | `placeAtMarkers(markers, { idPrefix:'qmark', id:(m,i)=>defs[i]?.id ?? `qmark-${m.col}-${m.row}`, build:(m,i)=>defs[i] ? {...defs[i]} : { blockKind:'questionMark' } })` |
-| `ChestMapper.placeChests` | `defs.forEach` | `placeAtMarkers(markers.slice(0, defs.length), { idPrefix:'chest', id:(m,i)=>defs[i].id, build:(m,i)=>({ ...defs[i], col:m.col, row:m.row }) })` |
+| `ChestMapper.placeChests` | `defs.forEach` | `placeAtMarkers(markers.slice(0, defs.length), { idPrefix:'chest', id:(m,i)=>defs[i].id, build:(m,i)=>({ fact: defs[i].fact, col:m.col, row:m.row }) })` |
 
 **Invariants**: `placeAtMarkers` is the only marker→placement loop in `level/*Mapper.ts`;
 `placeWithFactPool` delegates to it; every id is byte-identical to today (SC-002).
+
+**Preview chest padding (OQ-1)**: the editor preview — not the runtime — pads the CV-derived chest def
+list with placeholder-fact defs up to the marker count before calling `placeChests`, so every `$`
+marker previews and stays deletable. `padChestDefs(defs, markers): ChestDef[]` lives beside the
+preview builder and adds no placement logic; the runtime passes the unpadded list.
 
 ## 5. Id vocabulary + CV fact flattening (FR-006)
 
@@ -151,6 +158,15 @@ export function terrainPaletteTools(): TerrainPaletteTool[];  // enumerates TILE
 | `PALETTE_TILE_LABELS` | folds into `PaletteTool.label` |
 | `Palette.tsx` `DECORATION_CHARS` local grouping | folds into `PaletteTool.group` |
 | `TERRAIN_CHARS`-derived membership | kept, but sourced via `terrainPaletteTools()`/`TILE_MODULES` |
+
+**Membership/grouping rule**: `terrainPaletteTools()` returns exactly the tile modules whose
+`EditorTool` descriptor has `group === 'terrain'`. It therefore excludes `'.'` (the Eraser, group
+`'tools'`) and every non-author-placeable kind (e.g. `ropeLadder`), and it excludes the decoration
+chars (group `'decoration'`); the Eraser must not be produced or duplicated by the enumeration.
+Grouping is read solely from `PaletteTool.group`, reproducing today's `Palette.tsx` split:
+terrain = `TERRAIN_CHARS` minus `'.'` and the decoration chars; decoration = the eight decoration
+chars; entities = `ENTITY_CHARS`; hazards = `HAZARD_PALETTE_KEYS` + `fallingStalactite`; tools =
+sign + patrol (+ connection point on the blueprint canvas) + eraser.
 
 **Invariants**: R-015's `TILE_MODULES` is read, never extended; no palette-local tile registry or
 second tile-kind table; every `EditorTool` has exactly one descriptor entry; the rendered label,
