@@ -1,7 +1,7 @@
 import type { Plugin } from 'vite';
 import type { IncomingMessage } from 'node:http';
 import { writeBlueprintFile } from './writeBlueprintFile';
-import { SAVE_BLUEPRINT_ENDPOINT } from '../src/themes/platformer/editor/saveBlueprintEndpoint';
+import { SAVE_BLUEPRINT_ENDPOINT } from '../src/themes/platformer/editor/dev/saveBlueprintEndpoint';
 
 const readBody = async (req: IncomingMessage): Promise<string> => {
   const chunks: Buffer[] = [];

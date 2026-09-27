@@ -1,4 +1,4 @@
-import { LEVELS_FOLDER } from '../src/themes/platformer/editor/saveLevelEndpoint';
+import { LEVELS_FOLDER } from '../src/themes/platformer/editor/dev/saveLevelEndpoint';
 import {
   writeLayoutJsonFile,
   type LayoutWriteRequest,

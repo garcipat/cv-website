@@ -9,13 +9,13 @@ import {
   PLACEMENT_INVALID_COLOR,
 } from './EditorCanvas';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
-import { centerPanOnSpawn } from './EditorPan';
+import { centerPanOnSpawn } from './ops/EditorPan';
 import { levelEditorPage } from './LevelEditorPage.page';
 import type { TileChar, BackgroundChar } from '../level/LevelParser';
 import type { MarkerEntry } from '../level/LevelData';
 import type { EditorImages } from './EditorCanvas';
 import { COIN_SHEET, STATIC_OBJECTS_SHEET, SPEAR_SHEET, BEE_SHEET } from '../entities/sprites/sheets';
-import { PALETTE_TILE_SPRITES } from './paletteTiles';
+import { PALETTE_TOOLS } from './ops/paletteTiles';
 
 vi.mock('../engine/render/SceneRenderer', () => ({
   drawTerrain: vi.fn(),
@@ -48,7 +48,7 @@ import {
   drawEnemyEyes,
   drawHeldTorch,
 } from '../engine/render/SceneRenderer';
-import { EDITOR_PREVIEW_DARKNESS } from './caveLightingPreview';
+import { EDITOR_PREVIEW_DARKNESS } from './ops/caveLightingPreview';
 
 const EMPTY_IMAGES: EditorImages = {
   tileset: null,
@@ -432,7 +432,7 @@ describe('EditorCanvas', () => {
     );
     expect(drawDeployableItems).toHaveBeenCalledWith(
       expect.anything(),
-      expect.arrayContaining([expect.objectContaining({ kind: 'chest', id: 'editor-chest-0' })]),
+      expect.arrayContaining([expect.objectContaining({ kind: 'chest', col: 3, row: 0 })]),
       expect.objectContaining({ originX: 5, originY: 7 }),
       'afterCrumblingFloors',
     );
@@ -2438,7 +2438,7 @@ describe('EditorCanvas zoom controls', () => {
 });
 
 describe('EditorCanvas falling-stalactite tint (O-027)', () => {
-  const TINT = PALETTE_TILE_SPRITES.fallingStalactite!.tint!;
+  const TINT = PALETTE_TOOLS.fallingStalactite.sprite!.tint!;
 
   it('tintsEveryFallingMarkerCellWithTheEditorOnlyReddishWashAndNoGlyph', () => {
     const ctx = stubCanvasContext() as unknown as {

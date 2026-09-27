@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync, writeFileSync
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { writeLevelFile } from './writeLevelFile';
-import { LEVELS_FOLDER } from '../src/themes/platformer/editor/saveLevelEndpoint';
+import { LEVELS_FOLDER } from '../src/themes/platformer/editor/dev/saveLevelEndpoint';
 
 const VALID_CONTENTS = `${JSON.stringify({ name: 'Cave Run', layout: ['.S.', 'GGG'] }, null, 2)}\n`;
 

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, expectTypeOf } from 'vitest';
 import {
   idFromPath,
   isLayout,
@@ -9,6 +9,24 @@ import {
 } from './layoutFile';
 import type { LevelEntry } from './levelRegistry';
 import type { Blueprint } from './BlueprintData';
+import type { LayoutFile } from './rawLayoutFile';
+
+describe('LayoutFile', () => {
+  it('levelEntryAndBlueprintExtendItWithoutRedeclaringItsFields', () => {
+    // Compile-time assertions (vitest's expectTypeOf is a type-level check):
+    // both registry entry shapes satisfy the one raw file shape, and the
+    // shared layers keep exactly its declared types.
+    expectTypeOf<LevelEntry>().toMatchTypeOf<LayoutFile>();
+    expectTypeOf<Blueprint>().toMatchTypeOf<LayoutFile>();
+    expectTypeOf<LevelEntry['layout']>().toEqualTypeOf<LayoutFile['layout']>();
+    expectTypeOf<LevelEntry['background']>().toEqualTypeOf<LayoutFile['background']>();
+    expectTypeOf<LevelEntry['markers']>().toEqualTypeOf<LayoutFile['markers']>();
+    expectTypeOf<Blueprint['layout']>().toEqualTypeOf<LayoutFile['layout']>();
+    expectTypeOf<Blueprint['background']>().toEqualTypeOf<LayoutFile['background']>();
+    expectTypeOf<Blueprint['markers']>().toEqualTypeOf<LayoutFile['markers']>();
+    expect(true).toBe(true);
+  });
+});
 
 describe('idFromPath', () => {
   it('levelPath-returnsTheFilenameStem', () => {

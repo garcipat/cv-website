@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { findBlueprint, BLUEPRINTS } from './blueprintRegistry';
 import { parseBlueprintModules } from './layoutFile';
-import { blueprintFileJson } from '../editor/saveBlueprintFile';
+import { layoutFileJson } from '../editor/dev/layoutFileJson';
 import type { Blueprint } from './BlueprintData';
 
 describe('parseBlueprintModules', () => {
@@ -95,7 +95,7 @@ describe('parseBlueprintModules', () => {
   it('savedBlueprintFileContents-roundTripBackIntoAnEntryWithTheSameLayout', () => {
     // SC-012's blueprint counterpart: a file the editor wrote has to be a file
     // this registry accepts, connection point characters included.
-    const contents = JSON.parse(blueprintFileJson('Cave Room', ['#+#', '#.#'], []));
+    const contents = JSON.parse(layoutFileJson('Cave Room', ['#+#', '#.#'], []));
     const entries = parseBlueprintModules({ './blueprints/cave-room.json': { default: contents } });
 
     expect(entries).toHaveLength(1);

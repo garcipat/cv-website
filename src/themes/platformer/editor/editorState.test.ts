@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { Signal } from '@preact/signals-react';
-import { importLayout, importMarkerGrid } from './importLayout';
+import { importLayout, importMarkerGrid } from './ops/importLayout';
 import { LEVEL_1_LAYOUT, LEVEL_1_MARKERS } from '../level/level';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
 import {

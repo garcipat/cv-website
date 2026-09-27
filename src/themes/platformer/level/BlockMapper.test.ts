@@ -122,7 +122,8 @@ describe('placeBlocks', () => {
   // crate marker (independent of the order the player later breaks them in),
   // the same proportional formula `level/SkillFactPacing.ts`'s
   // `revealedFactCountFor` already uses for coins (see EnemyMapper.ts's
-  // placeGreenSlimes for the enemy-side equivalent).
+  // placeEnemies for the enemy-side equivalent; both build on the shared
+  // `placeWithFactPool`).
 
   it('crateMarkerCountEqualsCrateFactCount-oneFactPerMarkerInOrder', () => {
     const defs = mapCVDataToBlocks(cv); // 2 crate defs (education + activity)

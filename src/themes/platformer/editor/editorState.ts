@@ -1,6 +1,6 @@
 import { computed, signal, type ReadonlySignal, type Signal } from '@preact/signals-react';
 import { createDebouncedLocalStorageSignal, createLocalStorageSignal } from '@/lib/utils';
-import { importLayout, importMarkerGrid } from './importLayout';
+import { importLayout, importMarkerGrid } from './ops/importLayout';
 import { LEVEL_1_LAYOUT, LEVEL_1_MARKERS } from '../level/level';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
 import { normalizeMarkerEntry } from '../level/LevelParser';
@@ -172,6 +172,20 @@ export const editorArmedBlueprintIdSignal = createLocalStorageSignal<string | nu
   'platformer-editor-armed-blueprint',
   null,
 );
+
+/**
+ * Whether this page is being served by `npm run dev`, i.e. whether the editor's
+ * dev-server-backed actions (Save, Save Blueprint) can actually write a file.
+ * `false` until a successful ping says otherwise — see `probeDevEnvironment`
+ * (`editor/dev/devEnvironment.ts`).
+ *
+ * Deliberately NOT a `createLocalStorageSignal`: persisting it would let a
+ * `true` from a dev session survive into a statically-served copy on the same
+ * origin and show Save controls that cannot work, which is the exact failure
+ * this gate exists to prevent. It lives here (with the editor's other state)
+ * rather than in `editor/dev/`, so no `editor/dev/` module imports signals.
+ */
+export const isDevEnvironmentSignal: Signal<boolean> = signal(false);
 
 // Non-persisted signals — values that used to be page-local `useState`. They
 // deliberately do NOT survive a reload, matching their previous lifetimes.

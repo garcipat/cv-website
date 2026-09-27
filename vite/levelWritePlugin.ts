@@ -1,7 +1,7 @@
 import type { Plugin } from 'vite';
 import type { IncomingMessage } from 'node:http';
 import { writeLevelFile } from './writeLevelFile';
-import { SAVE_LEVEL_ENDPOINT } from '../src/themes/platformer/editor/saveLevelEndpoint';
+import { SAVE_LEVEL_ENDPOINT } from '../src/themes/platformer/editor/dev/saveLevelEndpoint';
 
 const readBody = async (req: IncomingMessage): Promise<string> => {
   const chunks: Buffer[] = [];

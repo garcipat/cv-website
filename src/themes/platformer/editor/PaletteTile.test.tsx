@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PaletteTile } from './PaletteTile';
-import { PALETTE_TILE_SPRITES, type TileSpriteSpec } from './paletteTiles';
+import { PALETTE_TOOLS, type TileSpriteSpec } from './ops/paletteTiles';
 
 const SPRITE: TileSpriteSpec = {
   sheet: '/sprites/coin.png',
@@ -224,7 +224,7 @@ describe('PaletteTile', () => {
     // a synthetic anchor:'top' case: crumble_floor.png's visible ledge art
     // is top-aligned in its 16x16 cell, so its crack overlay must render
     // over that visible top half rather than the transparent bottom half.
-    const sprite = PALETTE_TILE_SPRITES.g;
+    const sprite = PALETTE_TOOLS.g.sprite;
     expect(sprite?.overlay?.anchor).toBe('top');
 
     const { container } = render(
@@ -268,7 +268,7 @@ describe('PaletteTile', () => {
   });
 
   it('realFallingStalactitePaletteEntry-carriesAReddishTint', () => {
-    const sprite = PALETTE_TILE_SPRITES.fallingStalactite;
+    const sprite = PALETTE_TOOLS.fallingStalactite.sprite;
     expect(sprite?.tint).toBeTruthy();
 
     render(<PaletteTile label="Falling Stalactite" sprite={sprite} selected={false} onClick={() => {}} />);

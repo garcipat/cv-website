@@ -1,5 +1,5 @@
 import type { Plugin } from 'vite';
-import { DEV_ENVIRONMENT_ENDPOINT } from '../src/themes/platformer/editor/devEnvironmentEndpoint';
+import { DEV_ENVIRONMENT_ENDPOINT } from '../src/themes/platformer/editor/dev/devEnvironmentEndpoint';
 
 /**
  * Answers a fixed `{ isDev: true }` on `DEV_ENVIRONMENT_ENDPOINT`, so the Level

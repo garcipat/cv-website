@@ -1,0 +1,149 @@
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { blueprintId, blueprintFileName, saveBlueprint } from './saveBlueprintFile';
+import { SAVE_BLUEPRINT_ENDPOINT } from './saveBlueprintEndpoint';
+import { layoutFileJson } from './layoutFileJson';
+
+const LAYOUT = ['#G#'];
+
+describe('blueprintId', () => {
+  it('nameWithSpacesAndCaps-slugsToLowercaseHyphens', () => {
+    expect(blueprintId('Cave Room Two')).toBe('cave-room-two');
+  });
+
+  it('nameWithNothingSlugWorthy-fallsBackToBlueprint', () => {
+    expect(blueprintId('!!!')).toBe('blueprint');
+  });
+
+  it('nameThatSlugsToTheBlankEntrysId-isDisambiguated', () => {
+    // BLANK_BLUEPRINT.id is 'new' and the save dialog pre-fills that name, so
+    // an un-renamed save would otherwise write new.json and shadow the
+    // dropdown's own blank entry forever.
+    expect(blueprintId('new')).toBe('new-1');
+    expect(blueprintId('New')).toBe('new-1');
+  });
+});
+
+describe('blueprintFileName', () => {
+  it('plainName-getsAJsonExtension', () => {
+    expect(blueprintFileName('cave')).toBe('cave.json');
+  });
+
+  it('mixedCaseNameWithSpaces-isLowercasedAndHyphenated', () => {
+    expect(blueprintFileName('Cave Room Two')).toBe('cave-room-two.json');
+  });
+
+  it('punctuationAndRunsOfSeparators-collapseToSingleHyphens', () => {
+    expect(blueprintFileName('Cave!! __ Room??  Two')).toBe('cave-room-two.json');
+  });
+
+  it('leadingAndTrailingSeparators-areTrimmed', () => {
+    expect(blueprintFileName('  -- cave room -- ')).toBe('cave-room.json');
+  });
+
+  it('emptyName-fallsBackToBlueprint', () => {
+    expect(blueprintFileName('')).toBe('blueprint.json');
+  });
+
+  it('isAlwaysItsOwnRegistryIdPlusJson', () => {
+    // The registry derives an id from the filename stem, so these two can
+    // never be allowed to drift apart.
+    expect(blueprintFileName('Cave Room')).toBe(`${blueprintId('Cave Room')}.json`);
+  });
+});
+
+describe('saveBlueprint', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  const stubDownload = () => {
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: vi.fn(() => 'blob:blueprint'),
+      revokeObjectURL: vi.fn(),
+    });
+    return vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  };
+
+  const stubFetch = (response: Partial<Response> | Error) => {
+    const fetchMock = vi.fn(() =>
+      response instanceof Error ? Promise.reject(response) : Promise.resolve(response as Response),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  };
+
+  const okResponse = (path: string): Partial<Response> => ({
+    ok: true,
+    json: () => Promise.resolve({ path }),
+  });
+
+  it('devServerAccepts-postsTheSlugifiedFileNameAndContentsToTheWriteEndpoint', async () => {
+    const fetchMock = stubFetch(
+      okResponse('src/themes/platformer/level/blueprints/cave-room.json'),
+    );
+
+    await saveBlueprint('Cave Room', LAYOUT, []);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(SAVE_BLUEPRINT_ENDPOINT);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({
+      fileName: 'cave-room.json',
+      contents: layoutFileJson('Cave Room', LAYOUT, []),
+    });
+  });
+
+  it('devServerAccepts-reportsTheWrittenPathAndDoesNotDownloadAnything', async () => {
+    stubFetch(okResponse('src/themes/platformer/level/blueprints/cave-room.json'));
+    const click = stubDownload();
+
+    const result = await saveBlueprint('Cave Room', LAYOUT, []);
+
+    expect(result).toEqual({
+      written: true,
+      path: 'src/themes/platformer/level/blueprints/cave-room.json',
+    });
+    expect(click).not.toHaveBeenCalled();
+  });
+
+  it('endpointMissing-fallsBackToDownloadingTheFile', async () => {
+    stubFetch({ ok: false, status: 404, json: () => Promise.resolve({}) });
+    const click = stubDownload();
+
+    const result = await saveBlueprint('Cave Room', LAYOUT, []);
+
+    expect(result.written).toBe(false);
+    expect(click).toHaveBeenCalledOnce();
+    expect((click.mock.instances[0] as HTMLAnchorElement).download).toBe('cave-room.json');
+  });
+
+  it('fetchThrows-fallsBackToDownloadingTheFile', async () => {
+    stubFetch(new Error('offline'));
+    const click = stubDownload();
+
+    const result = await saveBlueprint('Cave Room', LAYOUT, []);
+
+    expect(result.written).toBe(false);
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('endpointRejectsTheBlueprint-reportsTheServersReasonAndStillDownloads', async () => {
+    stubFetch({
+      ok: false,
+      status: 400,
+      json: () => Promise.resolve({ error: 'fileName must be a slugified name ending in .json' }),
+    });
+    const click = stubDownload();
+
+    const result = await saveBlueprint('Cave Room', LAYOUT, []);
+
+    expect(result).toEqual({
+      written: false,
+      error: 'fileName must be a slugified name ending in .json',
+    });
+    expect(click).toHaveBeenCalledOnce();
+  });
+});

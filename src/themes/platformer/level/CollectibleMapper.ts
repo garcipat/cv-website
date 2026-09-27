@@ -1,17 +1,8 @@
-import { tileToPixel } from './Terrain';
+import { slugId } from './ids';
+import { placeAtMarkers } from './placement';
 import type { CVData, SkillCategory, Skill } from '@/types/cv';
 import type { CollectedFact } from '../types';
 import type { Pickup } from '../contracts/Pickup';
-
-/** Lowercases and hyphenates a label into a stable id fragment (e.g.
- *  "DevOps & Tools" -> "devops-tools"). Not full slugify (no unicode
- *  normalization) — CV category/language names are plain ASCII today. */
-export function slugify(label: string): string {
-  return label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-}
 
 function categoryToSkillFact(category: SkillCategory): CollectedFact {
   const skills: Skill[] = [
@@ -19,7 +10,7 @@ function categoryToSkillFact(category: SkillCategory): CollectedFact {
     ...(category.sections?.flatMap((s) => s.skills) ?? []),
   ];
   return {
-    id: `coin-${slugify(category.category)}`,
+    id: slugId('coin', category.category),
     sectionId: 'skills',
     sectionLabel: 'Skills',
     data: { category: category.category, skills },
@@ -81,12 +72,8 @@ export interface CollectiblePlacement extends Pickup {
 export function placeCollectibles(
   coinMarkers: readonly { col: number; row: number }[],
 ): CollectiblePlacement[] {
-  const placements: CollectiblePlacement[] = [];
-
-  coinMarkers.forEach(({ col, row }) => {
-    const { x, y } = tileToPixel(col, row);
-    placements.push({ id: `coin-${col}-${row}`, kind: 'coin', x, y, collected: false });
+  return placeAtMarkers(coinMarkers, {
+    idPrefix: 'coin',
+    build: () => ({ kind: 'coin', collected: false }),
   });
-
-  return placements;
 }

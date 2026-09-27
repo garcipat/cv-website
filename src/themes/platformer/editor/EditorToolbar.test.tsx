@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { LevelEditorPage } from './LevelEditorPage';
 import { levelEditorPage } from './LevelEditorPage.page';
 import { LEVEL_1_LAYOUT } from '../level/level';
-import { importLayout } from './importLayout';
+import { importLayout } from './ops/importLayout';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
 import {
   editorArmedBlueprintIdSignal,
@@ -21,8 +21,8 @@ import {
   editorSelectedBackgroundMaterialSignal,
   editorSelectedToolSignal,
 } from './editorState';
-import { levelFileJson } from './saveLevelFile';
-import { isDevEnvironmentSignal } from './devEnvironment';
+import { layoutFileJson } from './dev/layoutFileJson';
+import { isDevEnvironmentSignal } from './editorState';
 
 vi.mock('../engine/SpriteLoader', () => ({
   loadImage: vi.fn((src: string) => Promise.resolve({ src } as unknown as HTMLImageElement)),
@@ -171,10 +171,10 @@ describe('EditorToolbar — export dialog complete JSON', () => {
     await userEvent.click(levelEditorPage.toolbar.export);
     const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
 
-    // The textarea holds the same `levelFileJson` a save writes, so the two
+    // The textarea holds the same `layoutFileJson` a save writes, so the two
     // can never drift apart (FR-033/FR-034).
     expect(textarea.value).toBe(
-      levelFileJson('main', ['G#'], ['dc'], [
+      layoutFileJson('main', ['G#'], ['dc'], [
         { col: 0, row: 0, marker: { kind: 'patrolBoundary' } },
       ]),
     );

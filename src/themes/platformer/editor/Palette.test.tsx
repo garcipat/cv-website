@@ -5,7 +5,7 @@ import { Palette } from './Palette';
 import { ENTITY_CHARS } from '../level/LevelParser';
 import { TERRAIN_CHARS } from '../tiles/registry';
 import { BACKGROUND_MATERIAL_FAMILY } from '../level/LevelData';
-import { BACKGROUND_PALETTE_LABELS } from './backgroundPaletteTiles';
+import { BACKGROUND_PALETTE_LABELS } from './ops/backgroundPaletteTiles';
 import type { BackgroundMaterialId } from '../level/LevelData';
 import type { Blueprint } from '../level/BlueprintData';
 import { levelEditorPage } from './LevelEditorPage.page';

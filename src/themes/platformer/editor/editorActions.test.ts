@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { importLayout } from './importLayout';
+import { importLayout } from './ops/importLayout';
 import { LEVEL_1_LAYOUT } from '../level/level';
 import { BLANK_BLUEPRINT, type Blueprint } from '../level/BlueprintData';
-import { paintCell } from './paintCell';
+import { paintCell } from './ops/paintCell';
 import {
   armBlueprint,
   applyBackgroundPaint,
@@ -44,8 +44,8 @@ import {
   editorSelectedBackgroundMaterialSignal,
   editorSelectedToolSignal,
 } from './editorState';
-import { saveLevel } from './saveLevelFile';
-import { saveBlueprint } from './saveBlueprintFile';
+import { saveLevel } from './dev/saveLevelFile';
+import { saveBlueprint } from './dev/saveBlueprintFile';
 
 const { blueprintEntries } = vi.hoisted(() => ({ blueprintEntries: [] as Blueprint[] }));
 
@@ -54,11 +54,11 @@ vi.mock('../level/blueprintRegistry', () => ({
   findBlueprint: (id: string) => blueprintEntries.find((entry) => entry.id === id),
 }));
 
-vi.mock('./saveLevelFile', () => ({
+vi.mock('./dev/saveLevelFile', () => ({
   saveLevel: vi.fn(async () => ({ written: true, path: 'levels/cave-run.json' })),
 }));
 
-vi.mock('./saveBlueprintFile', () => ({
+vi.mock('./dev/saveBlueprintFile', () => ({
   saveBlueprint: vi.fn(async () => ({ written: false })),
 }));
 

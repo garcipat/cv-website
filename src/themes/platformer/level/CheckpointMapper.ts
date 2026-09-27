@@ -1,4 +1,4 @@
-import { tileToPixel } from './Terrain';
+import { placeAtMarkers } from './placement';
 
 /**
  * A checkpoint's static position, parsed from a `C` marker (LevelParser.ts's
@@ -16,20 +16,19 @@ export interface CheckpointPlacement {
 }
 
 /**
- * Places one `CheckpointPlacement` per hand-authored `C` marker, preserving
- * the markers' reading order — that order is the contract the deterministic
- * same-tick tie-break depends on (see CheckpointLogic.ts). Unlike
- * placeChests/placeBlocks there is no CVData-derived def list to zip against:
- * a checkpoint marker's character alone fully determines its placement, so
- * this is a direct marker-to-placement conversion (same shape as
- * SignMapper.ts's placeSigns). The id embeds the cell so two checkpoints are
- * always distinct.
+ * Places one `CheckpointPlacement` per hand-authored `C` marker through the
+ * shared `placeAtMarkers`, preserving the markers' reading order — that order
+ * is the contract the deterministic same-tick tie-break depends on (see
+ * CheckpointLogic.ts). Unlike placeChests/placeBlocks there is no
+ * CVData-derived def list to zip against: a checkpoint marker's character
+ * alone fully determines its placement. The id embeds the cell so two
+ * checkpoints are always distinct.
  */
 export function placeCheckpoints(
   markers: readonly { col: number; row: number }[],
 ): CheckpointPlacement[] {
-  return markers.map(({ col, row }) => {
-    const { x, y } = tileToPixel(col, row);
-    return { id: `checkpoint-${col}-${row}`, col, row, x, y };
+  return placeAtMarkers<{ col: number; row: number }, CheckpointPlacement>(markers, {
+    idPrefix: 'checkpoint',
+    build: (marker) => ({ col: marker.col, row: marker.row }),
   });
 }

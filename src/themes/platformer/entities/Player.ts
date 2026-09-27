@@ -143,7 +143,7 @@ export interface PlayerState extends Moving, SelfAnimated, Damageable {
    *  Written by `Physics.ts`'s `stepPlayerPhysics` on every return and by
    *  `resolvePitFall`, and seeded to the state's own feet by both player-state
    *  factories (`PlatformerState.ts`'s `playerStateAtTile` and
-   *  `editor/gridRenderState.ts`'s `synthesizePlayerState`) so a spawn/respawn
+   *  `editor/ops/previewPlacements.ts`'s `previewPlayerState`) so a spawn/respawn
    *  never carries a stale pre-death feet line. */
   prevFeetY: number;
   /** Narrowed from `SelfAnimated`'s `string` to the player's finite set of

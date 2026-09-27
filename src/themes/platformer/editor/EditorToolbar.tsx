@@ -15,10 +15,12 @@ import {
 import { LevelSelect } from './LevelSelect';
 import { BlueprintSelect } from './BlueprintSelect';
 import { EditorSaveDialog, type EditorSaveDialogConfig } from './EditorSaveDialog';
-import { cropLevelForExport } from './cropLevelForExport';
-import { isDevEnvironmentSignal, probeDevEnvironment } from './devEnvironment';
-import { LEVELS_FOLDER, levelFileJson } from './saveLevelFile';
-import { BLUEPRINTS_FOLDER } from './saveBlueprintFile';
+import { cropLevelForExport } from './ops/cropLevelForExport';
+import { isDevEnvironmentSignal } from './editorState';
+import { probeDevEnvironment } from './dev/devEnvironment';
+import { LEVELS_FOLDER } from './dev/saveLevelFile';
+import { BLUEPRINTS_FOLDER } from './dev/saveBlueprintFile';
+import { layoutFileJson } from './dev/layoutFileJson';
 import {
   loadBlueprint,
   loadLevel,
@@ -168,7 +170,7 @@ export interface EditorToolbarProps {
   saveResult: SaveResultState | null;
   levelGrid: TileChar[][];
   /** The level canvas's own tile meta layer — folded into the Export
-   *  dialog's complete JSON (`levelFileJson`), markers included. */
+   *  dialog's complete JSON (`layoutFileJson`), markers included. */
   markerGrid: MarkerGrid;
   /** The level canvas's own background grid — cropped to the same origin as
    *  the foreground and the markers for the Export dialog's complete JSON. */
@@ -211,10 +213,10 @@ export const EditorToolbar = ({
 
   // All three layers share the same crop origin/bounds (cropLevelForExport,
   // the same alignment `saveCurrentLevel`/`tryLayout` rely on). The Export
-  // textarea shows the complete level JSON via the same `levelFileJson` a
+  // textarea shows the complete level JSON via the same `layoutFileJson` a
   // save writes (FR-033/FR-034), so the two can never drift apart.
   const cropped = cropLevelForExport(levelGrid, backgroundGrid, markerGrid);
-  const exportedText = levelFileJson(
+  const exportedText = layoutFileJson(
     loadedLevelName,
     cropped.layout,
     cropped.background,

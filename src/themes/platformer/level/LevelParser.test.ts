@@ -1,6 +1,7 @@
 import {
   parseLevel,
   findSpawnTile,
+  findOptionalSpawnTile,
   findGreenEnemyTiles,
   findPurpleEnemyTiles,
   findBeeTiles,
@@ -229,6 +230,16 @@ describe('findSpawnTile', () => {
 
   it('noSpawnMarker-throws', () => {
     expect(() => findSpawnTile(['GG', 'GG'])).toThrow('Level layout has no spawn marker ("S")');
+  });
+});
+
+describe('findOptionalSpawnTile', () => {
+  it('spawnMarkerPresent-returnsTheSCell', () => {
+    expect(findOptionalSpawnTile(['..', '.S'])).toEqual({ col: 1, row: 1 });
+  });
+
+  it('noSpawnMarker-returnsNull', () => {
+    expect(findOptionalSpawnTile(['GG', 'GG'])).toBeNull();
   });
 });
 

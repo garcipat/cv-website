@@ -1,19 +1,14 @@
-import { tileToPixel } from './Terrain';
-import { slugify } from './CollectibleMapper';
+import { slugId } from './ids';
+import { cvFact } from './cvFacts';
+import { placeAtMarkers } from './placement';
 import type { CVData, Experience } from '@/types/cv';
 import type { ChestDef } from '../types';
 
 function experienceToChest(experience: Experience): ChestDef {
-  const id = `chest-exp-${slugify(`${experience.role}-${experience.company}`)}`;
+  const id = slugId('chest-exp', experience.role, experience.company);
   return {
     id,
-    fact: {
-      id,
-      sectionId: 'experience',
-      sectionLabel: 'Experience',
-      data: experience,
-      sourceType: 'chest',
-    },
+    fact: cvFact('experience', 'Experience', 'chest', id, experience),
   };
 }
 
@@ -51,21 +46,29 @@ export interface ChestPlacement extends ChestDef {
 
 /**
  * Places chest defs at hand-authored `$` marker positions (LevelParser.ts's
- * findChestTiles), zipped against `defs` in reading order — same
- * marker-is-a-slot convention as placeCollectibles/placeEnemies/placeBlocks'
- * crate zip (no auto-placement; excess defs beyond the available markers
- * simply aren't placed yet).
+ * findChestTiles) through the one `placeAtMarkers` loop, zipped against
+ * `defs` in reading order — same marker-is-a-slot convention as
+ * placeCollectibles/placeEnemies/placeBlocks' crate zip (no auto-placement;
+ * excess defs beyond the available markers are simply not placed yet). The
+ * marker slice is `markers.slice(0, defs.length)` so today's exact
+ * def-driven zip is preserved; `id` comes from the def (the helper's default
+ * `chest-${col}-${row}` is unused here), while `col`/`row` come from the
+ * marker.
  */
 export function placeChests(
   defs: ChestDef[],
   markers: readonly { col: number; row: number }[],
 ): ChestPlacement[] {
-  const placements: ChestPlacement[] = [];
-  defs.forEach((def, index) => {
-    if (index >= markers.length) return;
-    const { col, row } = markers[index];
-    const { x, y } = tileToPixel(col, row);
-    placements.push({ ...def, col, row, x, y });
-  });
-  return placements;
+  return placeAtMarkers<{ col: number; row: number }, ChestPlacement>(
+    markers.slice(0, defs.length),
+    {
+      idPrefix: 'chest',
+      id: (_marker, index) => defs[index].id,
+      build: (marker, index) => ({
+        fact: defs[index].fact,
+        col: marker.col,
+        row: marker.row,
+      }),
+    },
+  );
 }

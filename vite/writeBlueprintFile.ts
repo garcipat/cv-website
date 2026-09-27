@@ -1,4 +1,4 @@
-import { BLUEPRINTS_FOLDER } from '../src/themes/platformer/editor/saveBlueprintEndpoint';
+import { BLUEPRINTS_FOLDER } from '../src/themes/platformer/editor/dev/saveBlueprintEndpoint';
 import {
   writeLayoutJsonFile,
   type LayoutWriteRequest,
