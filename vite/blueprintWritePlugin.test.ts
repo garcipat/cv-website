@@ -8,7 +8,7 @@ import { blueprintWritePlugin } from './blueprintWritePlugin';
 import {
   BLUEPRINTS_FOLDER,
   SAVE_BLUEPRINT_ENDPOINT,
-} from '../src/themes/platformer/editor/saveBlueprintEndpoint';
+} from '../src/themes/platformer/editor/dev/saveBlueprintEndpoint';
 
 const VALID_CONTENTS = `${JSON.stringify({ name: 'Cave Room', layout: ['#+#'] }, null, 2)}\n`;
 

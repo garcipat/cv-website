@@ -8,7 +8,7 @@ import { levelWritePlugin } from './levelWritePlugin';
 import {
   LEVELS_FOLDER,
   SAVE_LEVEL_ENDPOINT,
-} from '../src/themes/platformer/editor/saveLevelEndpoint';
+} from '../src/themes/platformer/editor/dev/saveLevelEndpoint';
 
 const VALID_CONTENTS = `${JSON.stringify({ name: 'Cave Run', layout: ['.S.', 'GGG'] }, null, 2)}\n`;
 

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { Readable } from 'node:stream';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { devEnvironmentPlugin } from './devEnvironmentPlugin';
-import { DEV_ENVIRONMENT_ENDPOINT } from '../src/themes/platformer/editor/devEnvironmentEndpoint';
+import { DEV_ENVIRONMENT_ENDPOINT } from '../src/themes/platformer/editor/dev/devEnvironmentEndpoint';
 
 type Handler = (
   req: IncomingMessage,

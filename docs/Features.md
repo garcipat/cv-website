@@ -75,7 +75,7 @@ graph RL
         R007["✅ R-007: Platformer Registry Dispatch Completion"]
         R008["✅ R-008: Platformer Placeable World Items"]
         R009["✅ R-009: Platformer Renderer Split"]
-        R010["R-010: Platformer Mapper & Editor Unification"]
+        R010["✅ R-010: Platformer Mapper & Editor Unification"]
         R011["R-011: Platformer Player Damage & Bomb Systems"]
         R012["R-012: Platformer State Stores & Asset/HUD Extraction"]
         R013["R-013: Platformer Sprite Asset & Atlas Organization"]
@@ -324,6 +324,7 @@ graph RL
     class R006 done
     class R007 done
     class R010 enhancements
+    class R010 done
     class R013 themes
 ```
 

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { EditorCanvas, type EditorImages } from './EditorCanvas';
-import { updatePanOffset, type PanOffset } from './EditorPan';
-import { DEFAULT_ZOOM, type ZoomLevel } from './EditorZoom';
+import { updatePanOffset, type PanOffset } from './ops/EditorPan';
+import { DEFAULT_ZOOM, type ZoomLevel } from './ops/EditorZoom';
 import { findBlueprint } from '../level/blueprintRegistry';
-import { blueprintCells } from './blueprintCells';
-import { blueprintMarkers } from './placeBlueprint';
-import { blueprintFits } from './blueprintFit';
+import { blueprintCells } from './ops/blueprintCells';
+import { blueprintMarkers } from './ops/placeBlueprint';
+import { blueprintFits } from './ops/blueprintFit';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { loadImage } from '../engine/SpriteLoader';
 import { CHECKPOINT_FLAG_SHEET } from '../entities/Checkpoint';

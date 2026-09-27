@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { writeBlueprintFile } from './writeBlueprintFile';
-import { BLUEPRINTS_FOLDER } from '../src/themes/platformer/editor/saveBlueprintEndpoint';
+import { BLUEPRINTS_FOLDER } from '../src/themes/platformer/editor/dev/saveBlueprintEndpoint';
 
 const VALID_CONTENTS = `${JSON.stringify({ name: 'Cave Room', layout: ['#+#', '#.#'] }, null, 2)}\n`;
 

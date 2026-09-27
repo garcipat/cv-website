@@ -2,24 +2,20 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Collapsible } from '@base-ui/react/collapsible';
 import { ChevronDownIcon } from 'lucide-react';
-import { ENTITY_CHARS } from '../level/LevelParser';
-import { TERRAIN_CHARS } from '../tiles/registry';
-import type { TileChar } from '../level/LevelParser';
 import type { EditorTool } from './editorState';
 import {
-  PALETTE_TILE_SPRITES,
-  PALETTE_TILE_LABELS,
-  PALETTE_TILE_GLYPHS,
-  PALETTE_TILE_DESCRIPTIONS,
+  PALETTE_TOOLS,
+  terrainPaletteTools,
   HAZARD_PALETTE_KEYS,
   BLUEPRINT_GLYPH,
-} from './paletteTiles';
+  type PaletteGroup,
+} from './ops/paletteTiles';
 import {
   BACKGROUND_PALETTE_SPRITES,
   BACKGROUND_PALETTE_LABELS,
   BACKGROUND_PALETTE_SECTIONS,
   BACKGROUND_MATERIAL_CHAR,
-} from './backgroundPaletteTiles';
+} from './ops/backgroundPaletteTiles';
 import type { BackgroundChar } from '../level/LevelParser';
 import { BLUEPRINTS } from '../level/blueprintRegistry';
 import { PaletteTile } from './PaletteTile';
@@ -46,13 +42,8 @@ interface PaletteProps {
   onArmBlueprint?: (id: string) => void;
 }
 
-const EMPTY_CHAR: TileChar = '.';
-const SIGN_CHAR: TileChar = 'T';
-const SPAWN_CHAR: TileChar = 'S';
-const PATROL_TOOL: EditorTool = 'patrolBoundary';
+const SPAWN_CHAR: EditorTool = 'S';
 const CONNECTION_POINT_TOOL: EditorTool = 'connectionPoint';
-const FALLING_STALACTITE_TOOL: EditorTool = 'fallingStalactite';
-const DECORATION_CHARS: TileChar[] = ['n', 'N', 'X', 'c', '⊤', '⊥', '¥', 's'];
 
 /**
  * One collapsible palette group. The trigger REPLACES the group's old plain
@@ -100,33 +91,34 @@ export const Palette = ({
   armedBlueprintId = null,
   onArmBlueprint,
 }: PaletteProps) => {
-  const allTerrainKeys = (Object.keys(TERRAIN_CHARS) as TileChar[]).filter((key) => key !== EMPTY_CHAR);
-  const terrainKeys = allTerrainKeys.filter((key) => !DECORATION_CHARS.includes(key));
-  const decorationKeys = allTerrainKeys.filter((key) => DECORATION_CHARS.includes(key));
+  // Every group is read from the one descriptor's `group` (FR-007), so a tool
+  // is placed, labelled, described and iconed in a single entry. Terrain uses
+  // `terrainPaletteTools()` so membership comes from R-015's registry, not a
+  // palette-local table (FR-008).
+  const keysInGroup = (group: PaletteGroup): EditorTool[] =>
+    (Object.keys(PALETTE_TOOLS) as EditorTool[]).filter(
+      (key) => PALETTE_TOOLS[key].group === group,
+    );
+  const terrainKeys: EditorTool[] = terrainPaletteTools().map((tool) => tool.char as EditorTool);
+  const decorationKeys = keysInGroup('decoration');
   // Spawn is dropped on the blueprint canvas: a blueprint has no spawn point
   // (roadmap step 44a), and offering the button would just invite a marker
   // nothing downstream expects to find outside a real level's layout.
-  const entityKeys = (Object.keys(ENTITY_CHARS) as TileChar[]).filter(
+  const entityKeys = keysInGroup('entities').filter(
     (key) => canvasMode === 'level' || key !== SPAWN_CHAR,
   );
-  // One palette button per hazard KIND (derived from HAZARD_CHARS), not one
-  // per facing: the spike auto-orients and cycles its four facings on the
-  // canvas (paintCell.ts), while the floor spear and O-021's floor spike
-  // each have a single fixed orientation that never cycles. The falling
-  // stalactite is a marker tool rather than a hazard character now, but it
-  // still belongs beside the hazards it behaves like (where the pre-feature
-  // `T` lived) — so it is appended here, not put in the Tools group.
-  const hazardKeys: EditorTool[] = [...HAZARD_PALETTE_KEYS, FALLING_STALACTITE_TOOL];
-  // The Tools group holds the level-authoring markers: the uniform sign (`T`,
-  // which cycles its hint on re-click), the patrol boundary (always) and the
-  // connection point (blueprint canvas only — the mirror image of the Spawn
-  // filter above). The Eraser stays last in the group either way.
-  const toolKeys: EditorTool[] = [
-    SIGN_CHAR,
-    PATROL_TOOL,
-    ...(canvasMode === 'blueprint' ? [CONNECTION_POINT_TOOL] : []),
-    EMPTY_CHAR,
-  ];
+  // One palette button per hazard KIND, plus the falling-stalactite marker
+  // tool, which lives here beside the hazards it behaves like (where the
+  // pre-feature `T` lived). The descriptor also carries the spike's facing
+  // variants (`v`/`<`/`>`), which are cycled on the canvas rather than shown
+  // as separate buttons — hence the explicit kind list.
+  const hazardKeys: EditorTool[] = [...HAZARD_PALETTE_KEYS, 'fallingStalactite'];
+  // The Tools group holds the level-authoring markers plus the Eraser. The
+  // connection point is blueprint-only (the mirror image of the Spawn filter
+  // above). The Eraser stays last in the descriptor, so it stays last here.
+  const toolKeys = keysInGroup('tools').filter(
+    (key) => canvasMode === 'blueprint' || key !== CONNECTION_POINT_TOOL,
+  );
 
   // Placement targets the level's own grid, so the section is hidden on the
   // blueprint canvas — which is what keeps nesting (a blueprint containing a
@@ -140,11 +132,11 @@ export const Palette = ({
         {keys.map((key) => (
           <PaletteTile
             key={key}
-            label={PALETTE_TILE_LABELS[key]}
+            label={PALETTE_TOOLS[key].label}
             testId={`editor-palette-tile-${key}`}
-            description={PALETTE_TILE_DESCRIPTIONS[key]}
-            sprite={PALETTE_TILE_SPRITES[key]}
-            glyph={PALETTE_TILE_GLYPHS[key]}
+            description={PALETTE_TOOLS[key].description}
+            sprite={PALETTE_TOOLS[key].sprite}
+            glyph={PALETTE_TOOLS[key].glyph}
             selected={selectedTool === key}
             onClick={() => onSelectTool(key)}
           />

@@ -4,16 +4,10 @@ import { TERRAIN_CHARS } from '../tiles/registry';
 import type { MarkerEntry, MarkerGrid } from '../level/LevelData';
 import { hintCode } from '../level/HintCatalog';
 import { DEFAULT_TORCH_STRENGTH, torchStrengthCode } from '../tiles/torch';
-import {
-  paintMarkerCell,
-  eraseMarkerCell,
-  paintSignMarker,
-  paintTorchMarker,
-  shiftMarkerGrid,
-} from './paintMarkerCell';
+import { applyTool } from './ops/applyTool';
 import { hintText } from '../state/hintText';
-import { paintCell, type PaintResult } from './paintCell';
-import { updatePanOffset, centerPanOnSpawn, type PanOffset } from './EditorPan';
+import type { PaintResult } from './ops/paintCell';
+import { updatePanOffset, centerPanOnSpawn, type PanOffset } from './ops/EditorPan';
 import {
   ZOOM_LEVELS,
   DEFAULT_ZOOM,
@@ -21,20 +15,10 @@ import {
   anchoredPan,
   sliderZoomIndex,
   type ZoomLevel,
-} from './EditorZoom';
+} from './ops/EditorZoom';
 import { Slider } from '@/components/ui/slider';
-import {
-  gridToLevelDef,
-  synthesizePlayerState,
-  synthesizeCollectiblePlacements,
-  synthesizeEnemyStates,
-  synthesizeBlockStates,
-  synthesizeChestStates,
-  synthesizeCheckpointStates,
-  synthesizeSignPlacements,
-  synthesizeHazardPlacements,
-  synthesizeRopeLadderBundleStates,
-} from './gridRenderState';
+import { previewPlacements } from './ops/previewPlacements';
+import { currentCV } from '@/state/locale';
 import { RENDERED_TILE_SIZE, RENDER_SCALE, TILE_SIZE, tileToPixel } from '../level/Terrain';
 import {
   isStalactiteTwin,
@@ -42,7 +26,7 @@ import {
   TWIN_LEFT_RECT,
   TWIN_RIGHT_RECT,
 } from '../tiles/stalactite';
-import { PATROL_GLYPH, CONNECTION_POINT_GLYPH, PALETTE_TILE_SPRITES } from './paletteTiles';
+import { PATROL_GLYPH, CONNECTION_POINT_GLYPH, PALETTE_TOOLS } from './ops/paletteTiles';
 import {
   drawTerrain,
   drawPlayer,
@@ -59,8 +43,8 @@ import {
   drawHeldTorch,
   drawCrumblingFloors,
 } from '../engine/render/SceneRenderer';
-import { caveLightingPreview } from './caveLightingPreview';
-import { paintBackgroundCell, eraseBackgroundCell } from './paintBackgroundCell';
+import { caveLightingPreview } from './ops/caveLightingPreview';
+import { paintBackgroundCell, eraseBackgroundCell } from './ops/paintBackgroundCell';
 import type { DrawContext } from '../contracts/DrawContext';
 import type { EditorAppearance, EditorTool } from './editorState';
 import { computePotRenderPlan } from '../entities/blocks/potRenderPlan';
@@ -680,6 +664,12 @@ export const EditorCanvas = ({
     const preview = previewActive ? caveLightingPreview(grid, markerGrid) : null;
     const showPreview = preview !== null && preview.darknessLevel > 0;
 
+    // Every entity/marker preview is produced by the runtime finder + mapper
+    // chain through the one grid→layout adapter (FR-001), not an editor-local
+    // synthesizer. CV data only affects each placement's (invisible) fact, so
+    // reading it here without a re-render subscription is behaviour-preserving.
+    const scene = previewPlacements(grid, markerGrid, currentCV.value);
+
     ctx.fillStyle = readGameBackgroundColor();
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     drawGridLines(ctx, canvas.width, canvas.height, panOffset, zoom);
@@ -729,7 +719,7 @@ export const EditorCanvas = ({
       const originX = panOffset.x / zoom;
       const originY = panOffset.y / zoom;
 
-      const editorBlockStates = synthesizeBlockStates(grid);
+      const editorBlockStates = scene.blocks;
 
       const drawContext: DrawContext<PotRenderPlan> = {
         ctx,
@@ -764,7 +754,7 @@ export const EditorCanvas = ({
       if (images.tileset && images.groundAtlas) {
         drawTerrain(
           ctx,
-          gridToLevelDef(grid),
+          scene.levelDef,
           images.tileset,
           images.groundAtlas,
           originX,
@@ -780,7 +770,7 @@ export const EditorCanvas = ({
       // Editor preview: a translucent ghost of the fully-deployed shaft below
       // each bundle, so an author sees exactly how far the ladder will reach,
       // then the opaque curled bundle drawn on top of it. Never drawn in game.
-      const bundleStates = synthesizeRopeLadderBundleStates(grid);
+      const bundleStates = scene.bundles;
       const previousAlpha = ctx.globalAlpha;
       ctx.save();
       ctx.globalAlpha = 0.4;
@@ -797,7 +787,7 @@ export const EditorCanvas = ({
       drawDeployableItems(ctx, bundleStates, drawContext, 'terrain');
 
       if (images.tileset) {
-        drawSigns(ctx, synthesizeSignPlacements(grid, markerGrid), images.tileset, originX, originY);
+        drawSigns(ctx, scene.signs, images.tileset, originX, originY);
       }
       ctx.restore(); // pop scaled segment 1 — back to unscaled, alpha still foregroundAlpha
 
@@ -846,27 +836,27 @@ export const EditorCanvas = ({
       // No live cycle-timer state exists in the editor — an empty states
       // array renders every crumblingFloor cell at rest, exactly the
       // preview an author needs.
-      drawCrumblingFloors(ctx, gridToLevelDef(grid), [], drawContext);
+      drawCrumblingFloors(ctx, scene.levelDef, [], drawContext);
 
-      drawPickups(ctx, { coin: synthesizeCollectiblePlacements(grid) }, drawContext);
+      drawPickups(ctx, { coin: scene.coins }, drawContext);
 
-      drawHazards(ctx, synthesizeHazardPlacements(grid, markerGrid), drawContext);
+      drawHazards(ctx, scene.hazards, drawContext);
 
-      drawEnemies(ctx, synthesizeEnemyStates(grid), drawContext);
+      drawEnemies(ctx, scene.enemies, drawContext);
 
       drawBlocks(ctx, editorBlockStates, drawContext);
 
-      drawDeployableItems(ctx, synthesizeChestStates(grid), drawContext, 'afterCrumblingFloors');
+      drawDeployableItems(ctx, scene.chests, drawContext, 'afterCrumblingFloors');
 
       drawCheckpoints(
         ctx,
-        synthesizeCheckpointStates(grid),
+        scene.checkpoints,
         images.checkpoint,
         null,
         drawContext,
       );
 
-      const player = synthesizePlayerState(grid);
+      const player = scene.player;
       if (player && images.player) {
         drawPlayer(ctx, player, images.player, originX, originY, null, true);
       }
@@ -895,7 +885,7 @@ export const EditorCanvas = ({
       // segment 2 just drew, so an author can tell a `T` from the decorative
       // `⊤`. Masked to the stalactite's own opaque pixels — never a full-cell
       // fill — so only the stone is washed.
-      const fallingStalactiteTint = PALETTE_TILE_SPRITES['fallingStalactite']?.tint;
+      const fallingStalactiteTint = PALETTE_TOOLS.fallingStalactite.sprite?.tint;
       if (fallingStalactiteTint) {
         drawTileTint(
           ctx,
@@ -941,7 +931,7 @@ export const EditorCanvas = ({
         ctx.scale(zoom, zoom);
         drawEnemyEyes(
           ctx,
-          synthesizeEnemyStates(grid),
+          scene.enemies,
           preview.darknessLevel,
           preview.lights,
           0,
@@ -1013,100 +1003,20 @@ export const EditorCanvas = ({
     };
   };
 
-  /** Applies `tool` at `(col, row)`. A pure marker tool writes only the marker
-   *  grid and never grows it (FR-009/FR-010); the sign and falling-stalactite
-   *  tools write their terrain character plus their own marker at the
-   *  post-growth coordinates (the ordering invariant, D8); every other tool
-   *  writes terrain. Returns the (post-growth) cell a drag should remember. */
+  /** Applies `tool` at `(col, row)` through the shared `applyTool` op
+   *  (FR-012): the per-tool placement/marker semantics live in
+   *  `ops/applyTool.ts`, not here. Returns the (post-growth) cell a drag
+   *  should remember. */
   const applyToolAt = (
     col: number,
     row: number,
     tool: EditorTool,
     isErase: boolean,
   ): { col: number; row: number } => {
-    if (tool === 'patrolBoundary' || tool === 'connectionPoint') {
-      onPaintMarker(
-        isErase
-          ? eraseMarkerCell(markerGrid, col, row)
-          : paintMarkerCell(markerGrid, col, row, { kind: tool }),
-      );
-      return { col, row };
-    }
-
-    if (tool === 'T' || tool === 'fallingStalactite') {
-      // Right-click removes the whole cell — the terrain character AND whatever
-      // marker is on it, not just this tool's own kind. Clearing only the own
-      // kind would orphan a marker whenever the tile is erased with a different
-      // tool selected (e.g. right-clicking a sign with the torch tool).
-      if (isErase) {
-        onPaint(paintCell(grid, col, row, '.'));
-        if (markerGrid[row]?.[col]) {
-          onPaintMarker(eraseMarkerCell(markerGrid, col, row));
-        }
-        return { col, row };
-      }
-      const result = paintCell(grid, col, row, tool === 'T' ? 'T' : '⊤');
-      const shifted = shiftMarkerGrid(markerGrid, result.colShift, result.rowShift);
-      const targetCol = col + result.colShift;
-      const targetRow = row + result.rowShift;
-      onPaint(result);
-      onPaintMarker(
-        tool === 'T'
-          ? paintSignMarker(shifted, targetCol, targetRow)
-          : paintMarkerCell(shifted, targetCol, targetRow, { kind: 'fallingStalactite' }),
-      );
-      return { col: targetCol, row: targetRow };
-    }
-
-    if (tool === '¥') {
-      // Right-click removes the torch and whatever marker is on its cell, like
-      // the sign/falling tools above.
-      if (isErase) {
-        onPaint(paintCell(grid, col, row, '.'));
-        if (markerGrid[row]?.[col]) {
-          onPaintMarker(eraseMarkerCell(markerGrid, col, row));
-        }
-        return { col, row };
-      }
-      const alreadyTorch = grid[row]?.[col] === '¥';
-      const result = paintCell(grid, col, row, '¥');
-      const targetCol = col + result.colShift;
-      const targetRow = row + result.rowShift;
-      onPaint(result);
-      // Only cycle on an already-placed torch: a fresh click lays a default
-      // torch (no marker), and the next clicks step its strength up 0–9.
-      if (alreadyTorch) {
-        onPaintMarker(
-          paintTorchMarker(
-            shiftMarkerGrid(markerGrid, result.colShift, result.rowShift),
-            targetCol,
-            targetRow,
-          ),
-        );
-      }
-      return { col: targetCol, row: targetRow };
-    }
-
-    const result = paintCell(grid, col, row, isErase ? '.' : tool);
-    onPaint(result);
-    // Erasing a cell clears its marker whatever kind it is — the right-click
-    // gesture and the Eraser tool remove the tile and its metadata together, so
-    // a marker can never be left behind unremovable. A *left*-click that paints
-    // a different tile over the cell only clears a marker that describes that
-    // tile (a sign, falling stalactite or torch); a patrol boundary or
-    // connection point survives a repaint (FR-002).
-    const existing = markerGrid[row]?.[col];
-    const clearsCell = isErase || tool === '.';
-    if (
-      existing &&
-      (clearsCell ||
-        existing.kind === 'sign' ||
-        existing.kind === 'fallingStalactite' ||
-        existing.kind === 'torch')
-    ) {
-      onPaintMarker(eraseMarkerCell(markerGrid, col, row));
-    }
-    return { col: col + result.colShift, row: row + result.rowShift };
+    const result = applyTool(grid, markerGrid, col, row, tool, isErase);
+    if (result.paint) onPaint(result.paint);
+    if (result.markers) onPaintMarker(result.markers);
+    return result.target;
   };
 
   const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {

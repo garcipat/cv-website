@@ -1,81 +1,52 @@
-import { tileToPixel, RENDERED_TILE_SIZE } from './Terrain';
-import { slugify } from './CollectibleMapper';
-import { revealedFactCountFor } from './SkillFactPacing';
+import { RENDERED_TILE_SIZE } from './Terrain';
+import { slugId } from './ids';
+import { cvFact } from './cvFacts';
+import { placeAtMarkers, placeWithFactPool } from './placement';
 import type { CVData, Education, Certificate, Project, Activity, Language } from '@/types/cv';
 import type { BlockDef, CollectedFact } from '../types';
 
 function educationToBlock(education: Education): BlockDef {
-  const id = `block-edu-${slugify(`${education.degree}-${education.institution}`)}`;
+  const id = slugId('block-edu', education.degree, education.institution);
   return {
     id,
     blockKind: 'crate',
-    fact: {
-      id,
-      sectionId: 'education',
-      sectionLabel: 'Education',
-      data: education,
-      sourceType: 'block',
-    },
+    fact: cvFact('education', 'Education', 'block', id, education),
   };
 }
 
 function activityToBlock(activity: Activity): BlockDef {
-  const id = `block-activity-${slugify(activity.name)}`;
+  const id = slugId('block-activity', activity.name);
   return {
     id,
     blockKind: 'crate',
-    fact: {
-      id,
-      sectionId: 'activities',
-      sectionLabel: 'Activities',
-      data: activity,
-      sourceType: 'block',
-    },
+    fact: cvFact('activities', 'Activities', 'block', id, activity),
   };
 }
 
 function languageToBlock(language: Language): BlockDef {
-  const id = `block-lang-${slugify(language.name)}`;
+  const id = slugId('block-lang', language.name);
   return {
     id,
     blockKind: 'crate',
-    fact: {
-      id,
-      sectionId: 'languages',
-      sectionLabel: 'Languages',
-      data: language,
-      sourceType: 'block',
-    },
+    fact: cvFact('languages', 'Languages', 'block', id, language),
   };
 }
 
 function certificateToBlock(certificate: Certificate): BlockDef {
-  const id = `qmark-cert-${slugify(certificate.name)}`;
+  const id = slugId('qmark-cert', certificate.name);
   return {
     id,
     blockKind: 'questionMark',
-    fact: {
-      id,
-      sectionId: 'certificates',
-      sectionLabel: 'Certificates',
-      data: certificate,
-      sourceType: 'block',
-    },
+    fact: cvFact('certificates', 'Certificates', 'block', id, certificate),
   };
 }
 
 function projectToBlock(project: Project): BlockDef {
-  const id = `qmark-project-${slugify(project.name)}`;
+  const id = slugId('qmark-project', project.name);
   return {
     id,
     blockKind: 'questionMark',
-    fact: {
-      id,
-      sectionId: 'projects',
-      sectionLabel: 'Projects',
-      data: project,
-      sourceType: 'block',
-    },
+    fact: cvFact('projects', 'Projects', 'block', id, project),
   };
 }
 
@@ -103,7 +74,7 @@ export interface BlockPlacement extends BlockDef {
   y: number;
   /** Any Education/Activity/Language facts beyond `fact` itself — populated
    *  only when this level has fewer crate markers than crate facts, so a
-   *  single crate's position-based slice of the pool (see `placeCrates`
+   *  single crate's position-based slice of the pool (see `placeBlocks`
    *  below) spans more than one fact. Undefined (not `[]`) when there's
    *  nothing extra, matching how `fact` itself is undefined rather than
    *  present-but-empty. Only ever set for `blockKind === 'crate'`. */
@@ -129,99 +100,63 @@ export interface BlockMarkerPositions {
 }
 
 /**
- * Places every crate marker, each owning a FIXED slice of the
- * Education/Activity/Language pool decided by its position among every
- * crate marker — proportional across however many crates the level has, via
- * the same formula (`revealedFactCountFor`) `level/SkillFactPacing.ts`
- * already uses for coins. This is a fixed, load-time assignment, not
- * resolved by play order: the same marker always owns the same fact(s) no
- * matter which order the player breaks them in — only "already broken"
- * (`BlockState`'s `hitsTaken`) needs tracking at hit time. Mirrors
- * `EnemyMapper.ts`'s `placeGreenSlimes`.
+ * Places block defs/markers into the level, all through the one
+ * `placeAtMarkers` loop (FR-003/FR-005).
  *
- * With one marker and several facts, that one marker's slice is the WHOLE
- * pool (`fact` plus every other fact in `extraFacts`) — breaking it reveals
- * everything. With more markers than facts, some markers' slices are empty
- * (`fact` and `extraFacts` both undefined) — a fully functional, breakable
- * crate that simply has nothing to award.
- */
-function placeCrates(
-  markers: readonly { col: number; row: number }[],
-  pool: readonly CollectedFact[],
-): BlockPlacement[] {
-  const total = markers.length;
-  return markers.map((marker, index) => {
-    const start = revealedFactCountFor(index, total, pool.length);
-    const end = revealedFactCountFor(index + 1, total, pool.length);
-    const slice = pool.slice(start, end);
-    const { x, y } = tileToPixel(marker.col, marker.row);
-    return {
-      id: `crate-${marker.col}-${marker.row}`,
-      blockKind: 'crate',
-      fact: slice[0],
-      extraFacts: slice.length > 1 ? slice.slice(1) : undefined,
-      x,
-      y,
-    };
-  });
-}
-
-/**
- * Places block defs/markers into the level. Question-marks follow the same
- * hand-authored-marker-zip convention as placeCollectibles/placeEnemies —
- * their defs (from `mapCVDataToBlocks`) zipped against `markers.questionMark`
- * in reading order. A question-mark marker beyond the available
- * Certificate/Project defs (or when there are none at all) still becomes a
- * placement — just with no `fact` — so a level marker is never silently
- * dropped for lack of data (see `mapCVDataToBlocks`'s comment). Crates
- * instead use `placeCrates`'s fixed, position-based pool slice (see its doc
- * comment) rather than a 1:1 zip against `defs` — `defs` here only supplies
- * that pool (every crate def always has a `fact`, see `mapCVDataToBlocks`'s
- * comment). FragileRock blocks have no CVData mapping at all (spec.md
- * FR-021) — every fragileRock marker becomes a placement directly, with a
- * position-derived id since there's no CVData-derived one available. coinPot
- * markers follow the same no-CVData-mapping convention as fragileRock: a
- * coin-pot carries no fact of its own — which CV fact it eventually reveals
- * is resolved dynamically at pickup time from the dropped coin's own pool
- * lookup (see `CollectibleMapper.ts`'s `mapCVDataToSkillFactPool` doc
- * comment), not bound to the block at placement time. potionPot markers
- * follow the exact same convention as coinPot: no fact of its own, the heart
- * it drops always heals a fixed amount (Health.ts's HEART_PICKUP_HEAL_AMOUNT).
+ * Crates own a fixed, position-based slice of the Education/Activity/Language
+ * pool decided by `placeWithFactPool` (proportional across however many crates
+ * the level has, the same formula `level/SkillFactPacing.ts` already uses for
+ * coins): with one marker and several facts that marker's slice is the whole
+ * pool; with more markers than facts some markers' slices are empty. The
+ * slice is a fixed, load-time assignment, not resolved by play order.
+ *
+ * Question-marks follow the hand-authored-marker-zip convention — their defs
+ * (from `mapCVDataToBlocks`) zipped against `markers.questionMark` in reading
+ * order; a marker beyond the available Certificate/Project defs still becomes
+ * a placement with no fact, so a level marker is never silently dropped.
+ * FragileRock and the three pot kinds have no CVData mapping at all: every
+ * marker becomes a placement directly, with a position-derived id.
  */
 export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): BlockPlacement[] {
-  const placements: BlockPlacement[] = [];
   const questionMarkDefs = defs.filter((d) => d.blockKind === 'questionMark');
-
   const cratePool = defs.filter((d) => d.blockKind === 'crate').map((d) => d.fact!);
-  placements.push(...placeCrates(markers.crate, cratePool));
 
-  markers.questionMark.forEach(({ col, row }, index) => {
-    const { x, y } = tileToPixel(col, row);
-    const def = questionMarkDefs[index];
-    placements.push(def ? { ...def, x, y } : { id: `qmark-${col}-${row}`, blockKind: 'questionMark', x, y });
-  });
+  return [
+    ...placeWithFactPool<{ col: number; row: number }, BlockPlacement>(markers.crate, cratePool, {
+      idPrefix: 'crate',
+      build: () => ({ blockKind: 'crate' }),
+    }),
 
-  for (const { col, row } of markers.fragileRock) {
-    const { x, y } = tileToPixel(col, row);
-    placements.push({ id: `fragileRock-${col}-${row}`, blockKind: 'fragileRock', x, y });
-  }
+    ...placeAtMarkers<{ col: number; row: number }, BlockPlacement>(markers.questionMark, {
+      idPrefix: 'qmark',
+      id: (marker, index) =>
+        questionMarkDefs[index]?.id ?? `qmark-${marker.col}-${marker.row}`,
+      build: (_marker, index) => {
+        const def = questionMarkDefs[index];
+        return def ? { blockKind: def.blockKind, fact: def.fact } : { blockKind: 'questionMark' };
+      },
+    }),
 
-  for (const { col, row } of markers.coinPot ?? []) {
-    const { x, y } = tileToPixel(col, row);
-    placements.push({ id: `coinpot-${col}-${row}`, blockKind: 'coinPot', x, y });
-  }
+    ...placeAtMarkers<{ col: number; row: number }, BlockPlacement>(markers.fragileRock, {
+      idPrefix: 'fragileRock',
+      build: () => ({ blockKind: 'fragileRock' as const }),
+    }),
 
-  for (const { col, row } of markers.potionPot ?? []) {
-    const { x, y } = tileToPixel(col, row);
-    placements.push({ id: `potionpot-${col}-${row}`, blockKind: 'potionPot', x, y });
-  }
+    ...placeAtMarkers<{ col: number; row: number }, BlockPlacement>(markers.coinPot ?? [], {
+      idPrefix: 'coinpot',
+      build: () => ({ blockKind: 'coinPot' as const }),
+    }),
 
-  for (const { col, row } of markers.bombPot ?? []) {
-    const { x, y } = tileToPixel(col, row);
-    placements.push({ id: `bombpot-${col}-${row}`, blockKind: 'bombPot', x, y });
-  }
+    ...placeAtMarkers<{ col: number; row: number }, BlockPlacement>(markers.potionPot ?? [], {
+      idPrefix: 'potionpot',
+      build: () => ({ blockKind: 'potionPot' as const }),
+    }),
 
-  return placements;
+    ...placeAtMarkers<{ col: number; row: number }, BlockPlacement>(markers.bombPot ?? [], {
+      idPrefix: 'bombpot',
+      build: () => ({ blockKind: 'bombPot' as const }),
+    }),
+  ];
 }
 
 /**

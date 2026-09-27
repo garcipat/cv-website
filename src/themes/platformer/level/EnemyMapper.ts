@@ -1,6 +1,6 @@
-import { tileToPixel } from './Terrain';
-import { slugify } from './CollectibleMapper';
-import { revealedFactCountFor } from './SkillFactPacing';
+import { slugId } from './ids';
+import { cvFact } from './cvFacts';
+import { placeAtMarkers, placeWithFactPool } from './placement';
 import type { CVData, Course } from '@/types/cv';
 import type { EnemyDef, CollectedFact } from '../types';
 
@@ -12,17 +12,11 @@ import type { EnemyDef, CollectedFact } from '../types';
  * on defeat (see `entities/KeyPickup.ts` and `PlatformerPage.tsx`'s defeat handler).
  */
 function courseToEnemy(course: Course, type: EnemyDef['type']): EnemyDef {
-  const id = `enemy-course-${slugify(course.title)}`;
+  const id = slugId('enemy-course', course.title);
   return {
     id,
     type,
-    fact: {
-      id,
-      sectionId: 'courses',
-      sectionLabel: 'Courses',
-      data: course,
-      sourceType: 'enemy',
-    },
+    fact: cvFact('courses', 'Courses', 'enemy', id, course),
   };
 }
 
@@ -40,9 +34,9 @@ export interface EnemyPlacement extends EnemyDef {
   y: number;
   /** Any course facts beyond `fact` itself — populated only when this level
    *  has fewer green markers than courses, so a single slime's position-based
-   *  slice of the pool (see `placeGreenSlimes` below) spans more than one
-   *  course. Undefined (not `[]`) when there's nothing extra, matching how
-   *  `fact` itself is undefined rather than present-but-empty. */
+   *  slice of the pool (see `placeEnemies` below) spans more than one course.
+   *  Undefined (not `[]`) when there's nothing extra, matching how `fact`
+   *  itself is undefined rather than present-but-empty. */
   extraFacts?: CollectedFact[];
 }
 
@@ -55,80 +49,36 @@ export interface EnemyMarkerPositions {
 }
 
 /**
- * Places every green marker, each owning a FIXED slice of the course pool
- * decided by its position among every green marker — proportional across
- * however many green slimes the level has, via the same formula
- * (`revealedFactCountFor`) `level/SkillFactPacing.ts` already uses for
- * coins. This is a fixed, load-time assignment, not resolved by play order:
- * the same marker always owns the same course(s) no matter which order the
- * player defeats them in — only "already given" (`EnemyState.rewardGiven`)
- * needs tracking at defeat time.
- *
- * With one marker and several courses, that one marker's slice is the WHOLE
- * pool (`fact` plus every other course in `extraFacts`) — defeating it
- * reveals everything. With more markers than courses, some markers' slices
- * are empty (`fact` and `extraFacts` both undefined) — a fully functional,
- * killable enemy that simply has nothing to award, the same convention
- * `BlockMapper.ts`'s question-mark/fragileRock blocks already use for
- * CV-mapping-free entities.
- */
-function placeGreenSlimes(
-  markers: readonly { col: number; row: number }[],
-  pool: readonly CollectedFact[],
-): EnemyPlacement[] {
-  const total = markers.length;
-  return markers.map((marker, index) => {
-    const start = revealedFactCountFor(index, total, pool.length);
-    const end = revealedFactCountFor(index + 1, total, pool.length);
-    const slice = pool.slice(start, end);
-    const { x, y } = tileToPixel(marker.col, marker.row);
-    return {
-      id: `enemy-slimeGreen-${marker.col}-${marker.row}`,
-      type: 'slimeGreen',
-      fact: slice[0],
-      extraFacts: slice.length > 1 ? slice.slice(1) : undefined,
-      x,
-      y,
-    };
-  });
-}
-
-/** Places every purple marker — a purple slime carries no CV content at all
- *  (see this file's top doc comment), so every placement is a plain,
- *  position-derived enemy with no fact. */
-function placePurpleSlimes(markers: readonly { col: number; row: number }[]): EnemyPlacement[] {
-  return markers.map((marker) => {
-    const { x, y } = tileToPixel(marker.col, marker.row);
-    return { id: `enemy-slimePurple-${marker.col}-${marker.row}`, type: 'slimePurple', x, y };
-  });
-}
-
-/** Places every `q` marker as a bee — a plain, position-derived enemy with no
- *  fact, exactly like a purple slime (O-024). */
-function placeBees(markers: readonly { col: number; row: number }[]): EnemyPlacement[] {
-  return markers.map((marker) => {
-    const { x, y } = tileToPixel(marker.col, marker.row);
-    return { id: `enemy-bee-${marker.col}-${marker.row}`, type: 'bee', x, y };
-  });
-}
-
-/**
- * Places enemy defs at hand-authored marker positions — `M` markers
- * (LevelParser.ts's findGreenEnemyTiles) become green slimes, `m` markers
+ * Places enemy defs at hand-authored marker positions, all through the one
+ * `placeAtMarkers` loop (FR-003/FR-005) — `M` markers (LevelParser.ts's
+ * findGreenEnemyTiles) become green slimes, `m` markers
  * (findPurpleEnemyTiles) become purple ones, `q` markers (findBeeTiles)
- * become bees. There is no auto-placement: an
- * enemy's position is always exactly where a level author put its marker.
- * Every green marker's course fact(s) come from a fixed, position-based
- * slice of the course pool (see `placeGreenSlimes`) rather than a 1:1 zip
- * against `defs` — `defs` here only supplies that pool (every green def
- * always has a `fact`, see `mapCVDataToEnemies`'s doc comment).
+ * become bees. There is no auto-placement: an enemy's position is always
+ * exactly where a level author put its marker.
+ *
+ * Green slimes own a fixed, position-based slice of the course pool via
+ * `placeWithFactPool` (proportional across however many green slimes the level
+ * has): with one marker and several courses that marker's slice is the whole
+ * pool; with more markers than courses some markers' slices are empty — a
+ * fully functional, killable enemy that simply has nothing to award.
+ * Certificates/Projects do not produce enemies. Purple slimes and bees carry
+ * no CV content at all, so every placement is a plain, position-derived enemy.
  */
 export function placeEnemies(defs: EnemyDef[], markers: EnemyMarkerPositions): EnemyPlacement[] {
   const pool = defs.filter((def) => def.type === 'slimeGreen').map((def) => def.fact!);
 
   return [
-    ...placeGreenSlimes(markers.slimeGreen, pool),
-    ...placePurpleSlimes(markers.slimePurple),
-    ...placeBees(markers.bee),
+    ...placeWithFactPool<{ col: number; row: number }, EnemyPlacement>(markers.slimeGreen, pool, {
+      idPrefix: 'enemy-slimeGreen',
+      build: () => ({ type: 'slimeGreen' }),
+    }),
+    ...placeAtMarkers<{ col: number; row: number }, EnemyPlacement>(markers.slimePurple, {
+      idPrefix: 'enemy-slimePurple',
+      build: () => ({ type: 'slimePurple' }),
+    }),
+    ...placeAtMarkers<{ col: number; row: number }, EnemyPlacement>(markers.bee, {
+      idPrefix: 'enemy-bee',
+      build: () => ({ type: 'bee' }),
+    }),
   ];
 }

@@ -9,12 +9,12 @@ import {
   SCRATCH_LAYOUT,
 } from '../level/level';
 import { currentLayout } from '../state/levelSession';
-import { importLayout, importBackgroundLayout, importMarkerGrid } from './importLayout';
-import { levelFileJson } from './saveLevelFile';
+import { importLayout, importBackgroundLayout, importMarkerGrid } from './ops/importLayout';
+import { layoutFileJson } from './dev/layoutFileJson';
 import type { MarkerGrid } from '../level/LevelData';
-import { centerPanOnSpawn } from './EditorPan';
-import { exportLayout } from './exportLayout';
-import { cropLevelForExport } from './cropLevelForExport';
+import { centerPanOnSpawn } from './ops/EditorPan';
+import { exportLayout } from './ops/exportLayout';
+import { cropLevelForExport } from './ops/cropLevelForExport';
 import type { TileChar, BackgroundChar } from '../level/LevelParser';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import {
@@ -35,11 +35,10 @@ import {
   editorArmedBlueprintIdSignal,
 } from './editorState';
 import { levelEditorPage } from './LevelEditorPage.page';
-import { isDevEnvironmentSignal } from './devEnvironment';
+import { isDevEnvironmentSignal } from './editorState';
 import { BLANK_BLUEPRINT } from '../level/BlueprintData';
-import { blueprintFileJson } from './saveBlueprintFile';
-import { SAVE_BLUEPRINT_ENDPOINT } from './saveBlueprintEndpoint';
-import { SAVE_LEVEL_ENDPOINT } from './saveLevelEndpoint';
+import { SAVE_BLUEPRINT_ENDPOINT } from './dev/saveBlueprintEndpoint';
+import { SAVE_LEVEL_ENDPOINT } from './dev/saveLevelEndpoint';
 import type { Blueprint } from '../level/BlueprintData';
 import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
@@ -180,7 +179,7 @@ beforeEach(() => {
 });
 
 /** The exact text `EditorToolbar`'s Export dialog produces: the complete level
- *  JSON via the same `levelFileJson` a save writes, so every test asserting on
+ *  JSON via the same `layoutFileJson` a save writes, so every test asserting on
  *  the textarea builds its expectation from the same grids the toolbar reads
  *  rather than hand-formatting a duplicate string. */
 function expectedExportText(
@@ -190,7 +189,7 @@ function expectedExportText(
   name = 'main',
 ): string {
   const cropped = cropLevelForExport(grid, background, markers);
-  return levelFileJson(name, cropped.layout, cropped.background, cropped.markers);
+  return layoutFileJson(name, cropped.layout, cropped.background, cropped.markers);
 }
 
 // LEVEL_1_LAYOUT is jagged (its ladder-shaft rows are short); importLayout
@@ -1364,7 +1363,7 @@ describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
 
     expect(blueprintPostBody(fetchCalls)).toEqual({
       fileName: 'test-room.json',
-      contents: blueprintFileJson('Test Room', ['G'], []),
+      contents: layoutFileJson('Test Room', ['G'], []),
     });
   });
 

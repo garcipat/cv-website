@@ -1,5 +1,5 @@
 import { LEVEL_1_LAYOUT, LEVEL_1_BACKGROUND, LEVEL_1_MARKERS, SCRATCH_LAYOUT } from './level';
-import type { MarkerPlacement } from './LevelData';
+import type { LayoutFile } from './rawLayoutFile';
 import { parseLevelModules } from './layoutFile';
 
 /**
@@ -13,15 +13,9 @@ import { parseLevelModules } from './layoutFile';
  * `parseBackgroundLayout` turns it into the engine-facing `BackgroundGrid`
  * at load time.
  */
-export interface LevelEntry {
+export interface LevelEntry extends LayoutFile {
   readonly id: string;
   readonly name: string;
-  readonly layout: readonly string[];
-  readonly background?: readonly string[];
-  /** The level's tile meta layer — absent for a pre-feature file, which is
-   *  what tells `parseLevel` its `T` is a falling stalactite (the `T`
-   *  generation rule, D5). */
-  readonly markers?: readonly MarkerPlacement[];
 }
 
 /**

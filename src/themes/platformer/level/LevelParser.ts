@@ -1,6 +1,7 @@
 import type {
   LevelDef,
   TileMap,
+  TileType,
   BackgroundGrid,
   BackgroundMaterialId,
   MarkerEntry,
@@ -12,6 +13,7 @@ import { DEFAULT_HINT_ID, isSignHintId } from './HintCatalog';
 import { DEFAULT_TORCH_STRENGTH, isTorchStrength } from '../tiles/torch';
 import type { HazardKind } from '../entities/hazards';
 import { TERRAIN_CHARS, type TerrainChar } from '../tiles/registry';
+import { layoutWidth, walkLayout } from './layoutChars';
 
 /** An entity marker's kind — what it means, not what it looks like on the
  *  ground (every entity marker sits on `empty` terrain, see parseLevel). */
@@ -324,24 +326,34 @@ export function parseLevel(
   storedMarkers?: readonly MarkerPlacement[],
 ): LevelDef {
   const height = layout.length;
-  const width = layout.reduce((max, row) => Math.max(max, row.length), 0);
+  const width = layoutWidth(layout);
   const unknownChars = new Set<string>();
 
-  const terrain: TileMap = layout.map((row) => {
-    const chars = row.split('').map((char) => {
-      const tile = TERRAIN_CHARS[char];
-      if (tile) return tile;
-      if (char === SIGN_CHAR) {
-        // A pre-feature `T` is the old falling-stalactite hazard, which is now
-        // the decorative `⊤` tile plus a marker; a new-format `T` is a sign.
-        return storedMarkers === undefined ? 'stalactite' : 'empty';
-      }
-      if (ENTITY_CHARS[char] || LEGACY_MARKER_CHARS[char] || HAZARD_CHARS[char]) return 'empty';
-      unknownChars.add(char);
-      return 'empty';
-    });
-    while (chars.length < width) chars.push('empty');
-    return chars;
+  const terrain: TileMap = Array.from({ length: height }, () =>
+    new Array<TileType>(width).fill('empty'),
+  );
+
+  // The one shared character walk (FR-010); only the terrain mapping lives
+  // here. Missing trailing cells of a short row are skipped by the walk,
+  // leaving the pre-filled `'empty'` — the same right-pad the old loop did.
+  walkLayout(layout, ({ char, col, row }) => {
+    const tile = TERRAIN_CHARS[char];
+    if (tile) {
+      terrain[row][col] = tile;
+      return;
+    }
+    if (char === SIGN_CHAR) {
+      // A pre-feature `T` is the old falling-stalactite hazard, which is now
+      // the decorative `⊤` tile plus a marker; a new-format `T` is a sign.
+      terrain[row][col] = storedMarkers === undefined ? 'stalactite' : 'empty';
+      return;
+    }
+    if (ENTITY_CHARS[char] || LEGACY_MARKER_CHARS[char] || HAZARD_CHARS[char]) {
+      terrain[row][col] = 'empty';
+      return;
+    }
+    unknownChars.add(char);
+    terrain[row][col] = 'empty';
   });
 
   if (unknownChars.size > 0) {
@@ -441,6 +453,18 @@ export function findSpawnTile(layout: readonly string[]): { col: number; row: nu
     throw new Error('Level layout has no spawn marker ("S")');
   }
   return first;
+}
+
+/**
+ * The null-returning companion to `findSpawnTile`: the first `S` spawn
+ * marker's position, or `null` when the layout has none. The editor's preview
+ * needs "is there a spawn yet?" without throwing mid-edit (a fresh/empty grid
+ * legitimately has none), and this removes the editor's last copy of the `S`
+ * scan (D2/FR-001).
+ */
+export function findOptionalSpawnTile(layout: readonly string[]): { col: number; row: number } | null {
+  const [first] = findAllOfKind(layout, 'spawn');
+  return first ?? null;
 }
 
 /**
@@ -547,7 +571,8 @@ export function findCheckpointTiles(layout: readonly string[]): { col: number; r
  * Finds every sign in a level layout, in reading order, paired with the hint
  * it shows. Each `SIGN_CHAR` (`T`) cell is paired with a `sign` marker at that
  * cell, or `DEFAULT_HINT_ID` when the marker is absent (FR-027) — the runtime
- * analogue of the editor's `synthesizeSignPlacements`. There is no separate
+ * analogue of the editor preview's sign builder (`ops/previewPlacements.ts`).
+ * There is no separate
  * CVData-derived list to zip these positions against.
  */
 export function findSignTiles(

@@ -1,4 +1,5 @@
-import { tileToPixel, RENDERED_TILE_SIZE } from './Terrain';
+import { RENDERED_TILE_SIZE } from './Terrain';
+import { placeAtMarkers } from './placement';
 import type { Box } from '../contracts/geometry';
 import type { SignDef, SignHintId } from './HintCatalog';
 
@@ -20,21 +21,21 @@ export function signBox(sign: SignPlacement): Box {
 }
 
 /**
- * Places a `SignPlacement` at every hand-authored sign marker — unlike
- * placeCollectibles/placeEnemies/placeBlocks/placeChests, there's no
- * CVData-derived "def" to zip against a marker queue: each entry already
- * carries its resolved hintId (LevelParser.ts's `findSignTiles` pairs a `T`
- * cell with its `sign` marker's hint), so this is a direct
- * marker-to-placement conversion, same
- * shape as the other *Mapper.ts files' own placeX function but with no
- * `defs` parameter. The id includes col/row so two signs showing the same
- * hint at different spots in the level get distinct ids.
+ * Places a `SignPlacement` at every hand-authored sign marker through the
+ * shared `placeAtMarkers` — unlike placeCollectibles/placeEnemies/
+ * placeBlocks/placeChests, there's no CVData-derived "def" to zip against a
+ * marker queue: each entry already carries its resolved hintId
+ * (LevelParser.ts's `findSignTiles` pairs a `T` cell with its `sign`
+ * marker's hint). The `id` override keeps the `sign-${hintId}-${col}-${row}`
+ * format so two signs showing the same hint at different spots get distinct
+ * ids.
  */
 export function placeSigns(
   markers: readonly { col: number; row: number; hintId: SignHintId }[],
 ): SignPlacement[] {
-  return markers.map(({ col, row, hintId }) => {
-    const { x, y } = tileToPixel(col, row);
-    return { id: `sign-${hintId}-${col}-${row}`, hintId, x, y };
+  return placeAtMarkers<{ col: number; row: number; hintId: SignHintId }, SignPlacement>(markers, {
+    idPrefix: 'sign',
+    id: (marker) => `sign-${marker.hintId}-${marker.col}-${marker.row}`,
+    build: (marker) => ({ hintId: marker.hintId }),
   });
 }

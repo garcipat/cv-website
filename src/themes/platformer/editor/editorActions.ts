@@ -1,24 +1,24 @@
 import type { Signal } from '@preact/signals-react';
-import { importLayout, importBackgroundLayout, importMarkerGrid } from './importLayout';
-import { blueprintCells } from './blueprintCells';
-import { blueprintFits } from './blueprintFit';
+import { importLayout, importBackgroundLayout, importMarkerGrid } from './ops/importLayout';
+import { blueprintCells } from './ops/blueprintCells';
+import { blueprintFits } from './ops/blueprintFit';
 import {
   placeBlueprint,
   placeBlueprintMarkers,
   blueprintMarkers,
   rebaseBlueprintBackground,
-} from './placeBlueprint';
-import { cropLevelForExport } from './cropLevelForExport';
-import { saveLevel } from './saveLevelFile';
-import { saveBlueprint } from './saveBlueprintFile';
+} from './ops/placeBlueprint';
+import { cropLevelForExport } from './ops/cropLevelForExport';
+import { saveLevel } from './dev/saveLevelFile';
+import { saveBlueprint } from './dev/saveBlueprintFile';
 import { findBlueprint } from '../level/blueprintRegistry';
 import { currentLayout, currentBackgroundLayout, currentMarkers } from '../state/levelSession';
 import type { LevelEntry } from '../level/levelRegistry';
 import type { Blueprint } from '../level/BlueprintData';
 import type { BackgroundChar, TileChar } from '../level/LevelParser';
 import type { MarkerGrid } from '../level/LevelData';
-import { shiftMarkerGrid as shiftMarkerGridPure, resizeMarkerGrid } from './paintMarkerCell';
-import type { PaintResult } from './paintCell';
+import { shiftMarkerGrid as shiftMarkerGridPure, resizeMarkerGrid } from './ops/paintMarkerCell';
+import type { PaintResult } from './ops/paintCell';
 import { resetGameProgress } from '../PlatformerState';
 import { currentTheme } from '@/state/theme';
 import { navigateTo } from '@/state/navigation';

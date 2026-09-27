@@ -1,4 +1,4 @@
-import type { TileSpriteSpec } from './paletteTiles';
+import type { TileSpriteSpec } from './ops/paletteTiles';
 import { cn } from '@/lib/utils';
 
 interface PaletteTileProps {
@@ -6,13 +6,13 @@ interface PaletteTileProps {
   /** Stable test handle for this tile (`editor-palette-tile-*`). */
   testId?: string;
   /** What the tile does, appended to `label` in the button's hover tooltip
-   *  (see `PALETTE_TILE_DESCRIPTIONS`). Omitted, the tooltip is just the
+   *  (see `PALETTE_TOOLS[...].description`). Omitted, the tooltip is just the
    *  name. */
   description?: string;
   sprite: TileSpriteSpec | null;
   /** Character drawn inside the empty square when `sprite` is `null`, so two
    *  sprite-less tools don't render as the same blank button (see
-   *  `PALETTE_TILE_GLYPHS`). Ignored when a sprite is given. */
+   *  `PALETTE_TOOLS[...].glyph`). Ignored when a sprite is given. */
   glyph?: string;
   selected: boolean;
   onClick: () => void;

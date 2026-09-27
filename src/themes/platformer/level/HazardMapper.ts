@@ -1,4 +1,4 @@
-import { tileToPixel } from './Terrain';
+import { placeAtMarkers } from './placement';
 import type { HazardFacing } from './LevelParser';
 import type { HazardKind } from '../entities/hazards';
 import type { FloorSpikePhase } from '../entities/hazards/FloorSpike';
@@ -38,17 +38,27 @@ export interface HazardPlacement {
 }
 
 /**
- * Places a `HazardPlacement` at every hand-authored hazard marker — same
- * direct marker-to-placement conversion as SignMapper.ts's placeSigns (a
- * marker's character already fully determines its hazardType/facing via
- * LevelParser.ts's HAZARD_CHARS, so there's no CVData-derived defs list to
- * zip against).
+ * Places a `HazardPlacement` at every hand-authored hazard marker through the
+ * shared `placeAtMarkers` — same direct marker-to-placement conversion as
+ * SignMapper.ts's placeSigns (a marker's character already fully determines
+ * its hazardType/facing via LevelParser.ts's HAZARD_CHARS, so there's no
+ * CVData-derived defs list to zip against). The `id` override keeps the
+ * `hazard-${type}-${col}-${row}` format.
  */
 export function placeHazards(
   markers: readonly { col: number; row: number; hazardType: HazardKind; facing: HazardFacing }[],
 ): HazardPlacement[] {
-  return markers.map(({ col, row, hazardType, facing }) => {
-    const { x, y } = tileToPixel(col, row);
-    return { id: `hazard-${hazardType}-${col}-${row}`, hazardType, facing, x, y, col, row };
+  return placeAtMarkers<
+    { col: number; row: number; hazardType: HazardKind; facing: HazardFacing },
+    HazardPlacement
+  >(markers, {
+    idPrefix: 'hazard',
+    id: (marker) => `hazard-${marker.hazardType}-${marker.col}-${marker.row}`,
+    build: (marker) => ({
+      hazardType: marker.hazardType,
+      facing: marker.facing,
+      col: marker.col,
+      row: marker.row,
+    }),
   });
 }

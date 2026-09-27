@@ -1,4 +1,4 @@
-import type { MarkerPlacement } from './LevelData';
+import type { LayoutFile } from './rawLayoutFile';
 import { isLayout, isBackground, isMarkers } from './layoutFile';
 
 /**
@@ -12,15 +12,11 @@ import { isLayout, isBackground, isMarkers } from './layoutFile';
  * per-character mapping it already uses for levels. Purely editor-time: see
  * `specs/O-006-platformer-blueprints/design.md`.
  */
-export interface Blueprint {
+export interface Blueprint extends LayoutFile {
   /** Slug, also the filename stem of the saved `.json` file under
    *  `blueprints/` — mirrors `LevelEntry`'s id. */
   id: string;
   name: string;
-  layout: readonly string[];
-  background?: readonly string[];
-  /** The room's tile meta layer — absent when the room has no markers. */
-  markers?: readonly MarkerPlacement[];
 }
 
 /** The blank entry the Blueprint Select dropdown offers, mirroring the level
