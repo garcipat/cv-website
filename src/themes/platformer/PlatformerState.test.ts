@@ -11,6 +11,7 @@ import {
   activeJournalSection,
   collectiblePlacements,
   fruitStates,
+  skillFactPool,
   enemyPlacements,
   enemyStates,
   baseCoinPlacements,
@@ -21,7 +22,9 @@ import {
   blockPlacements,
   chestPlacements,
   chestStates,
+  chestsOpened,
   endingScreenShown,
+  endingScreenOpen,
   signPlacements,
   activeLevel,
   controlsOverlayDismissed,
@@ -69,15 +72,22 @@ import {
   FLOOR_SPIKE_CYCLE_SECONDS,
   FLOOR_SPIKE_DELAY_SECONDS,
   FLOOR_SPIKE_WARNING_SECONDS,
+  armFloorSpike,
 } from './entities/hazards/FloorSpike';
+import { armCrumblingFloor } from './tiles/crumblingFloor';
+import { spawnKeyPickup } from './entities/pickups/Key';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { toBlockState } from './entities/Block';
+import { restoredOnRespawnForBlock } from './entities/Block';
 import { computePotRenderPlan } from './entities/blocks/potRenderPlan';
 import { BLOCK_TYPES } from './entities/blocks';
 import { POT_BOUNCE_VY } from './entities/blocks/pot';
 import { changeLocale, currentCV } from '@/state/locale';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, tileAt, RENDERED_TILE_SIZE } from './level/Terrain';
+import { createHash } from 'node:crypto';
+import { reviveEnemy } from './entities/Enemy';
+import { introState } from './engine/GameLifecycle';
 import { startSpeechBubble } from './engine/effects';
 import type { SpeechBubbleState } from './engine/effects';
 import { hintText } from './state/hintText';
@@ -127,6 +137,7 @@ import type {
   TransientEffect,
 } from './engine/effects';
 import { FALLING_STALACTITE_SHAKE_SECONDS } from './entities/hazards/FallingStalactite';
+import { armFallingStalactite } from './entities/hazards/FallingStalactite';
 import { MAX_DARKNESS, DARKNESS_FADE_SECONDS, playerOccupiedCell } from './engine/Lighting';
 import { checkPickupCollisions } from './engine/Collision';
 import { spawnFruit, tickFruit, FRUIT_RISE_DURATION_SECONDS } from './entities/pickups/Fruit';
@@ -171,6 +182,108 @@ function closeAllChests(): void {
 
 /** Every live placed bomb, filtered out of the one `deployableItems` collection. */
 const liveBombs = () => deployableItems.value.filter((item) => item.kind === 'bomb');
+
+/**
+ * R-012 whole-state parity snapshot (FR-006): the value of every signal in the
+ * T002 inventory, in the frozen key order captured when this snapshot was
+ * first written. `activeLevel` is digested to its dimensions — the full grid is
+ * level data, not reset state.
+ */
+const paritySnapshot = () => ({
+  playerState: playerState.value,
+  cameraPositionX: cameraPositionX.value,
+  cameraPositionY: cameraPositionY.value,
+  darknessLevel: darknessLevel.value,
+  fogLevel: fogLevel.value,
+  torchPositions: torchPositions.value,
+  collectiblePlacements: collectiblePlacements.value,
+  baseCoinPlacements: baseCoinPlacements.value,
+  skillFactPool: skillFactPool.value,
+  spawnedCoinPlacements: spawnedCoinPlacements.value,
+  allCollectiblePlacements: allCollectiblePlacements.value,
+  enemyPlacements: enemyPlacements.value,
+  blockPlacements: blockPlacements.value,
+  chestPlacements: chestPlacements.value,
+  levelTotals: levelTotals.value,
+  signPlacements: signPlacements.value,
+  hazardPlacements: hazardPlacements.value,
+  enemyStates: enemyStates.value,
+  blockStates: blockStates.value,
+  cratesDestroyed: cratesDestroyed.value,
+  enemiesDefeated: enemiesDefeated.value,
+  chestStates: chestStates.value,
+  checkpointPlacements: checkpointPlacements.value,
+  checkpointStates: checkpointStates.value,
+  activeCheckpointId: activeCheckpointId.value,
+  activeRespawnPlacement: activeRespawnPlacement.value,
+  respawnPlayerState: respawnPlayerState.value,
+  respawnCenter: respawnCenter.value,
+  endingScreenShown: endingScreenShown.value,
+  endingScreenOpen: endingScreenOpen.value,
+  controlsOverlayDismissed: controlsOverlayDismissed.value,
+  fruitStates: fruitStates.value,
+  heartPickupStates: heartPickupStates.value,
+  keyPickupStates: keyPickupStates.value,
+  collectedKeys: collectedKeys.value,
+  carriedBombs: carriedBombs.value,
+  bombPickupStates: bombPickupStates.value,
+  pickupGroups: pickupGroups.value,
+  collectedFacts: collectedFacts.value,
+  activeEffects: activeEffects.value,
+  activeJournalSection: activeJournalSection.value,
+  lifecycleState: lifecycleState.value,
+  ropeLadderPlacements: ropeLadderPlacements.value,
+  deployableItems: deployableItems.value,
+  chestsOpened: chestsOpened.value,
+  activeLevelDigest: { width: activeLevel.value.width, height: activeLevel.value.height },
+  mushroomSquashStates: mushroomSquashStates.value,
+  floorSpikeTimerStates: floorSpikeTimerStates.value,
+  crumblingFloorTimerStates: crumblingFloorTimerStates.value,
+  fallingStalactiteTimerStates: fallingStalactiteTimerStates.value,
+});
+
+/**
+ * The fixed pre-reset mutation the frozen parity digests were captured against
+ * (T002). Only shape-preserving spreads and signals the seams own are written,
+ * so the mutation itself survives any R-012 module move.
+ */
+const parityMutate = () => {
+  playerState.value = { ...spawnPlayerState(), alive: false, hitPoints: 2, x: 999 };
+  cameraPositionX.value = 500;
+  cameraPositionY.value = 120;
+  darknessLevel.value = 0.6;
+  fogLevel.value = 0.4;
+  enemyStates.value = enemyStates.value.map((e) => ({
+    ...reviveEnemy(e),
+    rewardGiven: true,
+    alive: false,
+  }));
+  blockStates.value = blockStates.value.map((b) => ({ ...b, hitsTaken: 1, rewardGiven: true }));
+  baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: true }));
+  spawnedCoinPlacements.value = [
+    { ...collectiblePlacements.value[0], id: 'spawned-coin-1', collected: false },
+  ];
+  carriedBombs.value = 3;
+  collectedKeys.value = 2;
+  endingScreenShown.value = true;
+  endingScreenOpen.value = true;
+  activeJournalSection.value = 'skills';
+  checkpointStates.value = checkpointStates.value.map((c) => ({
+    ...c,
+    activated: true,
+    activatedAt: 1,
+  }));
+};
+
+const parityDigest = (value: unknown) =>
+  createHash('sha256').update(JSON.stringify(value)).digest('hex');
+
+/** The two signals neither reset seam may write (FR-006) — normalised before
+ * each parity sequence, so the frozen digests are test-order independent. */
+const normaliseNeverResetSignals = () => {
+  controlsOverlayDismissed.value = false;
+  lifecycleState.value = introState(0, 0);
+};
 
 describe('PlatformerState', () => {
   it('collectedFacts-initial-isEmpty', () => {
@@ -2172,5 +2285,230 @@ describe('deployableItems — one collection, one tick, one consequence pass', (
     expect(
       deployableItems.value.every((item) => item.kind !== 'ladder' || item.phase === 'rolled'),
     ).toBe(true);
+  });
+});
+
+/**
+ * R-012 (US1) — the reset seams' frozen reachable state, ordering and
+ * single-domain ownership. Every case here reads the public seam functions;
+ * none reaches into a domain module, so the suite describes the refactor's
+ * contract rather than its current file layout.
+ */
+describe('R-012 reset parity and ordering', () => {
+  beforeEach(() => {
+    changeLocale('en');
+    currentLayout.value = LEVEL_1_LAYOUT;
+    currentBackgroundLayout.value = LEVEL_1_BACKGROUND;
+    currentMarkers.value = LEVEL_1_MARKERS;
+    normaliseNeverResetSignals();
+    // A canonical, fully-reset world — the same starting point the frozen
+    // parity digests were captured against (T002).
+    resetGameProgress();
+  });
+
+  afterEach(() => {
+    changeLocale('en');
+    currentLayout.value = LEVEL_1_LAYOUT;
+    currentBackgroundLayout.value = LEVEL_1_BACKGROUND;
+    currentMarkers.value = LEVEL_1_MARKERS;
+    activeEffects.value = [];
+    collectedFacts.value = [];
+    activeJournalSection.value = undefined;
+    baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: false }));
+    keyPickupStates.value = [];
+    heartPickupStates.value = [];
+    fruitStates.value = [];
+    spawnedCoinPlacements.value = [];
+    collectedKeys.value = 0;
+    carriedBombs.value = 0;
+    bombPickupStates.value = [];
+    closeAllChests();
+  });
+
+  it('resetGame-mutatedState-returnsTheFrozenPreChangeReachableState', () => {
+    // Arrange
+    resetGameProgress();
+    parityMutate();
+
+    // Act
+    resetGame();
+
+    // Assert — the whole reset-scoped state must equal the pre-change tree's,
+    // digest for digest (FR-006). Any per-signal reset rule that moved and
+    // silently changed shape fails here.
+    expect(parityDigest(paritySnapshot())).toBe(
+      '062ba39f47a245fcf196747171a4c2f85caca4ff5939593f9e99b30aa295ac9b',
+    );
+  });
+
+  it('resetGameProgress-mutatedState-returnsTheFrozenPreChangeReachableState', () => {
+    // Arrange
+    resetGameProgress();
+    parityMutate();
+
+    // Act
+    resetGameProgress();
+
+    // Assert
+    expect(parityDigest(paritySnapshot())).toBe(
+      'b60d09a3f7e2c760fea95f749e3a74f3aad4e4ad95088aae333435b649ea935e',
+    );
+  });
+
+  it('bothSeams-anyState-neverTouchControlsOverlayDismissedOrLifecycleState', () => {
+    // Arrange
+    controlsOverlayDismissed.value = true;
+    lifecycleState.value = introState(11, 22);
+
+    // Act
+    resetGame();
+    resetGameProgress();
+
+    // Assert — FR-006: the overlay latch is the page's, the phase is the
+    // lifecycle controller's; neither reset may write either.
+    expect(controlsOverlayDismissed.value).toBe(true);
+    expect(lifecycleState.value).toEqual(introState(11, 22));
+  });
+
+  it('resetGameProgress-withAnActiveCheckpoint-clearsMemoryBeforeTheRespawnPass', () => {
+    // Arrange — the level's spawn and its checkpoint sit in different cells,
+    // so "respawned at the spawn" is distinguishable from "respawned at the
+    // checkpoint".
+    currentLayout.value = ['SC.', 'GGG'];
+    const placement = checkpointPlacements.value[0];
+    checkpointStates.value = [{ ...toCheckpointState(placement), activated: true, activatedAt: 1 }];
+    activeCheckpointId.value = placement.id;
+
+    // Act
+    resetGameProgress();
+
+    // Assert — checkpoint memory is cleared FIRST (FR-003), so the respawn
+    // pass sees no active checkpoint and returns the character to the level
+    // spawn, not the checkpoint it died at.
+    expect(activeCheckpointId.value).toBeNull();
+    expect(playerState.value).toEqual(spawnPlayerState());
+    expect(playerState.value).not.toEqual(playerStateAtTile(placement.col, placement.row));
+  });
+
+  it('resetGame-mutatedEnemies-revivesThemInPlaceKeepingPerInstanceSessionFlags', () => {
+    // Arrange
+    const prior = enemyStates.value.map((e) => ({ ...reviveEnemy(e), rewardGiven: true }));
+    enemyStates.value = prior;
+
+    // Act
+    resetGame();
+
+    // Assert — revive-in-place, not a rebuild: the same per-instance objects
+    // survive, so the permanent `rewardGiven` flag is never wiped.
+    expect(enemyStates.value).toHaveLength(prior.length);
+    expect(enemyStates.value.every((e) => e.rewardGiven)).toBe(true);
+    expect(enemyStates.value.every((e) => e.alive)).toBe(true);
+  });
+
+  it('resetGame-mutatedBlocks-rebuildsOnlyRestoredOnRespawnKindsCarryingRewardGiven', () => {
+    // Arrange
+    blockStates.value = blockStates.value.map((b) => ({
+      ...b,
+      hitsTaken: 1,
+      rewardGiven: true,
+    }));
+
+    // Act
+    resetGame();
+
+    // Assert — only the kinds that declare `restoredOnRespawn` (today the
+    // potion pot and the bomb pot) rebuild; every other block keeps its
+    // progress, and a restored kind carries its drop-once flag over by
+    // matching id.
+    for (const placement of blockPlacements.value) {
+      const live = blockStates.value.find((b) => b.id === placement.id);
+      expect(live).toBeDefined();
+      if (restoredOnRespawnForBlock(placement.blockKind)) {
+        expect(live?.hitsTaken).toBe(0);
+        expect(live?.rewardGiven).toBe(true);
+      } else {
+        expect(live?.hitsTaken).toBe(1);
+      }
+    }
+  });
+
+  it('resetGame-mutatedTimerCollections-emptiesAllFour', () => {
+    // Arrange
+    mushroomSquashStates.value = [{ col: 0, row: 0, elapsed: 0 }];
+    floorSpikeTimerStates.value = armFloorSpike([], 'floor-spike-probe');
+    crumblingFloorTimerStates.value = armCrumblingFloor([], 3, 4);
+    fallingStalactiteTimerStates.value = armFallingStalactite([], 'stalactite-probe');
+
+    // Act
+    resetGame();
+
+    // Assert
+    expect(mushroomSquashStates.value).toEqual([]);
+    expect(floorSpikeTimerStates.value).toEqual([]);
+    expect(crumblingFloorTimerStates.value).toEqual([]);
+    expect(fallingStalactiteTimerStates.value).toEqual([]);
+  });
+
+  it('resetGame-mixedEffectScopes-filtersOnlyTheDeathScopedKinds', () => {
+    // Arrange
+    const fade = startFadeOutTextEffect('f', 0, 0, 'x');
+    const puff = startPuffEffect('p', 0, 0);
+    activeEffects.value = [fade, puff];
+
+    // Act
+    resetGame();
+
+    // Assert — the frozen label must not survive a death; the puff must.
+    expect(activeEffects.value).toEqual([puff]);
+  });
+
+  it('resetGame-progressScopedDeployables-surviveWhileAPlacedBombDoesNot', () => {
+    // Arrange
+    const ladder = {
+      ...createRopeLadderState(currentLevel.value, 0, 0),
+      phase: 'deployed' as const,
+    };
+    const bomb = createPlacedBomb('bomb-death-parity', currentLevel.value, [], 0, 0);
+    deployableItems.value = [ladder, bomb];
+
+    // Act
+    resetGame();
+
+    // Assert
+    expect(liveBombs()).toEqual([]);
+    expect(
+      deployableItems.value.some((item) => item.id === ladder.id && item.kind === 'ladder'),
+    ).toBe(true);
+  });
+
+  it('resetGameProgress-mutatedProgress-clearsFactsBookmarkLatchesAndKeys', () => {
+    // Arrange
+    collectedFacts.value = [
+      {
+        id: 'coin-backend',
+        sectionId: 'skills',
+        sectionLabel: 'Skills',
+        data: { category: 'Backend', skills: [] },
+        sourceType: 'coin',
+      },
+    ];
+    activeJournalSection.value = 'skills';
+    endingScreenShown.value = true;
+    endingScreenOpen.value = true;
+    fruitStates.value = [tickFruit(spawnFruit('f-progress', 0, 0, undefined, 0), 0.1)];
+    keyPickupStates.value = [spawnKeyPickup('k-progress', 0, 0)];
+    collectedKeys.value = 3;
+
+    // Act
+    resetGameProgress();
+
+    // Assert
+    expect(collectedFacts.value).toEqual([]);
+    expect(activeJournalSection.value).toBeUndefined();
+    expect(endingScreenShown.value).toBe(false);
+    expect(endingScreenOpen.value).toBe(false);
+    expect(fruitStates.value).toEqual([]);
+    expect(keyPickupStates.value).toEqual([]);
+    expect(collectedKeys.value).toBe(0);
   });
 });

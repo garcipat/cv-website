@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   EDITOR_PREVIEW_DARKNESS,
   caveLightingPreview,
@@ -6,8 +6,14 @@ import {
 } from './caveLightingPreview';
 import { RENDERED_TILE_SIZE } from '../../level/Terrain';
 import type { TileChar } from '../../level/LevelParser';
+import type { MarkerGrid, MarkerPlacement } from '../../level/LevelData';
 import { PLAYER_LIGHT_RADIUS_PX, PLAYER_GLOW_COLOR } from '../../entities/Player';
 import { TORCH_GLOW_COLOR } from '../../tiles/torch';
+import { currentLayout, currentMarkers } from '../../state/levelSession';
+import { torchPositions } from '../../PlatformerState';
+
+const initialLayout = currentLayout.value;
+const initialMarkers = currentMarkers.value;
 
 const SPAWN_GRID: TileChar[][] = [
   ['.', '.', '.'],
@@ -21,6 +27,11 @@ const TORCH_GRID: TileChar[][] = [
 ];
 
 describe('caveLightingPreview', () => {
+  afterEach(() => {
+    currentLayout.value = initialLayout;
+    currentMarkers.value = initialMarkers;
+  });
+
   it('caveLightingPreview-withNoSpawnAndNoTorch-returnsMaxDarknessAndNoLights', () => {
     const preview = caveLightingPreview([
       ['.', '.'],
@@ -132,5 +143,31 @@ describe('caveLightingPreview', () => {
   it('torchLightsFromGrid-withNoMarker-usesTheDefaultStrength', () => {
     const torches = torchLightsFromGrid([['¥']]);
     expect(torches[0]?.strength).toBe(5);
+  });
+
+  it('torchLightsFromGrid-sameParsedLevelAndMarkers-equalsTheStateLayersTorchPositions', () => {
+    // Arrange — one parsed level/marker set, read by both consumers.
+    currentLayout.value = ['¥.', 'GG'];
+    const placements: MarkerPlacement[] = [
+      { col: 0, row: 0, marker: { kind: 'torch', strength: 7 } },
+    ];
+    currentMarkers.value = placements;
+    const grid: TileChar[][] = [
+      ['¥', '.'],
+      ['G', 'G'],
+    ];
+    const markersGrid: MarkerGrid = [
+      [{ kind: 'torch', strength: 7 }, null],
+      [null, null],
+    ];
+
+    // Act
+    const previewLights = torchLightsFromGrid(grid, markersGrid);
+    const stateLights = torchPositions.value;
+
+    // Assert — US3 scenario 4/FR-012: the preview and the game cannot drift.
+    expect(stateLights).toHaveLength(1);
+    expect(stateLights[0].strength).toBe(7);
+    expect(previewLights).toEqual(stateLights);
   });
 });
