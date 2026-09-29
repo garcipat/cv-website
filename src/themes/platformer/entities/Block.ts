@@ -5,8 +5,8 @@ import { BLOCK_TYPES, type BlockKind } from './blocks';
 import { frameSource } from './sprites/SpriteSheet';
 
 /** Blocks are drawn from `world_tileset.png` — the same image and tile size
- *  as terrain (16px native, 32px rendered) — so no separate sprite sheet or
- *  dimensions are needed. */
+ * as terrain (16px native, 32px rendered) — so no separate sprite sheet or
+ * dimensions are needed. */
 export const BLOCK_FRAME_SIZE = TILE_SIZE;
 export const BLOCK_RENDERED_SIZE = RENDERED_TILE_SIZE;
 
@@ -31,24 +31,24 @@ export function blockFrameSource(blockKind: BlockKind, hitsTaken = 0): { sx: num
 }
 
 /** Hits required to fully use up a block, by kind — crate takes 2 (crack then
- *  shatter); question-mark and fragileRock each take just 1 (spec.md FR-022b/c). */
+ * shatter); question-mark and fragileRock each take just 1. */
 export function maxHitsForBlock(blockKind: BlockKind): number {
   return BLOCK_TYPES[blockKind].maxHits;
 }
 
 /** Rendered px this kind's solid hitbox is shrunk by on each side, relative
- *  to the full tile — 0 for every kind whose sprite already fills its tile
- *  edge-to-edge (crate/questionMark/fragileRock), non-zero for a kind like
- *  coinPot whose art doesn't (see `BlockType.hitboxInsetX`'s doc comment). */
+ * to the full tile — 0 for every kind whose sprite already fills its tile
+ * edge-to-edge (crate/questionMark/fragileRock), non-zero for a kind like
+ * coinPot whose art doesn't (see `BlockType.hitboxInsetX`'s doc comment). */
 export function hitboxInsetXForBlock(blockKind: BlockKind): number {
   return BLOCK_TYPES[blockKind].hitboxInsetX ?? 0;
 }
 
 /** Whether a death/respawn rebuilds this block kind intact — read from the
- *  kind's own `BlockType.pot?.restoredOnRespawn`, defaulting to false for
- *  every non-pot kind (and for a pot that doesn't opt in). The one input
- *  `PlatformerState.ts`'s `resetGame()` uses to decide which placements are
- *  rebuilt. */
+ * kind's own `BlockType.pot?.restoredOnRespawn`, defaulting to false for
+ * every non-pot kind (and for a pot that doesn't opt in). The one input
+ * `PlatformerState.ts`'s `resetGame()` uses to decide which placements are
+ * rebuilt. */
 export function restoredOnRespawnForBlock(blockKind: BlockKind): boolean {
   return BLOCK_TYPES[blockKind].pot?.restoredOnRespawn ?? false;
 }
@@ -67,35 +67,35 @@ export interface BlockState extends BlockPlacement {
   hitsTaken: number;
   animState: BlockAnimState;
   /** Seconds elapsed since entering the current `animState` — meaningless
-   *  while `'idle'`. */
+   * while `'idle'`. */
   animTimer: number;
   /** True once this pot's one reward has been handed out. Survives death and
-   *  respawn; cleared only by `resetGameProgress()`. Mirrors
-   *  `BaseEnemyState.rewardGiven` (see `enemies/EnemyType.ts`) and gates a
-   *  `'once'` pot's drop, so it never drops a second pickup even if it is
-   *  ever restored. Seeded `false` for every kind by `toBlockState`; the
-   *  engine marks it when a block's hit handed out a `spawnPickup`. */
+   * respawn; cleared only by `resetGameProgress()`. Mirrors
+   * `BaseEnemyState.rewardGiven` (see `enemies/EnemyType.ts`) and gates a
+   * `'once'` pot's drop, so it never drops a second pickup even if it is
+   * ever restored. Seeded `false` for every kind by `toBlockState`; the
+   * engine marks it when a block's hit handed out a `spawnPickup`. */
   rewardGiven: boolean;
 }
 
-/** Converts a placed-but-static `BlockPlacement` into its initial live state —
- *  no hits taken, idle. */
+/** Converts a placed-but-static `BlockPlacement` into its initial live state
+ * no hits taken, idle. */
 export function toBlockState(placement: BlockPlacement): BlockState {
   return { ...placement, hitsTaken: 0, animState: 'idle', animTimer: 0, rewardGiven: false };
 }
 
 /** Whether this block has taken all the hits its kind responds to — it may
- *  still be mid-animation (bump/shatter) even once true; see `isBlockRemoved`
- *  for whether it's actually gone from the world yet. */
+ * still be mid-animation (bump/shatter) even once true; see `isBlockRemoved`
+ * for whether it's actually gone from the world yet. */
 export function isBlockUsedUp(block: BlockState): boolean {
   return block.hitsTaken >= maxHitsForBlock(block.blockKind);
 }
 
 /**
- * Whether this block should be filtered out of the live world entirely —
+ * Whether this block should be filtered out of the live world entirely
  * true once a crate or fragileRock is used up AND its post-hit animation (bump,
  * then shatter for crate) has finished settling back to `'idle'`. A
- * question-mark is NEVER removed — spec.md FR-022b: it "permanently changes
+ * question-mark is NEVER removed — : it "permanently changes
  * to its matching `!` terrain tile" and stays a solid, present block forever;
  * only its rendered tile (via `blockFrameSource`) changes.
  */
@@ -106,7 +106,7 @@ export function isBlockRemoved(block: BlockState): boolean {
 
 /**
  * Applies one upward hit: increments `hitsTaken` and enters the shared
- * `'bump'` nudge animation from frame zero (FR-022d — every upward hit, not
+ * `'bump'` nudge animation from frame zero ( every upward hit, not
  * just intermediate ones, plays this). A no-op (returns the same reference)
  * if the block is already used up — callers (`PlatformerPage.tsx`) are
  * expected to already exclude used-up blocks from the `'bottom'`-filtered
@@ -119,10 +119,10 @@ export function applyBlockHit(block: BlockState): BlockState {
 }
 
 /** A world-space anchor point + size scale for a one-shot visual effect at
- *  this block's position — see entities/Enemy.ts's enemyEffectAnchor for the
- *  enemy equivalent and B-003 for why this exists. Every block kind is
- *  exactly one tile, so unlike enemies there is no per-kind size variance —
- *  scale is always 1. */
+ * this block's position — see entities/Enemy.ts's enemyEffectAnchor for the
+ * enemy equivalent and for why this exists. Every block kind is
+ * exactly one tile, so unlike enemies there is no per-kind size variance
+ * scale is always 1. */
 export function blockEffectAnchor(block: BlockState): EffectAnchor {
   return {
     x: block.x + BLOCK_RENDERED_SIZE / 2,

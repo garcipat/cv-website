@@ -39,7 +39,7 @@ import type { KeyPickupState } from '../entities/pickups/Key';
 import { spawnHeartPickup } from '../entities/pickups/Heart';
 import { spawnBombPickup } from '../entities/deployableItems/Bomb';
 import { MAX_HALF_HEARTS, SIDE_HIT_DAMAGE } from '../entities/Health';
-import { PHYSICS_CONFIG } from '../contracts/PhysicsConfig';
+import { DEFAULT_STOMP_BOUNCE_VY } from '../shared/knockback';
 
 function makePlayer(x: number, y: number): PlayerState {
   return {
@@ -121,20 +121,29 @@ describe('aabbOverlap', () => {
   });
 
   it('touchingEdges-returns-false', () => {
-    expect(aabbOverlap({ x: 0, y: 0, width: 10, height: 10 }, { x: 10, y: 0, width: 10, height: 10 })).toBe(false);
+    expect(
+      aabbOverlap({ x: 0, y: 0, width: 10, height: 10 }, { x: 10, y: 0, width: 10, height: 10 }),
+    ).toBe(false);
   });
 
   it('farApart-returns-false', () => {
-    expect(aabbOverlap({ x: 0, y: 0, width: 10, height: 10 }, { x: 1000, y: 1000, width: 10, height: 10 })).toBe(false);
+    expect(
+      aabbOverlap(
+        { x: 0, y: 0, width: 10, height: 10 },
+        { x: 1000, y: 1000, width: 10, height: 10 },
+      ),
+    ).toBe(false);
   });
 
   it('overlapping-returns-true', () => {
-    expect(aabbOverlap({ x: 0, y: 0, width: 10, height: 10 }, { x: 5, y: 5, width: 10, height: 10 })).toBe(true);
+    expect(
+      aabbOverlap({ x: 0, y: 0, width: 10, height: 10 }, { x: 5, y: 5, width: 10, height: 10 }),
+    ).toBe(true);
   });
 });
 
 /** A trigger item positioned by real `playerHitbox` arithmetic, so no case
- *  below can pass vacuously by never overlapping in the first place. */
+ * below can pass vacuously by never overlapping in the first place. */
 interface TestTrigger {
   id: string;
   x: number;
@@ -309,9 +318,11 @@ describe('checkPickupCollisions — fruit rise gate', () => {
 
 describe('checkPickupCollisions — heart full-health gate', () => {
   const ids = (player: PlayerState, hearts: Parameters<typeof checkPickupCollisions>[1]['heart']) =>
-    checkPickupCollisions(player, { heart: hearts ?? [] }, { playerHitPoints: player.hitPoints }).map(
-      (hit) => hit.state.id,
-    );
+    checkPickupCollisions(
+      player,
+      { heart: hearts ?? [] },
+      { playerHitPoints: player.hitPoints },
+    ).map((hit) => hit.state.id);
 
   it('playerBelowMaxHealthOverlapsHeart-returnsItsId', () => {
     const heart = spawnHeartPickup('h1', 0, 100);
@@ -326,7 +337,7 @@ describe('checkPickupCollisions — heart full-health gate', () => {
   });
 
   it('playerAtFullHealthOverlapsHeart-returnsNoIds', () => {
-    // The heart waits in the world rather than being consumed for nothing —
+    // The heart waits in the world rather than being consumed for nothing
     // see Health.ts's MAX_HALF_HEARTS.
     const heart = spawnHeartPickup('h1', 0, 100);
     const player = { ...makePlayer(0, 100 - RENDERED_TILE_SIZE), hitPoints: MAX_HALF_HEARTS };
@@ -335,7 +346,12 @@ describe('checkPickupCollisions — heart full-health gate', () => {
 });
 
 describe('checkSignOverlap', () => {
-  const sign: SignPlacement = { id: 'sign-bridgeDropThrough-1-1', hintId: 'bridgeDropThrough', x: 100, y: 100 };
+  const sign: SignPlacement = {
+    id: 'sign-bridgeDropThrough-1-1',
+    hintId: 'bridgeDropThrough',
+    x: 100,
+    y: 100,
+  };
 
   it('playerOverlappingSign-returnsItsHintId', () => {
     const player = makePlayer(100, 100);
@@ -357,7 +373,15 @@ describe('checkSignOverlap', () => {
 });
 
 describe('resolveHazardContacts — ordinary hazard resolution', () => {
-  const hazard: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'up', x: 100, y: 100, col: 0, row: 0 };
+  const hazard: HazardPlacement = {
+    id: 'h1',
+    hazardType: 'spike',
+    facing: 'up',
+    x: 100,
+    y: 100,
+    col: 0,
+    row: 0,
+  };
 
   it('playerOverlappingHazard-returnsItsDamageAndTheHazard', () => {
     const player = makePlayer(100, 100);
@@ -400,7 +424,15 @@ describe('resolveHazardContacts — ordinary hazard resolution', () => {
 
   it('twoOverlappingOrdinaryHazards-appliesAtMostOneDamage', () => {
     const player = makePlayer(100, 100);
-    const second: HazardPlacement = { id: 'h2', hazardType: 'spike', facing: 'up', x: 100, y: 100, col: 0, row: 0 };
+    const second: HazardPlacement = {
+      id: 'h2',
+      hazardType: 'spike',
+      facing: 'up',
+      x: 100,
+      y: 100,
+      col: 0,
+      row: 0,
+    };
     const result = resolveHazardContacts(player, [hazard, second]);
     expect(result.hazard).toBe(hazard);
     expect(result.damage).toBe(SIDE_HIT_DAMAGE);
@@ -408,7 +440,7 @@ describe('resolveHazardContacts — ordinary hazard resolution', () => {
 });
 
 /** A mask with one lethal tip pixel at (1, 1) — world (101, 101) for a spear
- *  placement at (100, 100). */
+ * placement at (100, 100). */
 function oneTipSpearMask(): SpearMask {
   const pixels = new Uint8Array(16);
   pixels[1 * 4 + 1] = 1;
@@ -419,8 +451,16 @@ function emptySpearMask(): SpearMask {
   return { width: 4, height: 4, pixels: new Uint8Array(16) };
 }
 
-describe('resolveHazardContacts — lethal spear contact (US1)', () => {
-  const spearHazard: HazardPlacement = { id: 's1', hazardType: 'spear', facing: 'up', x: 100, y: 100, col: 0, row: 0 };
+describe('resolveHazardContacts — lethal spear contact', () => {
+  const spearHazard: HazardPlacement = {
+    id: 's1',
+    hazardType: 'spear',
+    facing: 'up',
+    x: 100,
+    y: 100,
+    col: 0,
+    row: 0,
+  };
 
   afterEach(() => {
     setSpearTipMask(emptySpearMask());
@@ -455,7 +495,15 @@ describe('resolveHazardContacts — lethal spear contact (US1)', () => {
     setSpearTipMask(oneTipSpearMask());
     // The player's hitbox (x 100..124, y 64..102) overlaps both the 'up'
     // spike's bottom band (82..92) and the spear's tip at (101, 101).
-    const spike: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'up', x: 100, y: 60, col: 0, row: 0 };
+    const spike: HazardPlacement = {
+      id: 'h1',
+      hazardType: 'spike',
+      facing: 'up',
+      x: 100,
+      y: 60,
+      col: 0,
+      row: 0,
+    };
     const player = makePlayer(80, 46);
     player.vy = 120;
     player.prevFeetY = 95;
@@ -468,8 +516,16 @@ describe('resolveHazardContacts — lethal spear contact (US1)', () => {
   });
 });
 
-describe('resolveHazardContacts — everything but a tip landing is safe (US2)', () => {
-  const spearHazard: HazardPlacement = { id: 's1', hazardType: 'spear', facing: 'up', x: 100, y: 100, col: 0, row: 0 };
+describe('resolveHazardContacts — everything but a tip landing is safe', () => {
+  const spearHazard: HazardPlacement = {
+    id: 's1',
+    hazardType: 'spear',
+    facing: 'up',
+    x: 100,
+    y: 100,
+    col: 0,
+    row: 0,
+  };
 
   beforeEach(() => {
     setSpearTipMask(oneTipSpearMask());
@@ -634,7 +690,15 @@ describe('checkHazardArmTriggers', () => {
   });
 
   it('staticSpikePlacements-areIgnored', () => {
-    const hazard: HazardPlacement = { id: 's1', hazardType: 'spike', facing: 'up', x: 16, y: 32, col: 0, row: 0 };
+    const hazard: HazardPlacement = {
+      id: 's1',
+      hazardType: 'spike',
+      facing: 'up',
+      x: 16,
+      y: 32,
+      col: 0,
+      row: 0,
+    };
     const player = makePlayer(hazard.x, hazard.y);
     expect(checkHazardArmTriggers(player, [hazard], hazardCtx())).toEqual([]);
   });
@@ -713,10 +777,10 @@ describe('checkHazardArmTriggers', () => {
 });
 
 /** The y that plants the player's feet exactly on `row`'s top edge — same
- *  arithmetic as Physics.test.ts's `standingYOnRow`, duplicated locally
- *  rather than imported since this file builds its players via the local
- *  `makePlayer(x, y)` positional helper, not Physics.test.ts's
- *  overrides-object `basePlayer`. */
+ * arithmetic as Physics.test.ts's `standingYOnRow`, duplicated locally
+ * rather than imported since this file builds its players via the local
+ * `makePlayer(x, y)` positional helper, not Physics.test.ts's
+ * overrides-object `basePlayer`. */
 function standingYOnRow(row: number): number {
   return row * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
 }
@@ -754,10 +818,23 @@ describe('checkCrumblingFloorTriggers', () => {
 
 function makeSpikedPurpleEnemy(overrides: Partial<EnemyState> = {}): EnemyState {
   return {
-    id: 'e1', type: 'slimePurple', x: 10, y: 20, vx: 0, vy: 0,
-    direction: 'right', animState: 'walk', animFrame: 0,
-    animTimer: 0, hitPoints: 2, hitTimer: ENEMY_HIT_REACTION_SECONDS, alive: true,
-    spiked: true, spikeTimer: 0.1, homeX: 10, homeY: 20,
+    id: 'e1',
+    type: 'slimePurple',
+    x: 10,
+    y: 20,
+    vx: 0,
+    vy: 0,
+    direction: 'right',
+    animState: 'walk',
+    animFrame: 0,
+    animTimer: 0,
+    hitPoints: 2,
+    hitTimer: ENEMY_HIT_REACTION_SECONDS,
+    alive: true,
+    spiked: true,
+    spikeTimer: 0.1,
+    homeX: 10,
+    homeY: 20,
     rewardGiven: false,
     deathEffectGiven: false,
     ...overrides,
@@ -785,9 +862,11 @@ describe('resolveEnemyContacts aggregation', () => {
 
     const result = resolveEnemyContacts(player, [left, right]);
 
-    expect(result.damagePlayer).toBe(1);
-    expect(result.knockback).toBe('away');
-    expect(result.bounceVelocity).toBeUndefined();
+    expect(result.hitEffects).toContainEqual({ type: 'damage', amount: 1 });
+    expect(
+      result.hitEffects.some((effect) => effect.type === 'velocity' && effect.y !== undefined),
+    ).toBe(false);
+    expect(result.bounceEffects).toEqual([]);
   });
 
   it('oneStompableAndOneDamagingEnemy-appliesBothBounceAndDamage', () => {
@@ -801,10 +880,19 @@ describe('resolveEnemyContacts aggregation', () => {
 
     const result = resolveEnemyContacts(player, [green, spikedPurple]);
 
-    expect(result.bounceVelocity).toBe(PHYSICS_CONFIG.stompBounceVelocity);
+    expect(result.bounceEffects).toContainEqual({
+      type: 'velocity',
+      y: DEFAULT_STOMP_BOUNCE_VY,
+      preserveJump: true,
+    });
     expect(result.enemies[0].hitPoints).toBe(green.hitPoints - 1);
-    expect(result.damagePlayer).toBe(1);
-    expect(result.knockback).toBe('awayAndUp');
+    expect(result.hitEffects).toContainEqual({ type: 'damage', amount: 1 });
+    expect(
+      result.hitEffects.some(
+        (effect) =>
+          effect.type === 'velocity' && effect.y !== undefined && effect.preserveJump === true,
+      ),
+    ).toBe(true);
     expect(result.enemies[1]).toBe(spikedPurple);
   });
 
@@ -813,7 +901,15 @@ describe('resolveEnemyContacts aggregation', () => {
     // `onDamaged`: without that wiring the slime takes the hit but never
     // grows its spikes. Purple hitbox spans y 72..132 (midpoint 102); the
     // player's hitbox bottom at 96 lands on its upper half.
-    const purple = makeSpikedPurpleEnemy({ x: 100, y: 100, homeX: 100, homeY: 100, hitPoints: 3, spiked: false, spikeTimer: 0 });
+    const purple = makeSpikedPurpleEnemy({
+      x: 100,
+      y: 100,
+      homeX: 100,
+      homeY: 100,
+      hitPoints: 3,
+      spiked: false,
+      spikeTimer: 0,
+    });
     const player = { ...makePlayer(90, 40), vy: 200, grounded: false };
 
     const result = resolveEnemyContacts(player, [purple]);
@@ -823,7 +919,15 @@ describe('resolveEnemyContacts aggregation', () => {
   });
 
   it('killingStompOnAPurpleSlime-leavesTheCorpseUnspiked', () => {
-    const purple = makeSpikedPurpleEnemy({ x: 100, y: 100, homeX: 100, homeY: 100, hitPoints: 1, spiked: false, spikeTimer: 0 });
+    const purple = makeSpikedPurpleEnemy({
+      x: 100,
+      y: 100,
+      homeX: 100,
+      homeY: 100,
+      hitPoints: 1,
+      spiked: false,
+      spikeTimer: 0,
+    });
     const player = { ...makePlayer(90, 40), vy: 200, grounded: false };
 
     const result = resolveEnemyContacts(player, [purple]);
@@ -860,12 +964,22 @@ describe('resolveEnemyContacts aggregation', () => {
 
     const result = resolveEnemyContacts(player, [left, right]);
 
-    expect(result.bounceVelocity).toBe(PHYSICS_CONFIG.stompBounceVelocity);
+    expect(result.bounceEffects).toContainEqual({
+      type: 'velocity',
+      y: DEFAULT_STOMP_BOUNCE_VY,
+      preserveJump: true,
+    });
   });
 
   it('killingStompOnAPurpleSlime-includesItInDamagedEnemyIds', () => {
     const purple = makeSpikedPurpleEnemy({
-      x: 100, y: 100, homeX: 100, homeY: 100, hitPoints: 1, spiked: false, spikeTimer: 0,
+      x: 100,
+      y: 100,
+      homeX: 100,
+      homeY: 100,
+      hitPoints: 1,
+      spiked: false,
+      spikeTimer: 0,
     });
     const player = { ...makePlayer(90, 40), vy: 200, grounded: false };
 
@@ -876,10 +990,15 @@ describe('resolveEnemyContacts aggregation', () => {
 
   it('survivingStompOnAPurpleSlime-alsoIncludesItInDamagedEnemyIds', () => {
     // A hit that does NOT defeat the enemy must still be reported — this is
-    // exactly the case that previously had no visible feedback at all
-    // (spec.md User Story 2).
+    // exactly the case that previously had no visible feedback at all.
     const purple = makeSpikedPurpleEnemy({
-      x: 100, y: 100, homeX: 100, homeY: 100, hitPoints: 3, spiked: false, spikeTimer: 0,
+      x: 100,
+      y: 100,
+      homeX: 100,
+      homeY: 100,
+      hitPoints: 3,
+      spiked: false,
+      spikeTimer: 0,
     });
     const player = { ...makePlayer(90, 40), vy: 200, grounded: false };
 
@@ -913,16 +1032,33 @@ describe('resolveEnemyContacts aggregation', () => {
 
 describe('checkPickupCollisions — key collect-once', () => {
   const player = {
-    x: 0, y: 0, vx: 0, vy: 0, direction: 'right' as const, grounded: true, climbing: false,
+    x: 0,
+    y: 0,
+    vx: 0,
+    vy: 0,
+    direction: 'right' as const,
+    grounded: true,
+    climbing: false,
     crouching: false,
-    isDroppingThroughBridge: false, lastGroundedX: 0, lastGroundedY: 0, animState: 'idle' as const,
+    isDroppingThroughBridge: false,
+    lastGroundedX: 0,
+    lastGroundedY: 0,
+    animState: 'idle' as const,
     prevFeetY: PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING,
-    animFrame: 0, animTimer: 0, knockbackTimer: 0, bounceAscending: false, blockContacts: [],
-    hitPoints: 6, alive: true, hitTimer: PLAYER_HIT_REACTION_SECONDS,
+    animFrame: 0,
+    animTimer: 0,
+    knockbackTimer: 0,
+    bounceAscending: false,
+    blockContacts: [],
+    hitPoints: 6,
+    alive: true,
+    hitTimer: PLAYER_HIT_REACTION_SECONDS,
   };
 
   const ids = (pickups: KeyPickupState[]) =>
-    checkPickupCollisions(player, { key: pickups }, { playerHitPoints: 6 }).map((hit) => hit.state.id);
+    checkPickupCollisions(player, { key: pickups }, { playerHitPoints: 6 }).map(
+      (hit) => hit.state.id,
+    );
 
   it('checkPickupCollisions-overlappingUncollectedPickup-returnsItsId', () => {
     const pickups: KeyPickupState[] = [{ id: 'k1', kind: 'key', x: 0, y: 0, collected: false }];
@@ -935,7 +1071,9 @@ describe('checkPickupCollisions — key collect-once', () => {
   });
 
   it('checkPickupCollisions-noOverlap-returnsEmpty', () => {
-    const pickups: KeyPickupState[] = [{ id: 'k1', kind: 'key', x: 1000, y: 1000, collected: false }];
+    const pickups: KeyPickupState[] = [
+      { id: 'k1', kind: 'key', x: 1000, y: 1000, collected: false },
+    ];
     expect(ids(pickups)).toEqual([]);
   });
 });
@@ -944,8 +1082,11 @@ describe('checkPickupCollisions — bomb capacity clamp', () => {
   const player = { ...makePlayer(0, 100 - RENDERED_TILE_SIZE) };
 
   const ids = (bombs: ReturnType<typeof spawnBombPickup>[], count: number) =>
-    checkPickupCollisions(player, { bomb: bombs }, { playerHitPoints: 6, capacity: Math.max(0, 5 - count) })
-      .map((hit) => hit.state.id);
+    checkPickupCollisions(
+      player,
+      { bomb: bombs },
+      { playerHitPoints: 6, capacity: Math.max(0, 5 - count) },
+    ).map((hit) => hit.state.id);
 
   it('belowTheCap-overlappingPickup-returnsItsId', () => {
     const bomb = spawnBombPickup('b1', 0, 100);
@@ -978,7 +1119,7 @@ describe('checkPickupCollisions — bomb capacity clamp', () => {
   });
 });
 
-describe('every consumer reads the one crouched box (US1 / SC-008)', () => {
+describe('every consumer reads the one crouched box', () => {
   // A pickup in the standing box's head band — the 6px strip (18..24) only the
   // standing box reaches. The 32px coin's bottom sits at 20, above the crouched
   // top at 24, so only the standing box overlaps it.
@@ -987,7 +1128,9 @@ describe('every consumer reads the one crouched box (US1 / SC-008)', () => {
     const standing = makePlayer(0, 0);
     const crouched = { ...makePlayer(0, 0), crouching: true };
     const ids = (player: PlayerState) =>
-      checkPickupCollisions(player, { coin: [coin] }, { playerHitPoints: 6 }).map((hit) => hit.state.id);
+      checkPickupCollisions(player, { coin: [coin] }, { playerHitPoints: 6 }).map(
+        (hit) => hit.state.id,
+      );
     expect(ids(standing)).toEqual(['head-coin']);
     expect(ids(crouched)).toEqual([]);
   });
@@ -999,8 +1142,12 @@ describe('every consumer reads the one crouched box (US1 / SC-008)', () => {
     const green = makeEnemy(0, -10);
     const standing = makePlayer(0, 0);
     const crouched = { ...makePlayer(0, 0), crouching: true };
-    expect(resolveEnemyContacts(standing, [green]).damagePlayer).toBeGreaterThan(0);
-    expect(resolveEnemyContacts(crouched, [green]).damagePlayer).toBe(0);
+    expect(
+      resolveEnemyContacts(standing, [green]).hitEffects.some((effect) => effect.type === 'damage'),
+    ).toBe(true);
+    expect(
+      resolveEnemyContacts(crouched, [green]).hitEffects.some((effect) => effect.type === 'damage'),
+    ).toBe(false);
   });
 
   it('resolveHazardContacts-spikeBandInTheHeadBand-hitsStandingOnly', () => {
@@ -1056,4 +1203,3 @@ describe('every consumer reads the one crouched box (US1 / SC-008)', () => {
     expect(playerInBlast(crouchedBox, tiles, RENDERED_TILE_SIZE)).toBe(false);
   });
 });
-

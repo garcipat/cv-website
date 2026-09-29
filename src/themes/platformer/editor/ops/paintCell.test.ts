@@ -122,21 +122,13 @@ describe('paintCell — hazard markers', () => {
     // Solid both below and above: 'up' and 'down' are both valid, in that
     // priority order. Starting from 'up' (already placed), the next click
     // cycles to 'down'.
-    const grid: TileChar[][] = [
-      ['G'],
-      ['^'],
-      ['G'],
-    ];
+    const grid: TileChar[][] = [['G'], ['^'], ['G']];
     const result = paintCell(grid, 0, 1, '^');
     expect(result.grid[1][0]).toBe('v');
   });
 
   it('clickingRepeatedly-wrapsAroundThroughEveryValidFacing', () => {
-    let grid: TileChar[][] = [
-      ['G'],
-      ['^'],
-      ['G'],
-    ];
+    let grid: TileChar[][] = [['G'], ['^'], ['G']];
     const seen: TileChar[] = [];
     for (let i = 0; i < 3; i++) {
       const result = paintCell(grid, 0, 1, '^');
@@ -208,10 +200,7 @@ describe('paintCell — floor spear marker', () => {
   });
 
   it('paintingTheSpikeToolOntoASpear-replacesItWithTheSpikeKindRatherThanCyclingTheSpear', () => {
-    const grid: TileChar[][] = [
-      ['¦'],
-      ['G'],
-    ];
+    const grid: TileChar[][] = [['¦'], ['G']];
     const result = paintCell(grid, 0, 0, '^');
     expect(result.grid[0][0]).toBe('^');
   });
@@ -236,7 +225,7 @@ describe('paintCell — floor spear marker', () => {
   });
 });
 
-describe('paintCell — falling stalactite marker (O-027)', () => {
+describe('paintCell — falling stalactite marker', () => {
   it('paintingTheFallingStalactiteTool-writesItsOneCharacter', () => {
     const grid: TileChar[][] = [['.', '.']];
     const result = paintCell(grid, 1, 0, 'T');

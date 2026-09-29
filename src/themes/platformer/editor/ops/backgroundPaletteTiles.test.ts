@@ -60,7 +60,10 @@ describe('BACKGROUND_PALETTE_SECTIONS', () => {
   });
 
   it('sectionOrder-isStableSurfaceThenCave', () => {
-    expect(BACKGROUND_PALETTE_SECTIONS.map((section) => section.title)).toEqual(['Surface', 'Cave']);
+    expect(BACKGROUND_PALETTE_SECTIONS.map((section) => section.title)).toEqual([
+      'Surface',
+      'Cave',
+    ]);
   });
 });
 

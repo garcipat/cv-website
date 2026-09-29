@@ -1,6 +1,6 @@
 import { coinPot } from './CoinPot';
 import { toBlockState } from '../Block';
-import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
+import { POT_BOUNCE_VY } from './pot';
 
 describe('coinPot BlockType', () => {
   it('sharedFactoryContract-fixesOneHitTopTriggerAndRemoval', () => {
@@ -33,7 +33,7 @@ describe('coinPot.onHit', () => {
 
     expect(outcome).toEqual({
       spawnPickup: 'coin',
-      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
+      effects: [{ type: 'velocity', y: POT_BOUNCE_VY, preserveJump: true }],
     });
   });
 
@@ -42,6 +42,8 @@ describe('coinPot.onHit', () => {
 
     const outcome = coinPot.onHit!({ ...pot, hitsTaken: 1, rewardGiven: true });
 
-    expect(outcome).toEqual({ bounceVelocity: PHYSICS_CONFIG.potBounceVelocity });
+    expect(outcome).toEqual({
+      effects: [{ type: 'velocity', y: POT_BOUNCE_VY, preserveJump: true }],
+    });
   });
 });

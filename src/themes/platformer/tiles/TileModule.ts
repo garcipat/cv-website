@@ -1,5 +1,5 @@
 /**
- * The per-kind tile contract (R-015): a {@link TileModule} declares one shipped
+ * The per-kind tile contract: a {@link TileModule} declares one shipped
  * tile kind's authoring character, its capability flags, its context-dependent
  * behaviour rules, its appearance, and — for the stateful kinds — its transient
  * state descriptor.
@@ -8,7 +8,7 @@
  * relocates byte-for-byte from the shipped predicates/tables it replaces.
  *
  * Layer note: this file imports `contracts/`/`shared/`/`level/` only, never
- * `entities/` or `engine/` (see `contracts/layer-invariants.md`).
+ * `entities/` or `engine/`.
  */
 
 import type { LevelDef } from '../level/LevelData';
@@ -21,7 +21,7 @@ export interface TileSolidRegion {
 
 /** Rule-time context: the live transient state a rule may read, plus the query's direction. */
 export interface TileRuleContext {
-  /** The declared transient state of the stateful tile kinds (R-004 owns its lifecycle). */
+  /** The declared transient state of the stateful tile kinds ( owns its lifecycle). */
   readonly transient: TileTransientState;
   /** Rising-from-below / active-drop-through query: one-way tiles resolve as passable. */
   readonly excludeOneWay?: boolean;
@@ -47,7 +47,7 @@ export interface TileTransientState {
 
 /**
  * Declares a stateful kind's transient state. Mirrors `shared/timedTile.ts`'s
- * `TimedTileConfig`: the kind supplies these values, R-004 owns the lifecycle.
+ * `TimedTileConfig`: the kind supplies these values, owns the lifecycle.
  */
 export interface TileStateDescriptor {
   readonly keyOf: (state: GridTimerState) => { readonly col: number; readonly row: number };
@@ -106,11 +106,16 @@ export interface TileModule {
   readonly drawBand: TileDrawBand;
 
   /** Phase/inset-aware solidity. Absent ⇒ the `solid` flag resolves to a full cell. */
-  solidRegionAt?(level: LevelDef, col: number, row: number, ctx: TileRuleContext): TileSolidRegion | null;
+  solidRegionAt?(
+    level: LevelDef,
+    col: number,
+    row: number,
+    ctx: TileRuleContext,
+  ): TileSolidRegion | null;
   /** One-way ground term (ladder shaft top, rolled bundle top, mushroom cap). */
   standableAt?(level: LevelDef, col: number, row: number, ctx: TileRuleContext): boolean;
   /** Appearance for this cell (or the whole run from its top cell). */
   draw?(rc: TileDrawContext): void;
-  /** Declared transient state (stateful kinds only); the lifecycle stays R-004's. */
+  /** Declared transient state (stateful kinds only); the lifecycle stays 's. */
   readonly state?: TileStateDescriptor;
 }

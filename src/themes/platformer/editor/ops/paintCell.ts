@@ -6,15 +6,15 @@ import type { HazardKind } from '../../entities/hazards';
 import { isSolid } from '../../level/Terrain';
 
 /** Same shape as `growGrid`'s `GrowResult` — `paintCell` always returns a
- *  grown-and-painted grid plus whatever shift growth applied, so callers
- *  (see `EditorCanvas.tsx`) handle both the same way. */
+ * grown-and-painted grid plus whatever shift growth applied, so callers
+ * (see `EditorCanvas.tsx`) handle both the same way. */
 export type PaintResult = GrowResult<TileChar>;
 
 const HAZARD_KEYS = Object.keys(HAZARD_CHARS) as TileChar[];
 
 /** The registered characters per hazard kind, in registration order — the
- *  grouping that lets a single-character kind (the spear, and O-021's floor
- *  spike) never cycle while a multi-character kind (the spike) still does. */
+ * grouping that lets a single-character kind (the spear, and 's floor
+ * spike) never cycle while a multi-character kind (the spike) still does. */
 const HAZARD_CHARS_BY_KIND: Record<string, TileChar[]> = {};
 for (const char of HAZARD_KEYS) {
   const kind = HAZARD_CHARS[char]!.hazardType;
@@ -22,9 +22,9 @@ for (const char of HAZARD_KEYS) {
 }
 
 /** The character for each facing WITHIN a single kind — a per-kind inverse of
- *  `HAZARD_CHARS`. Keying it per kind (not by facing alone) is required for
- *  correctness: the spike's `^`, the spear's `¦`, and the floor spike's `A`
- *  all face `'up'`, and a facing-only map would collide between them. */
+ * `HAZARD_CHARS`. Keying it per kind (not by facing alone) is required for
+ * correctness: the spike's `^`, the spear's `¦`, and the floor spike's `A`
+ * all face `'up'`, and a facing-only map would collide between them. */
 function charForFacing(kind: HazardKind): Partial<Record<HazardFacing, TileChar>> {
   const map: Partial<Record<HazardFacing, TileChar>> = {};
   for (const char of HAZARD_CHARS_BY_KIND[kind] ?? []) {
@@ -34,15 +34,15 @@ function charForFacing(kind: HazardKind): Partial<Record<HazardFacing, TileChar>
 }
 
 /** Auto-detect priority: floor spikes (needs solid ground below) are the
- *  common case, checked first; ceiling and the two wall-mounted facings
- *  follow. Also the order a fresh placement's facing is picked from when
- *  more than one neighbor is solid. */
+ * common case, checked first; ceiling and the two wall-mounted facings
+ * follow. Also the order a fresh placement's facing is picked from when
+ * more than one neighbor is solid. */
 const FACING_PRIORITY: readonly HazardFacing[] = ['up', 'down', 'right', 'left'];
 
 /** A spike hazard with no solid neighbor at all (placed over open air) has
- *  nothing to auto-detect — this is the arbitrary but consistent fallback,
- *  same convention as `firstUnusedSignChar`'s "fall back rather than fail"
- *  edge case below. */
+ * nothing to auto-detect — this is the arbitrary but consistent fallback,
+ * same convention as `firstUnusedSignChar`'s "fall back rather than fail"
+ * edge case below. */
 const FALLBACK_FACING: HazardFacing = 'up';
 
 function isSolidCharAt(grid: readonly TileChar[][], col: number, row: number): boolean {
@@ -107,19 +107,21 @@ function nextHazardChar(
 
   const existingIndex = validFacings.indexOf(existingFacing);
   const nextFacing =
-    existingIndex === -1 ? validFacings[0] : validFacings[(existingIndex + 1) % validFacings.length];
+    existingIndex === -1
+      ? validFacings[0]
+      : validFacings[(existingIndex + 1) % validFacings.length];
   return charFor[nextFacing]!;
 }
 
 /**
  * Paints `tool` into cell `(col, row)`, growing the grid first if the
  * target is out of bounds — the copy/grow/write body itself lives in the
- * shared `paintGridCell`; only the foreground's own rules stay here (FR-009).
+ * shared `paintGridCell`; only the foreground's own rules stay here.
  *
  * When `tool` is `'S'` (spawn), every other cell currently holding `'S'` is
  * cleared back to `'.'` in the same call — this guarantees exactly one spawn
  * marker exists at a time without ever blocking placement or prompting a
- * warning (spec User Story 3 / FR-006).
+ * warning (spec / ).
  *
  * A hazard tool's character/cycle is computed from the CURRENT grid first
  * (reading `(col, row)` and its neighbours, which growth only ever borders
@@ -143,9 +145,8 @@ export function paintCell(
     const existing = grid[row]?.[col];
     let value: TileChar;
     if (chars.length === 1) {
-      // A single-character kind (the spear, and O-021's floor spike) always
-      // paints its one character and never cycles orientation (FR-008/
-      // FR-013) — see nextHazardChar's own doc comment for why cycling
+      // A single-character kind (the spear, and 's floor spike) always
+      // paints its one character and never cycles orientation — see nextHazardChar's own doc comment for why cycling
       // exists at all for a multi-character kind.
       value = chars[0];
     } else {
@@ -153,7 +154,9 @@ export function paintCell(
       // kind is replaced by the tool's kind rather than cycling the
       // existing one.
       const existingForKind =
-        existing !== undefined && HAZARD_CHARS[existing]?.hazardType === kind ? existing : undefined;
+        existing !== undefined && HAZARD_CHARS[existing]?.hazardType === kind
+          ? existing
+          : undefined;
       value = nextHazardChar(grid, col, row, existingForKind, kind);
     }
     return paintGridCell(grid, col, row, value, '.', true);

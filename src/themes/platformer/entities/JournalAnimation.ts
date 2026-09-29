@@ -68,7 +68,7 @@ export function journalOpenFrameWidthPercent(frame: number): number {
   const clamped = Math.max(1, Math.min(JOURNAL_OPEN_FRAME_COUNT, frame));
   const { width, height } = JOURNAL_OPEN_FRAME_DIMENSIONS_PX[clamped - 1];
   const { width: finalWidth, height: finalHeight } = JOURNAL_OPEN_FINAL_FRAME_DIMENSIONS_PX;
-  return ((width / height) * (finalHeight / finalWidth)) * 100;
+  return (width / height) * (finalHeight / finalWidth) * 100;
 }
 
 /** How far to translate the whole book container left (as a percentage of

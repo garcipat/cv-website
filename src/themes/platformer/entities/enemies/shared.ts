@@ -13,9 +13,9 @@ import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 export const ENEMY_HIT_REACTION_SECONDS = 0.4;
 
 /** The per-kind numbers `baseEnemyState`/`baseRevive` seed a life from: the
- *  kind's hit points and reaction window, plus the resting state and its own
- *  frame table so the spawn/revive animation stagger follows THAT kind's
- *  loop (research D4). */
+ * kind's hit points and reaction window, plus the resting state and its own
+ * frame table so the spawn/revive animation stagger follows THAT kind's
+ * loop. */
 export interface EnemyBaseConfig {
   maxHitPoints: number;
   hitReactionSeconds: number;
@@ -26,7 +26,7 @@ export interface EnemyBaseConfig {
 
 /**
  * The fields every enemy starts with. `index` offsets the starting animation
- * frame and timer so multiple enemies don't animate in perfect lockstep —
+ * frame and timer so multiple enemies don't animate in perfect lockstep
  * each enemy's frame advance is driven by its own dt-accumulated timer, not a
  * shared clock, so identical starts stay identical forever. The resting
  * state and its frame count/duration come from the kind's own config, so a
@@ -52,7 +52,7 @@ export function baseEnemyState(
     // At or past the reaction duration means "no hit is being reacted to",
     // i.e. vulnerable — `isInvulnerable` asks `hitTimer < hitReactionSeconds`.
     // Seeding 0 would make every enemy harmless and unstompable at spawn, so
-    // this seeds from the type's own `hitReactionSeconds`, passed in here —
+    // this seeds from the type's own `hitReactionSeconds`, passed in here
     // never from a shared constant, so a type with a different duration
     // still spawns exactly at its own threshold.
     hitTimer: config.hitReactionSeconds,
@@ -92,12 +92,12 @@ export function takeHit<S extends BaseEnemyState>(enemy: S): S {
 }
 
 /** Resets an enemy to its spawn state, preserving `rewardGiven` — an enemy
- *  that already paid out revives as a normal killable obstacle with nothing
- *  left to give — and preserving `animFrame`/`animTimer` so the per-enemy
- *  animation stagger survives a respawn, and resetting `deathEffectGiven`
- *  back to `false` — a revived enemy's next death is a new life's death,
- *  entitled to its own visual effect even if `rewardGiven` (permanent) has
- *  nothing left to add. */
+ * that already paid out revives as a normal killable obstacle with nothing
+ * left to give — and preserving `animFrame`/`animTimer` so the per-enemy
+ * animation stagger survives a respawn, and resetting `deathEffectGiven`
+ * back to `false` — a revived enemy's next death is a new life's death,
+ * entitled to its own visual effect even if `rewardGiven` (permanent) has
+ * nothing left to add. */
 export function baseRevive(
   enemy: BaseEnemyState,
   config: EnemyBaseConfig,

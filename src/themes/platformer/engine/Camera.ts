@@ -39,13 +39,13 @@ export function updateCamera(
 }
 
 /** How many rendered-tile rows down from the TOP of the viewport the
- *  dead zone's own top edge sits — small on purpose, so the dead zone spans
- *  almost the entire canvas height above the bottom target row. The camera
- *  should only react once the player genuinely nears the top of the visible
- *  canvas (a big jump or climb), not whenever they're merely above the
- *  bottom target row — for a level shorter than the viewport especially,
- *  the player can sit anywhere in the upper portion of the canvas without
- *  the camera dragging them down toward the bottom target. Tunable. */
+ * dead zone's own top edge sits — small on purpose, so the dead zone spans
+ * almost the entire canvas height above the bottom target row. The camera
+ * should only react once the player genuinely nears the top of the visible
+ * canvas (a big jump or climb), not whenever they're merely above the
+ * bottom target row — for a level shorter than the viewport especially,
+ * the player can sit anywhere in the upper portion of the canvas without
+ * the camera dragging them down toward the bottom target. Tunable. */
 export const CAMERA_DEAD_ZONE_TOP_MARGIN_ROWS = 7;
 
 /**
@@ -53,7 +53,7 @@ export const CAMERA_DEAD_ZONE_TOP_MARGIN_ROWS = 7;
  * target row IS the player's resting position: standing still (or landing)
  * puts the player exactly at this row with no tolerance, so any downward
  * motion past it corrects the camera immediately. Asymmetric with the
- * generous top margin (`CAMERA_DEAD_ZONE_TOP_MARGIN_ROWS`) on purpose —
+ * generous top margin (`CAMERA_DEAD_ZONE_TOP_MARGIN_ROWS`) on purpose
  * jumping shouldn't scroll the camera until the player genuinely gets some
  * real height, but
  * descending (falling, or coming back down from a jump) should track without
@@ -64,12 +64,12 @@ export const CAMERA_DEAD_ZONE_TOP_MARGIN_ROWS = 7;
 export const CAMERA_DEAD_ZONE_BOTTOM_SLACK = 0;
 
 /** How many rendered-tile rows up from the BOTTOM of the viewport the
- *  camera's dead-zone targets — not a percentage of viewport height, and not
- *  measured from the top. The play-mode canvas is a fixed, short height (see
- *  CanvasSize.ts's `PLAY_CANVAS_ROWS`), so a small, fixed distance from
- *  the bottom keeps the player near the ground with most of the canvas above
- *  them showing the sky/clouds/village background layers, regardless of how
- *  tall the level itself is. Tunable. */
+ * camera's dead-zone targets — not a percentage of viewport height, and not
+ * measured from the top. The play-mode canvas is a fixed, short height (see
+ * CanvasSize.ts's `PLAY_CANVAS_ROWS`), so a small, fixed distance from
+ * the bottom keeps the player near the ground with most of the canvas above
+ * them showing the sky/clouds/village background layers, regardless of how
+ * tall the level itself is. Tunable. */
 export const PLAYER_TARGET_ROWS_FROM_BOTTOM = 3;
 
 /**

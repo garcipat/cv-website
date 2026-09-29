@@ -2,7 +2,7 @@ import { importLayout } from './importLayout';
 import type { TileChar } from '../../level/LevelParser';
 
 /** One cell of a blueprint, positioned relative to the blueprint's own
- *  top-left corner — the anchor a placement adds to (see `placeBlueprint`). */
+ * top-left corner — the anchor a placement adds to (see `placeBlueprint`). */
 export interface BlueprintCell {
   row: number;
   col: number;

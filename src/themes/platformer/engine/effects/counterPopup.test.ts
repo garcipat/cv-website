@@ -30,24 +30,32 @@ describe('tickCounterPopup', () => {
   });
 
   it('pastDuration-returnsNull', () => {
-    expect(tickCounterPopup(startCounterPopup('coins', 2, 4), COUNTER_POPUP_DURATION_SECONDS + 0.01)).toBeNull();
+    expect(
+      tickCounterPopup(startCounterPopup('coins', 2, 4), COUNTER_POPUP_DURATION_SECONDS + 0.01),
+    ).toBeNull();
   });
 
   it('atExactlyTheDuration-returnsNullSentinel', () => {
-    expect(tickCounterPopup(startCounterPopup('coins', 2, 4), COUNTER_POPUP_DURATION_SECONDS)).toBeNull();
+    expect(
+      tickCounterPopup(startCounterPopup('coins', 2, 4), COUNTER_POPUP_DURATION_SECONDS),
+    ).toBeNull();
   });
 });
 
 describe('counterPopupOpacity', () => {
   it('duringHold-returnsFullOpacity', () => {
-    const effect = tickCounterPopup(startCounterPopup('coins', 1, 4), COUNTER_POPUP_HOLD_SECONDS - 0.01)!;
+    const effect = tickCounterPopup(
+      startCounterPopup('coins', 1, 4),
+      COUNTER_POPUP_HOLD_SECONDS - 0.01,
+    )!;
     expect(counterPopupOpacity(effect)).toBe(1);
   });
 
   it('midFade-returnsPartialOpacity', () => {
     const effect = tickCounterPopup(
       startCounterPopup('coins', 1, 4),
-      COUNTER_POPUP_DURATION_SECONDS - (COUNTER_POPUP_DURATION_SECONDS - COUNTER_POPUP_HOLD_SECONDS) / 2,
+      COUNTER_POPUP_DURATION_SECONDS -
+        (COUNTER_POPUP_DURATION_SECONDS - COUNTER_POPUP_HOLD_SECONDS) / 2,
     )!;
     expect(counterPopupOpacity(effect)).toBeCloseTo(0.5);
   });
@@ -133,13 +141,17 @@ describe('drawCounterPopup', () => {
     expect(ctx.fillText).toHaveBeenCalledWith('2 / 4', expect.any(Number), expect.any(Number));
     expect(ctx.fillText).toHaveBeenCalledWith('1 / 2', expect.any(Number), expect.any(Number));
 
-    const coinCallX = ctx.drawImage.mock.calls.find((c: unknown[]) => c[0] === coinIcon)![5] as number;
-    const fruitCallX = ctx.drawImage.mock.calls.find((c: unknown[]) => c[0] === fruitIcon)![5] as number;
+    const coinCallX = ctx.drawImage.mock.calls.find(
+      (c: unknown[]) => c[0] === coinIcon,
+    )![5] as number;
+    const fruitCallX = ctx.drawImage.mock.calls.find(
+      (c: unknown[]) => c[0] === fruitIcon,
+    )![5] as number;
     expect(fruitCallX).toBeGreaterThan(coinCallX);
   });
 });
 
-describe('counterPopup keyed slot (US5-1/FR-016)', () => {
+describe('counterPopup keyed slot (-1/)', () => {
   const keyOf = (collection: readonly TransientEffect<unknown>[]) =>
     collection.filter(
       (effect): effect is TransientEffect<CounterPopupState> => effect.kind === 'counterPopup',
@@ -158,7 +170,9 @@ describe('counterPopup keyed slot (US5-1/FR-016)', () => {
   it('aRefreshedPopup-restartsItsTimer', () => {
     let collection: TransientEffect<unknown>[] = [];
     collection = upsertEffect(collection, startCounterPopup('coins', 1, 5), effectKeyOf);
-    collection = collection.map((effect) => tickCounterPopup(effect as TransientEffect<CounterPopupState>, 0.5) ?? effect);
+    collection = collection.map(
+      (effect) => tickCounterPopup(effect as TransientEffect<CounterPopupState>, 0.5) ?? effect,
+    );
     collection = upsertEffect(collection, startCounterPopup('coins', 2, 5), effectKeyOf);
 
     expect(keyOf(collection)[0].elapsed).toBe(0);
@@ -170,7 +184,11 @@ describe('counterPopup keyed slot (US5-1/FR-016)', () => {
     collection = upsertEffect(collection, startCounterPopup('fruits', 3, 4), effectKeyOf);
 
     expect(keyOf(collection)).toHaveLength(2);
-    expect(keyOf(collection).map((popup) => popup.state.labelKey).sort()).toEqual(['coins', 'fruits']);
+    expect(
+      keyOf(collection)
+        .map((popup) => popup.state.labelKey)
+        .sort(),
+    ).toEqual(['coins', 'fruits']);
   });
 
   it('anUnkeyedKind-simplyAppends', () => {

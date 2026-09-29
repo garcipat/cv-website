@@ -1,4 +1,4 @@
-﻿import { clamp01 } from '../shared/math';
+import { clamp01 } from '../shared/math';
 import {
   advanceTimedTiles,
   armTimedTile,
@@ -7,22 +7,34 @@ import {
   timedTileShakeOffsetX,
   type TimedTileConfig,
 } from '../shared/timedTile';
-import { RENDER_SCALE, RENDERED_TILE_SIZE, TILE_SIZE, horizontalRunPosition, tileAt } from '../level/Terrain';
+import {
+  RENDER_SCALE,
+  RENDERED_TILE_SIZE,
+  TILE_SIZE,
+  horizontalRunPosition,
+  tileAt,
+} from '../level/Terrain';
 import type { LevelDef } from '../level/LevelData';
-import type { TileDrawContext, TileModule, TileRuleContext, TileSolidRegion, TileStateDescriptor } from './TileModule';
+import type {
+  TileDrawContext,
+  TileModule,
+  TileRuleContext,
+  TileSolidRegion,
+  TileStateDescriptor,
+} from './TileModule';
 
 /**
  * `crumblingFloor` — the crack/break/reform ledge (`g`). This module owns the
- * tile kind's whole shipped body (R-015 moved it here from
+ * tile kind's whole shipped body ( moved it here from
  * `engine/CrumblingFloor.ts`): its cycle phases, durations, phase/offset
  * helpers, its declared transient state (routed through `shared/timedTile.ts`),
  * and its per-phase/inset `solidRegionAt` rule. Deliberately declares no plain
  * `solid` flag — its solidity is entirely phase- and inset-aware. Fogged;
- * drawn in the `afterHazards` band (the `draw` lands in US4/T037).
+ * drawn in the `afterHazards` band.
  */
 
 /**
- * A crumbling floor tile's cycle phase (spec.md's Key Entities). Unlike
+ * A crumbling floor tile's cycle phase. Unlike
  * `entities/hazards/FloorSpike.ts`'s timer states (keyed by a `HazardPlacement`'s own
  * `id`), a crumbling floor tile has no placement list of its own — it's a
  * plain terrain `TileType` — so its live state is keyed by grid position
@@ -34,21 +46,21 @@ import type { TileDrawContext, TileModule, TileRuleContext, TileSolidRegion, Til
 export type CrumblingFloorPhase = 'atRest' | 'cracking' | 'broken' | 'reforming';
 
 /** Seconds a tile spends visibly cracking (light -> medium -> heavy) before
- *  it breaks (spec FR-004). Solid the entire time. */
+ * it breaks. Solid the entire time. */
 export const CRUMBLING_FLOOR_CRACK_SECONDS = 0.9;
 /** Seconds the tile stays a bare, non-solid gap before it starts reforming
- *  (spec FR-008's "fixed delay"). */
+ * (the "fixed delay"). */
 export const CRUMBLING_FLOOR_BROKEN_SECONDS = 1.5;
-/** Seconds the grow-from-small-square reform animation takes (spec FR-009).
- *  Non-solid for the whole duration. */
+/** Seconds the grow-from-small-square reform animation takes.
+ * Non-solid for the whole duration. */
 export const CRUMBLING_FLOOR_REFORM_SECONDS = 0.4;
 /** Total cycle length — once elapsed reaches this, the tile is at rest
- *  again and its timer entry is pruned (spec FR-010). */
+ * again and its timer entry is pruned. */
 export const CRUMBLING_FLOOR_CYCLE_SECONDS =
   CRUMBLING_FLOOR_CRACK_SECONDS + CRUMBLING_FLOOR_BROKEN_SECONDS + CRUMBLING_FLOOR_REFORM_SECONDS;
 
 /**
- * Height, in rendered px, of a crumbling floor tile's solid region (O-023):
+ * Height, in rendered px, of a crumbling floor tile's solid region:
  * its art top-aligns within its cell and is only half a tile tall, and its
  * collision matches that exactly rather than the full cell every other solid
  * tile uses. This is the tile's "vertical hitbox inset" — the first one in
@@ -65,7 +77,7 @@ export const CRUMBLING_FLOOR_CYCLE_SECONDS =
 export const CRUMBLING_FLOOR_SOLID_HEIGHT = 16;
 
 /** One crumbling floor tile's live timer, keyed by grid position. Presence
- *  in the states array means its cycle is running. */
+ * in the states array means its cycle is running. */
 export interface CrumblingFloorTimerState {
   col: number;
   row: number;
@@ -86,8 +98,8 @@ const CONFIG: TimedTileConfig<CrumblingFloorTimerState, GridKey> = {
 };
 
 /** Arms `(col, row)`'s cycle if it isn't already running — a no-op
- *  re-contact during an in-progress cycle (spec FR-007), same shape as
- *  `entities/hazards/FloorSpike.ts`'s `armFloorSpike`. */
+ * re-contact during an in-progress cycle, same shape as
+ * `entities/hazards/FloorSpike.ts`'s `armFloorSpike`. */
 export function armCrumblingFloor(
   states: readonly CrumblingFloorTimerState[],
   col: number,
@@ -97,9 +109,9 @@ export function armCrumblingFloor(
 }
 
 /** Advances every running cycle by `dt` and drops any that reached the full
- *  cycle duration — the tile is at rest again the instant it's dropped
- *  (spec FR-010). `dt <= 0` leaves elapsed unchanged but still prunes
- *  already-expired entries. */
+ * cycle duration — the tile is at rest again the instant it's dropped
+ *. `dt <= 0` leaves elapsed unchanged but still prunes
+ * already-expired entries. */
 export function advanceCrumblingFloors(
   states: readonly CrumblingFloorTimerState[],
   dt: number,
@@ -107,10 +119,10 @@ export function advanceCrumblingFloors(
   return advanceTimedTiles(states, dt, CONFIG);
 }
 
-/** Pure elapsed-time -> phase mapping. `'atRest'` is never returned here —
- *  it only applies when no timer entry exists at all (see
- *  `crumblingFloorPhaseFor`), since a running cycle starts already
- *  `'cracking'` the instant it's armed. */
+/** Pure elapsed-time -> phase mapping. `'atRest'` is never returned here
+ * it only applies when no timer entry exists at all (see
+ * `crumblingFloorPhaseFor`), since a running cycle starts already
+ * `'cracking'` the instant it's armed. */
 export function crumblingFloorPhaseAt(elapsed: number): CrumblingFloorPhase {
   if (elapsed < CRUMBLING_FLOOR_CRACK_SECONDS) return 'cracking';
   if (elapsed < CRUMBLING_FLOOR_CRACK_SECONDS + CRUMBLING_FLOOR_BROKEN_SECONDS) return 'broken';
@@ -128,10 +140,10 @@ export function crumblingFloorPhaseFor(
 }
 
 /** `(col, row)`'s raw elapsed time since arming — 0 when no timer entry
- *  exists. Unlike the ratio/phase accessors, this is seconds, not a
- *  normalized [0,1] value; the draw's shake jitter needs the real
- *  elapsed time since `crumblingFloorShakeOffsetXAt` is tuned in seconds
- *  (see its own doc comment), not a phase-relative ratio. */
+ * exists. Unlike the ratio/phase accessors, this is seconds, not a
+ * normalized [0,1] value; the draw's shake jitter needs the real
+ * elapsed time since `crumblingFloorShakeOffsetXAt` is tuned in seconds
+ * (see its own doc comment), not a phase-relative ratio. */
 export function crumblingFloorElapsedFor(
   states: readonly CrumblingFloorTimerState[],
   col: number,
@@ -141,7 +153,7 @@ export function crumblingFloorElapsedFor(
 }
 
 /** Whether `(col, row)` has a running cycle at all — the eligibility gate
- *  for trigger detection (only an unarmed tile can start a new cycle). */
+ * for trigger detection (only an unarmed tile can start a new cycle). */
 export function isCrumblingFloorArmed(
   states: readonly CrumblingFloorTimerState[],
   col: number,
@@ -151,14 +163,14 @@ export function isCrumblingFloorArmed(
 }
 
 /** Whether a phase is solid ground (spec's Key Entities: at-rest and
- *  cracking are solid; broken and reforming are not). */
+ * cracking are solid; broken and reforming are not). */
 export function isCrumblingFloorSolidPhase(phase: CrumblingFloorPhase): boolean {
   return phase === 'atRest' || phase === 'cracking';
 }
 
 /** Whether `(col, row)` is CURRENTLY non-solid — covers both the broken gap
- *  and the still-growing reform, since both are non-solid per spec FR-009.
- *  This is the one predicate `engine/Physics.ts` actually consults. */
+ * and the still-growing reform, since both are non-solid per .
+ * This is the one predicate `engine/Physics.ts` actually consults. */
 export function isCrumblingFloorBroken(
   states: readonly CrumblingFloorTimerState[],
   col: number,
@@ -168,16 +180,16 @@ export function isCrumblingFloorBroken(
 }
 
 /** How far through the cracking phase `elapsed` is, from 0 (just armed, no
- *  cracks) to 1 (fully cracked, about to break) — `entities`-side rendering
- *  uses this to pick between the 3 crack frames. Clamped to [0, 1] so a
- *  broken/reforming elapsed value (past the crack phase) still returns a
- *  sane value rather than growing unbounded. */
+ * cracks) to 1 (fully cracked, about to break) — `entities`-side rendering
+ * uses this to pick between the 3 crack frames. Clamped to [0, 1] so a
+ * broken/reforming elapsed value (past the crack phase) still returns a
+ * sane value rather than growing unbounded. */
 export function crumblingFloorCrackRatioAt(elapsed: number): number {
   return clamp01(elapsed / CRUMBLING_FLOOR_CRACK_SECONDS);
 }
 
 /** `(col, row)`'s current crack ratio — 0 when no timer entry exists (at
- *  rest, no cracks). */
+ * rest, no cracks). */
 export function crumblingFloorCrackRatioFor(
   states: readonly CrumblingFloorTimerState[],
   col: number,
@@ -188,9 +200,9 @@ export function crumblingFloorCrackRatioFor(
 }
 
 /** How far through the reform animation `elapsed` is, from 0 (just started
- *  reforming, a small square) to 1 (fully grown) — 0 for every elapsed value
- *  before reforming starts (cracking/broken read as "nothing to grow yet"),
- *  matching `entities/hazards/FloorSpike.ts`'s `floorSpikeExtensionAt` shape. */
+ * reforming, a small square) to 1 (fully grown) — 0 for every elapsed value
+ * before reforming starts (cracking/broken read as "nothing to grow yet"),
+ * matching `entities/hazards/FloorSpike.ts`'s `floorSpikeExtensionAt` shape. */
 export function crumblingFloorReformRatioAt(elapsed: number): number {
   const reformStart = CRUMBLING_FLOOR_CRACK_SECONDS + CRUMBLING_FLOOR_BROKEN_SECONDS;
   if (elapsed < reformStart) return 0;
@@ -208,11 +220,11 @@ export function crumblingFloorReformRatioFor(
 }
 
 /** Small deterministic horizontal jitter (native px) for the shake tell
- *  during cracking (spec FR-004) — a sine wave rather than `Math.random()`
- *  so rendering stays a pure function of elapsed time, matching
- *  `Torch.ts`'s `torchFrameIndex` convention of deriving animation from the
- *  clock rather than mutable random state. Routes through the shared core's
- *  shake helper; the crumbling floor always shakes (no window gate). */
+ * during cracking — a sine wave rather than `Math.random()`
+ * so rendering stays a pure function of elapsed time, matching
+ * `Torch.ts`'s `torchFrameIndex` convention of deriving animation from the
+ * clock rather than mutable random state. Routes through the shared core's
+ * shake helper; the crumbling floor always shakes (no window gate). */
 const SHAKE_AMPLITUDE_NATIVE_PX = 1;
 export function crumblingFloorShakeOffsetXAt(elapsed: number): number {
   return timedTileShakeOffsetX(elapsed, SHAKE_AMPLITUDE_NATIVE_PX);
@@ -282,7 +294,17 @@ function draw(rc: TileDrawContext): void {
   const elapsedSeconds = phase === 'cracking' ? crumblingFloorElapsedFor(states, col, row) : 0;
   const shakeX =
     phase === 'cracking' ? crumblingFloorShakeOffsetXAt(elapsedSeconds) * RENDER_SCALE : 0;
-  ctx.drawImage(ledge, ledgeSx, 0, TILE_SIZE, TILE_SIZE, destX + shakeX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  ctx.drawImage(
+    ledge,
+    ledgeSx,
+    0,
+    TILE_SIZE,
+    TILE_SIZE,
+    destX + shakeX,
+    destY,
+    RENDERED_TILE_SIZE,
+    RENDERED_TILE_SIZE,
+  );
 
   if (phase === 'cracking' && cracks) {
     const ratio = crumblingFloorCrackRatioFor(states, col, row);
@@ -290,16 +312,23 @@ function draw(rc: TileDrawContext): void {
     const crackSx = crackFrame * CRUMBLE_CRACKS_FRAME_WIDTH;
     const destHeight = (CRUMBLE_CRACKS_FRAME_HEIGHT / TILE_SIZE) * RENDERED_TILE_SIZE;
     ctx.drawImage(
-      cracks, crackSx, 0, CRUMBLE_CRACKS_FRAME_WIDTH, CRUMBLE_CRACKS_FRAME_HEIGHT,
-      destX + shakeX, destY, RENDERED_TILE_SIZE, destHeight,
+      cracks,
+      crackSx,
+      0,
+      CRUMBLE_CRACKS_FRAME_WIDTH,
+      CRUMBLE_CRACKS_FRAME_HEIGHT,
+      destX + shakeX,
+      destY,
+      RENDERED_TILE_SIZE,
+      destHeight,
     );
   }
 }
 
 /**
- * The crumbling floor's declared transient state (R-004 owns the lifecycle):
+ * The crumbling floor's declared transient state ( owns the lifecycle):
  * key shape, the 2.8 s cycle duration, prune/re-arm policy and the phase
- * mapping. The module never implements its own arm/advance/prune loop —
+ * mapping. The module never implements its own arm/advance/prune loop
  * `shared/timedTile.ts` does, driven from `PlatformerState.ts`'s single
  * signal/tick/reset.
  */

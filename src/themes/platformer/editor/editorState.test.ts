@@ -32,7 +32,7 @@ import {
 } from './editorState';
 
 /** Writes `value`, flushes the debounced storage write when needed, and asserts
- *  the exact key round-trips. */
+ * the exact key round-trips. */
 function expectRoundTrip<T>(sig: Signal<T>, key: string, value: T, debounced = false): void {
   sig.value = value;
   if (debounced) vi.advanceTimersByTime(EDITOR_STORAGE_DEBOUNCE_MS);
@@ -111,7 +111,7 @@ describe('editorState — non-persisted signal defaults', () => {
   });
 });
 
-describe('editorState — storage-key round-trips (FR-022, SC-006)', () => {
+describe('editorState — storage-key round-trips', () => {
   const originals = {
     level: editorLevelSignal.value,
     tool: editorSelectedToolSignal.value,
@@ -187,12 +187,7 @@ describe('editorState — storage-key round-trips (FR-022, SC-006)', () => {
   });
 
   it('editorBackgroundSignal-persistsUnderPlatformerEditorBackground', () => {
-    expectRoundTrip(
-      editorBackgroundSignal,
-      'platformer-editor-background',
-      [['.', 'd']],
-      true,
-    );
+    expectRoundTrip(editorBackgroundSignal, 'platformer-editor-background', [['.', 'd']], true);
   });
 
   it('editorActiveLayerSignal-persistsUnderPlatformerEditorActiveLayer', () => {
@@ -212,7 +207,12 @@ describe('editorState — storage-key round-trips (FR-022, SC-006)', () => {
   });
 
   it('editorBlueprintSignal-persistsUnderPlatformerEditorBlueprint', () => {
-    expectRoundTrip(editorBlueprintSignal, 'platformer-editor-blueprint', importLayout(['##']), true);
+    expectRoundTrip(
+      editorBlueprintSignal,
+      'platformer-editor-blueprint',
+      importLayout(['##']),
+      true,
+    );
   });
 
   it('editorBlueprintBackgroundSignal-persistsUnderPlatformerEditorBlueprintBackground', () => {
@@ -233,11 +233,7 @@ describe('editorState — storage-key round-trips (FR-022, SC-006)', () => {
   });
 
   it('editorArmedBlueprintIdSignal-persistsUnderPlatformerEditorArmedBlueprint', () => {
-    expectRoundTrip(
-      editorArmedBlueprintIdSignal,
-      'platformer-editor-armed-blueprint',
-      'cave-room',
-    );
+    expectRoundTrip(editorArmedBlueprintIdSignal, 'platformer-editor-armed-blueprint', 'cave-room');
   });
 });
 
@@ -327,7 +323,7 @@ describe('editorState — persisted marker grid validation', () => {
   });
 
   it('aStoredMarkerGrid-withATorchMarker-isUsedRatherThanRejected', async () => {
-    // Regression (FR-015): the weaker guard omitted the `torch` kind, so a
+    // Regression: the weaker guard omitted the `torch` kind, so a
     // torch placed in the editor was dropped — along with the entire stored
     // grid — the next time the editor loaded.
     localStorage.setItem(
@@ -339,7 +335,7 @@ describe('editorState — persisted marker grid validation', () => {
   });
 });
 
-describe('editorState — editor appearance (O-015 FR-003)', () => {
+describe('editorState — editor appearance', () => {
   // The appearance signal is created at module load, so its creation-time
   // fallbacks can only be exercised by re-importing the module after seeding
   // localStorage. `vi.resetModules()` gives each test a fresh signal without

@@ -7,22 +7,22 @@ import type { LevelDef } from '../level/LevelData';
 
 export interface StandableOptions {
   /** Treat a `bridge` tile as passable (not ground), matching `Physics.ts`'s
-   *  active drop-through state. Omitted, a bridge stops a fall like any other
-   *  solid (O-027 FR-008). */
+   * active drop-through state. Omitted, a bridge stops a fall like any other
+   * solid. */
   excludeBridge?: boolean;
 }
 
 /**
  * Whether the player could stand on the tile at `(col, row)` — the single
- * shared definition of "a landing solid" (O-027 FR-008/FR-003). Composed of
+ * shared definition of "a landing solid". Composed of
  * exactly the union `engine/Physics.ts`'s ground branch computes, both terms
  * now reached through the registry:
  *
  * - the terrain solid region via `tileSolidRegionAt` (a crumbling floor is
- *   solid only while at rest or cracking, and `bridge` is excludable via
- *   `excludeBridge`; a plain solid resolves to the full cell)
+ * solid only while at rest or cracking, and `bridge` is excludable via
+ * `excludeBridge`; a plain solid resolves to the full cell)
  * - the one-way ground terms via `isStandableTileAt` (ladder/chain/ropeLadder
- *   shaft top, rolled `ladderBundle` top, `bouncyMushroom` cap)
+ * shaft top, rolled `ladderBundle` top, `bouncyMushroom` cap)
  * - `isBlockOccupied`
  *
  * `Physics.ts` delegates here with `{ excludeBridge: droppingThroughBridge }`
@@ -42,7 +42,8 @@ export function isStandableCell(
     mushroomSquashes: [],
   };
   const tileIsGround =
-    tileSolidRegionAt(level, col, row, { transient, excludeOneWay: options.excludeBridge }) !== null;
+    tileSolidRegionAt(level, col, row, { transient, excludeOneWay: options.excludeBridge }) !==
+    null;
   return (
     tileIsGround ||
     isStandableTileAt(level, col, row, { transient }) ||
@@ -62,7 +63,7 @@ export type LandingSolidPredicate = (level: LevelDef, col: number, row: number) 
  * The first row strictly below `fromRow` (`fromRow + 1 … level.height - 1`)
  * at which `isSolidForKind` is true, or `null` when no such row exists before
  * the level's bottom. The single home of the downward landing scan shared by
- * the falling stalactite, placed bomb, and deployable ladder (FR-007/FR-008).
+ * the falling stalactite, placed bomb, and deployable ladder.
  *
  * The predicate captures the caller's live blocks/crumbling-floor state via
  * closure; the off-by-one mapping (stalactite returns the row itself, the

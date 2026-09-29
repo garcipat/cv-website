@@ -78,11 +78,15 @@ describe('blockBumpOffsetY', () => {
     expect(blockBumpOffsetY(block({ animState: 'bump', animTimer: 0 }))).toBe(0);
   });
   it('bumpMidpoint-offsetIsNegativeMaximum', () => {
-    const offset = blockBumpOffsetY(block({ animState: 'bump', animTimer: BLOCK_BUMP_DURATION_SECONDS / 2 }));
+    const offset = blockBumpOffsetY(
+      block({ animState: 'bump', animTimer: BLOCK_BUMP_DURATION_SECONDS / 2 }),
+    );
     expect(offset).toBeLessThan(0);
   });
   it('bumpEnd-offsetReturnsToZero', () => {
-    const offset = blockBumpOffsetY(block({ animState: 'bump', animTimer: BLOCK_BUMP_DURATION_SECONDS }));
+    const offset = blockBumpOffsetY(
+      block({ animState: 'bump', animTimer: BLOCK_BUMP_DURATION_SECONDS }),
+    );
     expect(offset).toBeCloseTo(0, 1);
   });
 });

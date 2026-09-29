@@ -20,7 +20,7 @@ import type { ChestState } from './chests';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
 
 /** A living enemy of the given type at the given position. Carries
- *  slimePurple's own fields too, so one helper covers both types. */
+ * slimePurple's own fields too, so one helper covers both types. */
 function makeEnemy(type: EnemyState['type'], x: number, y: number): EnemyState {
   const enemy = {
     id: 'e1',
@@ -80,7 +80,11 @@ describe('WorldType conformance', () => {
   });
 
   it('typesWithARectangle-exposeABox', () => {
-    const boxed = [...Object.values(ENEMY_TYPES), ...Object.values(PICKUP_TYPES), chestDeployableItem];
+    const boxed = [
+      ...Object.values(ENEMY_TYPES),
+      ...Object.values(PICKUP_TYPES),
+      chestDeployableItem,
+    ];
     for (const type of boxed) {
       expect(typeof type.box).toBe('function');
     }
@@ -147,7 +151,7 @@ describe('enemy box equivalence', () => {
 
   it('box-bee-isPickedUpAutomaticallyAndItsBottomEdgeRestsOnItsPlacementRow', () => {
     // The bee is not special-cased anywhere: `ENEMY_TYPES` iteration above
-    // already covers its `draw`/`box`. This pins FR-019/SC-009's bottom
+    // already covers its `draw`/`box`. This pins /'s bottom
     // inset — the box's bottom edge matches the visible art's bottom, which
     // is anchored on the placement row.
     const enemy = ENEMY_TYPES.bee.create({ id: 'e', type: 'bee', x: 100, y: 200 }, 0);

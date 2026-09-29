@@ -1,7 +1,7 @@
 import { growGrid, type GrowResult } from './growGrid';
 
 /**
- * The one generic paint/stamp primitive (FR-009, D7). Every per-layer paint —
+ * The one generic paint/stamp primitive. Every per-layer paint
  * foreground, background, marker — resolves to a call here with its own
  * `value`/`emptyValue`/`grow` data; the copy/grow/write body exists once.
  *

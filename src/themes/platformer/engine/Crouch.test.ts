@@ -179,16 +179,19 @@ describe('resolveCrouching', () => {
 
   it('resolveCrouching-inHitReactionWhileCrouching-returnsCurrentlyCrouchingTrue', () => {
     expect(
-      resolveCrouching(
-        context({ inHitReaction: true, currentlyCrouching: true, canStand: false }),
-      ),
+      resolveCrouching(context({ inHitReaction: true, currentlyCrouching: true, canStand: false })),
     ).toBe(true);
   });
 
   it('resolveCrouching-inHitReactionWhileStanding-returnsCurrentlyCrouchingFalse', () => {
     expect(
       resolveCrouching(
-        context({ inHitReaction: true, currentlyCrouching: false, downHeld: true, canStand: false }),
+        context({
+          inHitReaction: true,
+          currentlyCrouching: false,
+          downHeld: true,
+          canStand: false,
+        }),
       ),
     ).toBe(false);
   });
@@ -217,17 +220,13 @@ describe('resolveCrouching', () => {
 
   it('resolveCrouching-cannotStandAndAlreadyCrouchingDownReleased-keepsCrouch', () => {
     expect(
-      resolveCrouching(
-        context({ downHeld: false, currentlyCrouching: true, canStand: false }),
-      ),
+      resolveCrouching(context({ downHeld: false, currentlyCrouching: true, canStand: false })),
     ).toBe(true);
   });
 
   it('resolveCrouching-cannotStandButNotCurrentlyCrouching-neverStartsCrouch', () => {
     expect(
-      resolveCrouching(
-        context({ downHeld: false, currentlyCrouching: false, canStand: false }),
-      ),
+      resolveCrouching(context({ downHeld: false, currentlyCrouching: false, canStand: false })),
     ).toBe(false);
   });
 });

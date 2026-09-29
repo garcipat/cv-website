@@ -3,7 +3,7 @@ import type { PanOffset } from './EditorPan';
 /**
  * The editor's three supported zoom levels, in ascending order. 1 (100%) is
  * both the default and the ceiling — this feature only zooms OUT for
- * overview (O-019 spec, "Zoom is out-only"). Kept as a single ordered tuple
+ * overview ( spec, "Zoom is out-only"). Kept as a single ordered tuple
  * so `stepZoom` can move through it by index rather than by name.
  */
 export const ZOOM_LEVELS = [0.5, 0.75, 1] as const;
@@ -13,7 +13,7 @@ export const DEFAULT_ZOOM: ZoomLevel = 1;
 /**
  * The next zoom level in `direction` (1 = zoom in / larger, -1 = zoom out /
  * smaller) from `current`, clamped at the ceiling and floor rather than
- * wrapping (spec FR-001's "scrolling past the ceiling/floor simply holds").
+ * wrapping (the "scrolling past the ceiling/floor simply holds").
  */
 export function stepZoom(current: ZoomLevel, direction: 1 | -1): ZoomLevel {
   const index = ZOOM_LEVELS.indexOf(current);

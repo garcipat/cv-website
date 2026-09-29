@@ -29,16 +29,16 @@ interface PaletteProps {
   selectedBackgroundMaterial: BackgroundChar | null;
   onSelectBackgroundMaterial: (material: BackgroundChar) => void;
   /** Which canvas the palette is arming tools for. Optional and defaulting to
-   *  `'level'` so every existing render site is unaffected; `'blueprint'`
-   *  drops the Spawn tool (roadmap step 44a) and adds the Connection Point tool
-   *  (step 44b). */
+   * `'level'` so every existing render site is unaffected; `'blueprint'`
+   * drops the Spawn tool () and adds the Connection Point tool
+   * (step 44b). */
   canvasMode?: 'level' | 'blueprint';
   /** Id of the blueprint currently armed for placement, or `null`/omitted when
-   *  none is (roadmap step 44c). A second axis alongside `selectedTool`, not a
-   *  value inside it — see `editorArmedBlueprintIdSignal`. */
+   * none is (). A second axis alongside `selectedTool`, not a
+   * value inside it — see `editorArmedBlueprintIdSignal`. */
   armedBlueprintId?: string | null;
   /** Arms (or, when it is already armed, disarms) a blueprint for placement.
-   *  Optional so every existing render site is unaffected. */
+   * Optional so every existing render site is unaffected. */
   onArmBlueprint?: (id: string) => void;
 }
 
@@ -91,10 +91,10 @@ export const Palette = ({
   armedBlueprintId = null,
   onArmBlueprint,
 }: PaletteProps) => {
-  // Every group is read from the one descriptor's `group` (FR-007), so a tool
+  // Every group is read from the one descriptor's `group`, so a tool
   // is placed, labelled, described and iconed in a single entry. Terrain uses
-  // `terrainPaletteTools()` so membership comes from R-015's registry, not a
-  // palette-local table (FR-008).
+  // `terrainPaletteTools()` so membership comes from 's registry, not a
+  // palette-local table.
   const keysInGroup = (group: PaletteGroup): EditorTool[] =>
     (Object.keys(PALETTE_TOOLS) as EditorTool[]).filter(
       (key) => PALETTE_TOOLS[key].group === group,
@@ -102,7 +102,7 @@ export const Palette = ({
   const terrainKeys: EditorTool[] = terrainPaletteTools().map((tool) => tool.char as EditorTool);
   const decorationKeys = keysInGroup('decoration');
   // Spawn is dropped on the blueprint canvas: a blueprint has no spawn point
-  // (roadmap step 44a), and offering the button would just invite a marker
+  // (), and offering the button would just invite a marker
   // nothing downstream expects to find outside a real level's layout.
   const entityKeys = keysInGroup('entities').filter(
     (key) => canvasMode === 'level' || key !== SPAWN_CHAR,

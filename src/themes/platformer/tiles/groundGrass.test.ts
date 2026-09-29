@@ -1,16 +1,6 @@
 import { ATLAS_STRIDE } from '../shared/tileAtlas';
-import {
-  GRASS_SOURCE_HEIGHT,
-  groundTileKind,
-  groundAtlasCell,
-  grassCell,
-} from './groundGrass';
-import {
-  NEIGHBOUR_UP,
-  NEIGHBOUR_RIGHT,
-  NEIGHBOUR_DOWN,
-  NEIGHBOUR_LEFT,
-} from '../level/Terrain';
+import { GRASS_SOURCE_HEIGHT, groundTileKind, groundAtlasCell, grassCell } from './groundGrass';
+import { NEIGHBOUR_UP, NEIGHBOUR_RIGHT, NEIGHBOUR_DOWN, NEIGHBOUR_LEFT } from '../level/Terrain';
 
 const ALL_MASKS = Array.from({ length: 16 }, (_, mask) => mask);
 

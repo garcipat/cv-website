@@ -43,7 +43,12 @@ import type { Blueprint } from '../level/BlueprintData';
 import { currentTheme } from '@/state/theme';
 import { currentPath } from '@/state/navigation';
 import { readFileSync } from 'node:fs';
-import { enemyPlacements, enemyStates, collectedFacts, baseCoinPlacements } from '../PlatformerState';
+import {
+  enemyPlacements,
+  enemyStates,
+  collectedFacts,
+  baseCoinPlacements,
+} from '../PlatformerState';
 import { currentBackgroundLayout } from '../state/levelSession';
 
 const { blueprintEntries } = vi.hoisted(() => ({ blueprintEntries: [] as Blueprint[] }));
@@ -179,9 +184,9 @@ beforeEach(() => {
 });
 
 /** The exact text `EditorToolbar`'s Export dialog produces: the complete level
- *  JSON via the same `layoutFileJson` a save writes, so every test asserting on
- *  the textarea builds its expectation from the same grids the toolbar reads
- *  rather than hand-formatting a duplicate string. */
+ * JSON via the same `layoutFileJson` a save writes, so every test asserting on
+ * the textarea builds its expectation from the same grids the toolbar reads
+ * rather than hand-formatting a duplicate string. */
 function expectedExportText(
   grid: TileChar[][],
   background: BackgroundChar[][] = [],
@@ -230,10 +235,11 @@ function stubDownloads() {
     createObjectURL: vi.fn(() => 'blob:level'),
     revokeObjectURL: vi.fn(),
   });
-  vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('no dev server'))));
-  const anchorClick = vi
-    .spyOn(HTMLAnchorElement.prototype, 'click')
-    .mockImplementation(() => {});
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() => Promise.reject(new Error('no dev server'))),
+  );
+  const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
   return { anchorClick };
 }
 
@@ -243,9 +249,7 @@ function stubDevServerWrite(path = 'src/themes/platformer/level/levels/cave-run.
     'fetch',
     vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ path }) } as Response)),
   );
-  const anchorClick = vi
-    .spyOn(HTMLAnchorElement.prototype, 'click')
-    .mockImplementation(() => {});
+  const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
   return { anchorClick };
 }
 
@@ -265,9 +269,7 @@ function stubBlueprintWrite(path = 'src/themes/platformer/level/blueprints/test-
     Promise.resolve({ ok: true, json: () => Promise.resolve({ path }) } as Response),
   );
   vi.stubGlobal('fetch', fetchMock);
-  const anchorClick = vi
-    .spyOn(HTMLAnchorElement.prototype, 'click')
-    .mockImplementation(() => {});
+  const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
   const fetchCalls = (): unknown[][] => fetchMock.mock.calls as unknown as unknown[][];
   return { fetchCalls, anchorClick };
 }
@@ -306,7 +308,7 @@ describe('LevelEditorPage', () => {
     expect(levelEditorPage.exportDialog.queryRoot).not.toBeInTheDocument();
   });
 
-  it('opens a dialog with the export textarea, whose content is LEVEL_1_LAYOUT cropped to its content (SC-009 ruling) and formatted as paste-ready quoted rows', async () => {
+  it('opens a dialog with the export textarea, whose content is LEVEL_1_LAYOUT cropped to its content ( ruling) and formatted as paste-ready quoted rows', async () => {
     render(<LevelEditorPage />);
     await openExportDialog();
     const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
@@ -505,9 +507,7 @@ describe('LevelEditorPage', () => {
 
     paintOneCell();
 
-    await waitFor(() =>
-      expect(levelEditorPage.toolbar.querySaveStatus).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(levelEditorPage.toolbar.querySaveStatus).not.toBeInTheDocument());
   });
 
   it('save-devServerWrites-loadingAnotherLevel-dropsTheSavedPath', async () => {
@@ -518,9 +518,7 @@ describe('LevelEditorPage', () => {
 
     await selectLevel('empty');
 
-    await waitFor(() =>
-      expect(levelEditorPage.toolbar.querySaveStatus).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(levelEditorPage.toolbar.querySaveStatus).not.toBeInTheDocument());
   });
 
   it('save-noDevServer-fallsBackToDownloadingTheGridAsJsonUnderTheEnteredName', async () => {
@@ -616,7 +614,7 @@ describe('LevelEditorPage', () => {
     await waitFor(() => expect(levelEditorPage.entrySelect.trigger).toHaveTextContent('Cave Run'));
   });
 
-  it('compensates panOffset by exactly -colShift * RENDERED_TILE_SIZE when a paint grows the grid leftward, so existing content does not visually move (spec SC-006)', async () => {
+  it('compensates panOffset by exactly -colShift * RENDERED_TILE_SIZE when a paint grows the grid leftward, so existing content does not visually move', async () => {
     render(<LevelEditorPage />);
     // Wait for the mocked loadImage promises to resolve so images.tileset is
     // set and EditorCanvas's redraw effect actually calls drawTerrain.
@@ -672,11 +670,7 @@ describe('LevelEditorPage - debounced localStorage sync (editorLevelSignal)', ()
     await userEvent.click(levelEditorPage.toolbar.export);
     const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
     expect(textarea.value).toBe(
-      expectedExportText(
-        editedGrid,
-        [],
-        importMarkerGrid(LEVEL_1_LAYOUT, LEVEL_1_MARKERS),
-      ),
+      expectedExportText(editedGrid, [], importMarkerGrid(LEVEL_1_LAYOUT, LEVEL_1_MARKERS)),
     );
   });
 
@@ -688,7 +682,7 @@ describe('LevelEditorPage - debounced localStorage sync (editorLevelSignal)', ()
     paint(canvas);
 
     // The signal is the single source of truth and updates immediately; only
-    // the localStorage write waits for the debounce window (FR-018).
+    // the localStorage write waits for the debounce window.
     expect(JSON.parse(localStorage.getItem('platformer-editor-level')!)).toEqual(defaultGrid);
   });
 
@@ -778,7 +772,15 @@ describe('LevelEditorPage - Try button', () => {
     // enemy) never actually appeared when tried. Also verifies progress
     // (collected facts/coins) from a previous Try session doesn't leak into
     // the next one — trying a layout should be a clean slate.
-    collectedFacts.value = [{ id: 'stale-fact', sectionId: 'courses', sectionLabel: 'Courses', data: {} as never, sourceType: 'enemy' }];
+    collectedFacts.value = [
+      {
+        id: 'stale-fact',
+        sectionId: 'courses',
+        sectionLabel: 'Courses',
+        data: {} as never,
+        sourceType: 'enemy',
+      },
+    ];
     baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: true }));
     enemyStates.value = [];
 
@@ -799,12 +801,12 @@ describe('LevelEditorPage — background layer', () => {
   }
 
   /** The `(col, row)` of the first non-empty cell in a background grid (a
-   *  `BackgroundChar[][]`) or layout (a `readonly string[]`), or `null` if
-   *  it's entirely empty — used to assert on a single painted cell without
-   *  caring about the grid's overall (possibly grown) dimensions. Accepts
-   *  both shapes since this suite reads both the editor's own char grid
-   *  (`editorBackgroundSignal`) and the game's parsed-from-layout background
-   *  (`currentBackgroundLayout`, a plain `readonly string[]`). */
+   * `BackgroundChar[][]`) or layout (a `readonly string[]`), or `null` if
+   * it's entirely empty — used to assert on a single painted cell without
+   * caring about the grid's overall (possibly grown) dimensions. Accepts
+   * both shapes since this suite reads both the editor's own char grid
+   * (`editorBackgroundSignal`) and the game's parsed-from-layout background
+   * (`currentBackgroundLayout`, a plain `readonly string[]`). */
   function firstPaintedCell(
     grid: readonly (readonly string[] | string)[],
   ): { col: number; row: number } | null {
@@ -905,9 +907,7 @@ describe('LevelEditorPage — background layer', () => {
     render(<LevelEditorPage />);
 
     fireEvent.click(levelEditorPage.entrySelect.trigger);
-    await userEvent.click(
-      await levelEditorPage.entrySelect.findOption('stale-background-level'),
-    );
+    await userEvent.click(await levelEditorPage.entrySelect.findOption('stale-background-level'));
 
     await waitFor(() => {
       expect(editorBackgroundSignal.value).toEqual([['d', '.']]);
@@ -938,14 +938,8 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
   it('onMount-theLevelCanvasIsActiveAndTheLayerToggleIsStillThere', () => {
     render(<LevelEditorPage />);
 
-    expect(levelEditorPage.toolbar.canvasLevel).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    expect(levelEditorPage.toolbar.canvasBlueprint).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
+    expect(levelEditorPage.toolbar.canvasLevel).toHaveAttribute('aria-pressed', 'true');
+    expect(levelEditorPage.toolbar.canvasBlueprint).toHaveAttribute('aria-pressed', 'false');
     // Two independent axes: picking a canvas never removes the layer toggle.
     expect(levelEditorPage.toolbar.layerForeground).toBeInTheDocument();
     expect(levelEditorPage.toolbar.layerBackground).toBeInTheDocument();
@@ -956,10 +950,7 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
 
     fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
-    expect(levelEditorPage.toolbar.canvasBlueprint).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    expect(levelEditorPage.toolbar.canvasBlueprint).toHaveAttribute('aria-pressed', 'true');
     expect(editorCanvasModeSignal.value).toBe('blueprint');
   });
 
@@ -1046,10 +1037,7 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
     fireEvent.click(levelEditorPage.toolbar.canvasBlueprint);
 
     expect(editorSelectedToolSignal.value).not.toBe('S');
-    expect(levelEditorPage.palette.tile('G')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    expect(levelEditorPage.palette.tile('G')).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('mountedInBlueprintModeWithSpawnArmed-disarmsItWithoutAnyToggleClick', () => {
@@ -1077,11 +1065,7 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
     fireEvent.click(levelEditorPage.toolbar.canvasLevel);
 
     const canvas = levelEditorPage.canvas;
-    const expected = centerPanOnSpawn(
-      importLayout(LEVEL_1_LAYOUT),
-      canvas.width,
-      canvas.height,
-    );
+    const expected = centerPanOnSpawn(importLayout(LEVEL_1_LAYOUT), canvas.width, canvas.height);
     await waitFor(() => {
       const calls = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls;
       const [, , , , originX, originY] = calls[calls.length - 1];
@@ -1090,7 +1074,7 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
   });
 
   it('switchingBackToLevelASecondTime-doesNotYankAHandPannedViewBackToTheSpawn', async () => {
-    // Mount already in Blueprint mode so there IS a centering debt to spend —
+    // Mount already in Blueprint mode so there IS a centering debt to spend
     // mounting in Level mode (the default) starts with the debt already
     // false and never proves the "only once" half of design note 5: the
     // first switch to Level must center (paying the debt), but a SECOND
@@ -1148,7 +1132,7 @@ describe('LevelEditorPage — Level/Blueprint canvas toggle (step 44a)', () => {
   // retired here since it can no longer be driven through the rendered page.
 });
 
-describe('editor zoom (O-019)', () => {
+describe('editor zoom', () => {
   // The base-ui Slider (this repo's shadcn style) puts the actual
   // keyboard-interactive element on a hidden native `<input type="range">`
   // inside the thumb, not on the outer `data-testid` container (that's the
@@ -1201,7 +1185,7 @@ describe('editor zoom (O-019)', () => {
   });
 });
 
-describe('editor zoom — user stories (O-019)', () => {
+describe('editor zoom — user stories', () => {
   it('zoomingOutShowsTheSameLevelAtASmallerRenderedSize-userStory1', () => {
     render(<LevelEditorPage />);
     expect(levelEditorPage.zoomValue).toBe('100%');
@@ -1246,7 +1230,7 @@ describe('editor zoom — user stories (O-019)', () => {
   });
 
   it('scalesGrowthPanCompensationByTheActiveZoom-soTheViewDoesNotJump', async () => {
-    // The mirror of the 100%-zoom SC-006 test above: `compensateForGrowth`
+    // The mirror of the 100%-zoom test above: `compensateForGrowth`
     // shifts a RAW-pixel pan by a TILE-unit growth, so it has to carry the
     // active zoom. At 50% an unscaled compensation over-corrects by 2x.
     render(<LevelEditorPage />);
@@ -1261,7 +1245,9 @@ describe('editor zoom — user stories (O-019)', () => {
     fireEvent.mouseDown(canvas, { button: 0, clientX: originXBefore * 0.5 - 1, clientY: 1 });
 
     await waitFor(() => {
-      const originXAfter = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)![4] as number;
+      const originXAfter = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(
+        -1,
+      )![4] as number;
       // The pan moves by -RENDERED_TILE_SIZE * zoom raw pixels; drawTerrain's
       // origin is that pan divided by zoom again, so it lands exactly one
       // unscaled tile lower. A zoom-blind compensation would move the pan by a
@@ -1284,12 +1270,13 @@ describe('editor zoom — user stories (O-019)', () => {
     fireEvent.mouseUp(canvas);
 
     await waitFor(() => {
-      const originXAfter = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(-1)![4] as number;
+      const originXAfter = (drawTerrain as ReturnType<typeof vi.fn>).mock.calls.at(
+        -1,
+      )![4] as number;
       // Task 3 divides panOffset by zoom before passing it as drawTerrain's
       // origin argument, so a 30px RAW screen drag (clientX 100 -> 70, i.e.
       // -30) at 50% zoom moves that argument by -30 / 0.5 = -60 — proving
-      // the drag itself still moved the pan by exactly 30 raw pixels
-      // (design.md "Panning stays in raw pixels, outside the scale"), not
+      // the drag itself still moved the pan by exactly 30 raw pixels, not
       // by some zoom-scaled amount.
       expect(originXAfter - originXBefore).toBeCloseTo(-60, 5);
     });
@@ -1341,7 +1328,7 @@ describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
 
     expect(levelEditorPage.entrySelect.trigger).toHaveTextContent('new');
     expect(levelEditorPage.toolbar.save).toBeInTheDocument();
-    // Export serializes the level grid and Try boots the game from it —
+    // Export serializes the level grid and Try boots the game from it
     // both meaningless for a spawn-less blueprint, so they go with the
     // level pair rather than staying visible and broken.
     expect(levelEditorPage.toolbar.queryExport).not.toBeInTheDocument();
@@ -1402,7 +1389,7 @@ describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
 
     await saveBlueprintAs('Test Room');
 
-    // The foreground crop's origin is (col 2, row 1) — the only painted cell —
+    // The foreground crop's origin is (col 2, row 1) — the only painted cell
     // so a background cell painted on that same cell crops to a single-cell
     // grid holding it.
     expect(JSON.parse(blueprintPostBody(fetchCalls).contents).background).toEqual(['d']);
@@ -1443,7 +1430,7 @@ describe('LevelEditorPage — blueprint select and save (step 44a)', () => {
     paintBlueprintCell(2, 1);
     // Wait for the debounced sync FIRST. Without it the signal would still
     // hold the pre-paint blank canvas, and the "was not replaced" assertion
-    // below would pass for the wrong reason (or fail, depending on timing) —
+    // below would pass for the wrong reason (or fail, depending on timing)
     // the blank canvas is exactly what loading would have written.
     await waitFor(() => expect(editorBlueprintSignal.value[1][2]).toBe('G'));
 
@@ -1474,7 +1461,7 @@ describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
 
   it('paintingWithTheConnectionPointTool-writesItsMarkerIntoTheBlueprintMarkerGrid', async () => {
     renderEditorInBlueprintMode();
-    // Grow the room first (a marker never grows the canvas, FR-010).
+    // Grow the room first (a marker never grows the canvas).
     paintBlueprintCell(2, 1);
     fireEvent.click(levelEditorPage.palette.tile('connectionPoint'));
 
@@ -1519,10 +1506,7 @@ describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
     fireEvent.click(levelEditorPage.toolbar.canvasLevel);
 
     expect(editorSelectedToolSignal.value).not.toBe('connectionPoint');
-    expect(levelEditorPage.palette.tile('G')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    expect(levelEditorPage.palette.tile('G')).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('mountedInLevelModeWithTheConnectionPointArmed-disarmsItWithoutAnyToggleClick', () => {
@@ -1547,10 +1531,7 @@ describe('LevelEditorPage — blueprint connection points (step 44b)', () => {
     render(<LevelEditorPage />);
 
     expect(editorSelectedToolSignal.value).toBe('connectionPoint');
-    expect(levelEditorPage.palette.tile('connectionPoint')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    expect(levelEditorPage.palette.tile('connectionPoint')).toHaveAttribute('aria-pressed', 'true');
   });
 });
 
@@ -1606,7 +1587,9 @@ describe('LevelEditorPage — dev-only Save controls (step 44c)', () => {
     isDevEnvironmentSignal.value = false;
     vi.stubGlobal(
       'fetch',
-      vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ isDev: true }) } as Response)),
+      vi.fn(() =>
+        Promise.resolve({ ok: true, json: () => Promise.resolve({ isDev: true }) } as Response),
+      ),
     );
 
     render(<LevelEditorPage />);
@@ -1698,10 +1681,7 @@ describe('LevelEditorPage — arming a blueprint for placement (step 44c)', () =
     fireEvent.click(levelEditorPage.palette.blueprintTile('cave-room'));
 
     expect(editorSelectedToolSignal.value).toBe('R');
-    expect(levelEditorPage.palette.tile('R')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    expect(levelEditorPage.palette.tile('R')).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('pickingATileTool-disarmsTheBlueprint', () => {
@@ -1809,9 +1789,7 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
     clickLevelCell(-1, -1);
 
     await waitFor(() => {
-      expect(editorLevelSignal.value).toEqual(
-        importLayout(['##..', '....', '....', '....']),
-      );
+      expect(editorLevelSignal.value).toEqual(importLayout(['##..', '....', '....', '....']));
     });
   });
 
@@ -1826,7 +1804,9 @@ describe('LevelEditorPage — placing a blueprint (step 44c)', () => {
     clickLevelCell(0, 0);
 
     expect(editorDirtySignal.value).toBe(false);
-    await waitFor(() => expect(editorLevelSignal.value).toEqual(importLayout(['G..', '...', '...'])));
+    await waitFor(() =>
+      expect(editorLevelSignal.value).toEqual(importLayout(['G..', '...', '...'])),
+    );
   });
 
   it('committing-keepsTheBlueprintArmedSoAnotherCopyCanBePlaced', () => {
@@ -1926,9 +1906,7 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
 
     clickLevelCell(1, 1);
 
-    await waitFor(() =>
-      expect(levelEditorPage.toolbar.undo).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(levelEditorPage.toolbar.undo).toBeInTheDocument());
   });
 
   it('clickingUndo-restoresTheGridAndBackgroundFromBeforeThatPlacementAndHidesTheButton', async () => {
@@ -1962,9 +1940,7 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
     armCaveRoom();
     hoverLevelCell(1, 1);
     clickLevelCell(1, 1);
-    await waitFor(() =>
-      expect(levelEditorPage.toolbar.undo).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(levelEditorPage.toolbar.undo).toBeInTheDocument());
 
     // Picking a tile tool disarms the blueprint; painting with it is a
     // regular edit that must invalidate undoing the earlier placement.
@@ -1979,9 +1955,7 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
     armCaveRoom();
     hoverLevelCell(1, 1);
     clickLevelCell(1, 1);
-    await waitFor(() =>
-      expect(levelEditorPage.toolbar.undo).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(levelEditorPage.toolbar.undo).toBeInTheDocument());
 
     fireEvent.click(levelEditorPage.palette.tile('R'));
     clickLevelCell(0, 0, 2); // right-click erases once nothing is armed
@@ -1994,9 +1968,7 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
     armCaveRoom();
     hoverLevelCell(1, 1);
     clickLevelCell(1, 1);
-    await waitFor(() =>
-      expect(levelEditorPage.toolbar.undo).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(levelEditorPage.toolbar.undo).toBeInTheDocument());
 
     fireEvent.click(levelEditorPage.toolbar.layerBackground);
     fireEvent.click(await levelEditorPage.palette.findBackgroundTile('dirt'));
@@ -2110,7 +2082,7 @@ describe('LevelEditorPage — undoing a placement (step 44c follow-up)', () => {
   });
 });
 
-describe('LevelEditorPage — full authoring loop through the toolbar (US2)', () => {
+describe('LevelEditorPage — full authoring loop through the toolbar', () => {
   const LOOP_ROOM: Blueprint = { id: 'cave-room', name: 'Cave Room', layout: ['##'] };
 
   it('selectTool-paint-place-undo-export-save-tryAllWorkFromTheToolbar', async () => {
@@ -2183,7 +2155,7 @@ describe('LevelEditorPage — full authoring loop through the toolbar (US2)', ()
   });
 });
 
-describe('LevelEditorPage — editor appearance (O-015 US1)', () => {
+describe('LevelEditorPage — editor appearance', () => {
   it('editor-whenStoredAppearanceIsDark-rendersDarkOnMount', () => {
     editorAppearanceSignal.value = 'dark';
 
@@ -2222,7 +2194,7 @@ describe('LevelEditorPage — editor appearance (O-015 US1)', () => {
   });
 });
 
-describe('LevelEditorPage — editor appearance is independent of the site theme (O-015 US2)', () => {
+describe('LevelEditorPage — editor appearance is independent of the site theme', () => {
   it('editor-whenCurrentThemeChanges-keepsItsOwnAppearanceValueAndAttribute', () => {
     const themeBefore = currentTheme.value;
     try {
@@ -2250,7 +2222,7 @@ describe('LevelEditorPage — editor appearance is independent of the site theme
     await levelEditorPage.exportDialog.findOutput();
 
     // The dialog portals out to <body>; the attribute on <html> is what lets
-    // its tokens resolve to the editor's dark palette (FR-005).
+    // its tokens resolve to the editor's dark palette.
     expect(levelEditorPage.editorAppearanceAttribute).toBe('dark');
   });
 
@@ -2281,7 +2253,7 @@ describe('LevelEditorPage — editor appearance is independent of the site theme
   });
 });
 
-describe('LevelEditorPage — the cave preview is view-only (O-015 US3)', () => {
+describe('LevelEditorPage — the cave preview is view-only', () => {
   function stubLevelWrite() {
     const fetchMock = vi.fn(() =>
       Promise.resolve({
@@ -2294,7 +2266,9 @@ describe('LevelEditorPage — the cave preview is view-only (O-015 US3)', () => 
     const levelPosts = (): { fileName: string; contents: string }[] =>
       (fetchMock.mock.calls as unknown as [string, RequestInit][])
         .filter(([url]) => url === SAVE_LEVEL_ENDPOINT)
-        .map(([, init]) => JSON.parse(init.body as string) as { fileName: string; contents: string });
+        .map(
+          ([, init]) => JSON.parse(init.body as string) as { fileName: string; contents: string },
+        );
     return { levelPosts };
   }
 

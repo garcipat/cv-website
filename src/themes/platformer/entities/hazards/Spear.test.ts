@@ -10,14 +10,22 @@ import type { Rect } from '../../contracts/geometry';
 const EMPTY_MASK: SpearMask = { width: 4, height: 4, pixels: new Uint8Array(16) };
 
 /** A mask with one lethal tip pixel at (1, 1) — world (101, 101) for the
- *  spear at (100, 100) used throughout. */
+ * spear at (100, 100) used throughout. */
 function oneTipMask(): SpearMask {
   const pixels = new Uint8Array(16);
   pixels[1 * 4 + 1] = 1;
   return { width: 4, height: 4, pixels };
 }
 
-const hazard: HazardPlacement = { id: 'h1', hazardType: 'spear', facing: 'up', x: 100, y: 100, col: 0, row: 0 };
+const hazard: HazardPlacement = {
+  id: 'h1',
+  hazardType: 'spear',
+  facing: 'up',
+  x: 100,
+  y: 100,
+  col: 0,
+  row: 0,
+};
 
 function makePlayer(overrides: Partial<PlayerState> = {}): PlayerState {
   return {

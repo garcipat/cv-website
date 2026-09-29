@@ -7,7 +7,7 @@ import type { BeeState } from './Bee';
 import type { EnemyType, BaseEnemyState } from './EnemyType';
 
 /** Every enemy type in the game. Adding an enemy is one line here plus its
- *  module plus its sprite asset — nothing else in the codebase changes. */
+ * module plus its sprite asset — nothing else in the codebase changes. */
 export const ENEMY_TYPES = { slimeGreen, slimePurple, bee };
 
 export type EnemyTypeKey = keyof typeof ENEMY_TYPES;
@@ -17,7 +17,7 @@ export type EnemyState = SlimeGreenState | SlimePurpleState | BeeState;
  * The module owning `enemy`.
  *
  * The cast is deliberate and is the single soundness hole in this design.
- * `ENEMY_TYPES` is heterogeneous — each entry is `EnemyType<its own state>` —
+ * `ENEMY_TYPES` is heterogeneous — each entry is `EnemyType<its own state>`
  * so TypeScript cannot prove that indexing it by `enemy.type` yields the entry
  * whose state parameter matches `enemy`. That invariant IS guaranteed, by each
  * module declaring its own `type` literal and its `key` identically, which

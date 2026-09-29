@@ -8,8 +8,15 @@ import type { TileDrawContext, TileModule } from './TileModule';
 function draw(rc: TileDrawContext): void {
   const { ctx, destX, destY, images } = rc;
   ctx.drawImage(
-    images.tileset, 8 * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE,
-    destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+    images.tileset,
+    8 * TILE_SIZE,
+    0,
+    TILE_SIZE,
+    TILE_SIZE,
+    destX,
+    destY,
+    RENDERED_TILE_SIZE,
+    RENDERED_TILE_SIZE,
   );
 }
 

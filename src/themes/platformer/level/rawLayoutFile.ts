@@ -1,7 +1,7 @@
 import type { MarkerPlacement } from './LevelData';
 
 /**
- * The one raw level/blueprint file shape (FR-013, D10): a named layout plus
+ * The one raw level/blueprint file shape: a named layout plus
  * its optional background and tile-meta layers. `LevelEntry` and `Blueprint`
  * both extend this and redeclare none of its fields.
  *

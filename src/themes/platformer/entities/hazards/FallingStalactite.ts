@@ -26,7 +26,7 @@ import {
 } from '../../shared/timedTile';
 
 /**
- * The falling-stalactite hazard kind (R-004 US4): its view, timer state,
+ * The falling-stalactite hazard kind: its view, timer state,
  * constants, phase vocabulary, and arm/advance/fall/landing/detection
  * functions in one self-contained module. The arm/advance/presence/shake
  * scaffolding delegates to `shared/timedTile.ts`; this module keeps its
@@ -43,28 +43,28 @@ import {
 export const FALLING_STALACTITE_SHAKE_SECONDS = 0.5;
 /** Downward fall speed, in rendered px/s. */
 export const FALLING_STALACTITE_FALL_SPEED = 320;
-/** Maximum detection-zone depth below the hazard, in tiles (FR-003). */
+/** Maximum detection-zone depth below the hazard, in tiles. */
 export const FALLING_STALACTITE_MAX_DETECTION_DEPTH = 10;
-/** Flanking columns included in the detection zone on each side (FR-003). */
+/** Flanking columns included in the detection zone on each side. */
 export const FALLING_STALACTITE_ZONE_HALF_WIDTH = 1;
 
 /** Amplitude of the shake's horizontal jitter, in rendered px. */
 const SHAKE_AMPLITUDE_RENDERED_PX = 1.5;
 
 /**
- * A falling stalactite's phase (O-027, spec.md's Key Entities). `'hanging'`
+ * A falling stalactite's phase (spec.md's Key Entities). `'hanging'`
  * is the absence of a timer entry — the only triggerable phase — while the
  * timer-derived phases are `shaking` → `falling` → `gone`.
  *
  * Unlike the floor spike's cycle, a `gone` entry is NEVER pruned: it
- * persists for the rest of the attempt (FR-013) and is cleared only by
- * `resetGame()` (FR-014). Keeping `elapsed` as the only mutable field makes
+ * persists for the rest of the attempt and is cleared only by
+ * `resetGame()`. Keeping `elapsed` as the only mutable field makes
  * every phase a pure function of elapsed time.
  */
 export type FallingStalactitePhase = 'hanging' | 'shaking' | 'falling' | 'gone';
 
 /** One falling stalactite's live timer. Presence in the states array means
- *  armed (shaking or later); absence means hanging and triggerable. */
+ * armed (shaking or later); absence means hanging and triggerable. */
 export interface FallingStalactiteTimerState {
   id: string;
   /** Seconds since armed. */
@@ -79,7 +79,7 @@ const CONFIG: TimedTileConfig<FallingStalactiteTimerState, string> = {
 };
 
 /** Arms `id`'s timer if it isn't already running — a no-op re-contact while
- *  an entry exists (arming is irreversible, FR-004). */
+ * an entry exists (arming is irreversible). */
 export function armFallingStalactite(
   states: readonly FallingStalactiteTimerState[],
   id: string,
@@ -88,7 +88,7 @@ export function armFallingStalactite(
 }
 
 /** Advances every timer by `dt`. Never prunes: a `gone` entry must persist for
- *  the rest of the attempt (FR-013), cleared only by `resetGame()` (FR-014). */
+ * the rest of the attempt, cleared only by `resetGame()`. */
 export function advanceFallingStalactites(
   states: readonly FallingStalactiteTimerState[],
   dt: number,
@@ -97,7 +97,7 @@ export function advanceFallingStalactites(
 }
 
 /** Whether `id` has a timer entry at all — the eligibility gate for trigger
- *  detection (only a hanging hazard can arm). */
+ * detection (only a hanging hazard can arm). */
 export function isFallingStalactiteArmed(
   states: readonly FallingStalactiteTimerState[],
   id: string,
@@ -106,7 +106,7 @@ export function isFallingStalactiteArmed(
 }
 
 /** `id`'s raw elapsed seconds since arming — 0 when no entry exists (hanging).
- *  Used by the per-tick merge to derive the fall/shake offsets. */
+ * Used by the per-tick merge to derive the fall/shake offsets. */
 export function fallingStalactiteElapsedFor(
   states: readonly FallingStalactiteTimerState[],
   id: string,
@@ -115,15 +115,15 @@ export function fallingStalactiteElapsedFor(
 }
 
 /** Downward offset (rendered px) from the hanging position — 0 through the
- *  shake, then linear at `FALLING_STALACTITE_FALL_SPEED`. */
+ * shake, then linear at `FALLING_STALACTITE_FALL_SPEED`. */
 export function fallingStalactiteOffsetYAt(elapsed: number): number {
   if (elapsed < FALLING_STALACTITE_SHAKE_SECONDS) return 0;
   return (elapsed - FALLING_STALACTITE_SHAKE_SECONDS) * FALLING_STALACTITE_FALL_SPEED;
 }
 
 /** Horizontal shake offset (rendered px) — a deterministic sine, 0 outside the
- *  shake phase (the shared core's shake helper, window-gated to the shake
- *  phase). */
+ * shake phase (the shared core's shake helper, window-gated to the shake
+ * phase). */
 export function fallingStalactiteShakeOffsetXAt(elapsed: number): number {
   if (elapsed < 0) return 0;
   return timedTileShakeOffsetX(elapsed, SHAKE_AMPLITUDE_RENDERED_PX, {
@@ -134,7 +134,7 @@ export function fallingStalactiteShakeOffsetXAt(elapsed: number): number {
 /**
  * Nearest standable row strictly below `fromRow` in `col` (the first one the
  * fall reaches), or `null` past the level bottom. Re-evaluated each tick so a
- * crumbling floor that breaks mid-fall no longer stops it (FR-008).
+ * crumbling floor that breaks mid-fall no longer stops it.
  */
 export function fallingStalactiteLandingRow(
   level: LevelDef,
@@ -152,7 +152,7 @@ export function fallingStalactiteLandingRow(
  * The rendered height of the sprite that actually falls: a full tile for the
  * large variant (the decoration is stretched to its cell, so the falling one
  * is too), or the parity-selected twin half's own height (left is taller than
- * right, FR-019).
+ * right).
  */
 export function fallingStalactiteSpriteHeight(col: number, row: number): number {
   if (!isStalactiteTwin(col, row)) return RENDERED_TILE_SIZE;
@@ -205,7 +205,7 @@ export function fallingStalactitePhaseFor(
 }
 
 /**
- * The cells of a hanging hazard's detection zone (FR-003): the three columns
+ * The cells of a hanging hazard's detection zone: the three columns
  * directly beneath it, reaching down to whichever comes first — the first
  * standable cell in its own column, or `FALLING_STALACTITE_MAX_DETECTION_DEPTH`
  * tiles. Within each column a standable cell clips the zone, so the result
@@ -227,7 +227,11 @@ export function detectionZoneCells(
   }
 
   const cells: { col: number; row: number }[] = [];
-  for (let offset = -FALLING_STALACTITE_ZONE_HALF_WIDTH; offset <= FALLING_STALACTITE_ZONE_HALF_WIDTH; offset++) {
+  for (
+    let offset = -FALLING_STALACTITE_ZONE_HALF_WIDTH;
+    offset <= FALLING_STALACTITE_ZONE_HALF_WIDTH;
+    offset++
+  ) {
     const col = hazard.col + offset;
     if (col < 0 || col >= level.width) continue;
     let depth = ownDepth;
@@ -259,11 +263,16 @@ interface SpriteRect {
 /** The large variant's own crop (the whole entry the decoration would draw). */
 function largeRect(col: number, row: number): SpriteRect {
   const entry = stalactiteEntry(col, row);
-  return { sx: entry.sx, sy: entry.sy, width: entry.width ?? TILE_SIZE, height: entry.height ?? TILE_SIZE };
+  return {
+    sx: entry.sx,
+    sy: entry.sy,
+    width: entry.width ?? TILE_SIZE,
+    height: entry.height ?? TILE_SIZE,
+  };
 }
 
 /** The twin half that actually falls: left (larger) on an even column, right
- *  (smaller) on an odd column (FR-019). */
+ * (smaller) on an odd column. */
 function selectedTwinRect(col: number): SpriteRect {
   return col % 2 === 0 ? TWIN_LEFT_RECT : TWIN_RIGHT_RECT;
 }
@@ -283,7 +292,7 @@ function fallingStalactiteRect(hazard: HazardPlacement): SpriteRect {
 /**
  * The current falling rect: the large sprite (a whole tile wide) or the
  * parity-selected twin half (half a tile), shifted by the per-tick fall and
- * shake offsets merged into the placement. Non-solid at every phase (FR-010).
+ * shake offsets merged into the placement. Non-solid at every phase.
  */
 function fallingStalactiteBox(hazard: HazardPlacement): Rect {
   const twin = isStalactiteTwin(hazard.col, hazard.row);
@@ -299,17 +308,17 @@ function fallingStalactiteBox(hazard: HazardPlacement): Rect {
   };
 }
 
-/** Hazardous only while falling — hanging and shaking are inert (FR-005), and
- *  a `gone` hazard is no longer there (FR-013). Missing phase reads as
- *  hanging. */
+/** Hazardous only while falling — hanging and shaking are inert, and
+ * a `gone` hazard is no longer there. Missing phase reads as
+ * hanging. */
 function fallingStalactiteIsContact(hazard: HazardPlacement): boolean {
   return hazard.fallingStalactitePhase === 'falling';
 }
 
 /**
  * The world-space origin and single art layer of a landed hazard's shatter
- * debris (FR-020): the falling sprite's own crop, anchored at the hazard's
- * column (offset to the selected twin half) and at `landingRow`'s top edge —
+ * debris: the falling sprite's own crop, anchored at the hazard's
+ * column (offset to the selected twin half) and at `landingRow`'s top edge
  * exactly where the sprite came to rest.
  */
 export function fallingStalactiteShatter(
@@ -325,13 +334,19 @@ export function fallingStalactiteShatter(
     // top, where its bottom came to meet the solid (not sunk into it).
     y: hazard.y + restOffset,
     layers: [
-      { sheet: DECORATIONS_SHEET.src, sx: rect.sx, sy: rect.sy, width: rect.width, height: rect.height },
+      {
+        sheet: DECORATIONS_SHEET.src,
+        sx: rect.sx,
+        sy: rect.sy,
+        width: rect.width,
+        height: rect.height,
+      },
     ],
   };
 }
 
 /** Blits one crop of the decorations sheet, scaled to its own rendered size at
- *  `destX`/`destY` (world space; the caller adds no origin here). */
+ * `destX`/`destY` (world space; the caller adds no origin here). */
 function blit(
   hazard: HazardPlacement,
   dc: DrawContext,
@@ -360,7 +375,7 @@ export const fallingStalactite: HazardType<HazardPlacement> = {
   box: fallingStalactiteBox,
   isContact: fallingStalactiteIsContact,
   /** Merges the live phase and fall/shake offsets — the exact per-kind branch
-   *  the state layer's `hazardPlacementsForTick` used to inline. */
+   * the state layer's `hazardPlacementsForTick` used to inline. */
   withTickState: (placement, timers) => {
     const elapsed = fallingStalactiteElapsedFor(timers.fallingStalactiteTimers, placement.id);
     return {
@@ -377,7 +392,7 @@ export const fallingStalactite: HazardType<HazardPlacement> = {
     };
   },
   /** The detection-zone cells as tile rects, returned only while the hazard is
-   *  still hanging (arming is irreversible, FR-004). */
+   * still hanging (arming is irreversible). */
   armTriggerRects: (hazard, timers) => {
     if (isFallingStalactiteArmed(timers.fallingStalactiteTimers, hazard.id)) return [];
     return detectionZoneCells(
@@ -403,7 +418,7 @@ export const fallingStalactite: HazardType<HazardPlacement> = {
     if (!isStalactiteTwin(hazard.col, hazard.row)) {
       // Large variant: one blit, exactly the decoration's own draw (source
       // 16x17 stretched to a full tile), so the hanging hazard is pixel-
-      // identical to the decoration at its cell (SC-001).
+      // identical to the decoration at its cell.
       if (phase === 'gone') return;
       const entry = stalactiteEntry(hazard.col, hazard.row);
       dc.ctx.drawImage(
@@ -422,7 +437,7 @@ export const fallingStalactite: HazardType<HazardPlacement> = {
 
     // Twin variant: the survivor half always renders, statically and untinted,
     // for the rest of the attempt — including after the selected half has
-    // shattered (FR-019) — so this branch never returns early on 'gone'.
+    // shattered — so this branch never returns early on 'gone'.
     const survivor = survivorTwinRect(hazard.col);
     blit(hazard, dc, image, survivor, survivor.sx * RENDER_SCALE, 0);
 

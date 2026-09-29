@@ -10,8 +10,15 @@ function draw(rc: TileDrawContext): void {
   const { ctx, level, col, row, destX, destY, images } = rc;
   const sy = isTopExposed(level, col, row) ? 0 : TILE_SIZE;
   ctx.drawImage(
-    images.tileset, TILE_SIZE, sy, TILE_SIZE, TILE_SIZE,
-    destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+    images.tileset,
+    TILE_SIZE,
+    sy,
+    TILE_SIZE,
+    TILE_SIZE,
+    destX,
+    destY,
+    RENDERED_TILE_SIZE,
+    RENDERED_TILE_SIZE,
   );
 }
 

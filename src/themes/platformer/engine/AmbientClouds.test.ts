@@ -184,7 +184,11 @@ describe('drawAmbientClouds', () => {
     expect(ctx.drawImage).not.toHaveBeenCalled();
 
     // A sky band too short for even the shortest shape yields an empty field.
-    const emptyField = createCloudField(1024, 100, 100 + MIN_SHAPE_HEIGHT * BACKGROUND_RENDER_SCALE - 1);
+    const emptyField = createCloudField(
+      1024,
+      100,
+      100 + MIN_SHAPE_HEIGHT * BACKGROUND_RENDER_SCALE - 1,
+    );
     expect(emptyField.clouds).toEqual([]);
     drawAmbientClouds(ctx, fakeImage(), emptyField, 0);
     expect(ctx.drawImage).not.toHaveBeenCalled();
@@ -203,7 +207,9 @@ describe('reduced motion', () => {
     const field = createCloudField(1024, 32, 390);
     const stepped = stepCloudField(field, 1, false);
 
-    expect(stepped.clouds.map((cloud) => cloud.x)).not.toEqual(field.clouds.map((cloud) => cloud.x));
+    expect(stepped.clouds.map((cloud) => cloud.x)).not.toEqual(
+      field.clouds.map((cloud) => cloud.x),
+    );
   });
 });
 

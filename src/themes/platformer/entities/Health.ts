@@ -4,8 +4,8 @@ import { RENDER_SCALE } from '../level/Terrain';
 export const MAX_HEARTS = 3;
 
 /** Health is tracked in half-heart integer units so pit-fall and side-hit
- *  damage (both half a heart, see PIT_FALL_DAMAGE/SIDE_HIT_DAMAGE below) fit
- *  as whole numbers instead of needing fractional health values. */
+ * damage (both half a heart, see PIT_FALL_DAMAGE/SIDE_HIT_DAMAGE below) fit
+ * as whole numbers instead of needing fractional health values. */
 export const MAX_HALF_HEARTS = MAX_HEARTS * 2;
 
 /**
@@ -25,9 +25,9 @@ export const PIT_FALL_DAMAGE = 1;
 export const SIDE_HIT_DAMAGE = 1;
 
 /** `hearts.png` is a 16px-per-frame sheet (matching TILE_SIZE), scaled up by
- *  the same RENDER_SCALE as terrain/player sprites — 32px rendered, matching
- *  the ~32px height of the theme/language dropdown selects in
- *  FloatingControls.tsx. */
+ * the same RENDER_SCALE as terrain/player sprites — 32px rendered, matching
+ * the ~32px height of the theme/language dropdown selects in
+ * FloatingControls.tsx. */
 export const HEART_FRAME_SIZE = 16;
 export const HEART_RENDERED_SIZE = HEART_FRAME_SIZE * RENDER_SCALE;
 
@@ -37,11 +37,11 @@ export function takeDamage(current: number, amount: number): number {
 }
 
 /** Half-heart units restored by collecting a heart pickup (see
- *  entities/blocks/PotionPot.ts). */
+ * entities/blocks/PotionPot.ts). */
 export const HEART_PICKUP_HEAL_AMOUNT = 1;
 
-/** Adds `amount` half-heart units to `current`, clamped to [0, MAX_HALF_HEARTS] —
- *  the heal-direction counterpart to `takeDamage`. */
+/** Adds `amount` half-heart units to `current`, clamped to [0, MAX_HALF_HEARTS]
+ * the heal-direction counterpart to `takeDamage`. */
 export function healDamage(current: number, amount: number): number {
   return Math.max(0, Math.min(MAX_HALF_HEARTS, current + amount));
 }
@@ -57,7 +57,7 @@ export function heartRemaining(totalHalfHearts: number, heartIndex: number): num
 }
 
 /** Maps a single heart's remaining half-heart units (0, 1, or 2) to its
- *  sprite frame index in `hearts.png` (0 = full, 1 = half, 2 = empty). */
+ * sprite frame index in `hearts.png` (0 = full, 1 = half, 2 = empty). */
 export function heartFrameIndex(remainingForThisHeart: number): number {
   if (remainingForThisHeart >= 2) return 0;
   if (remainingForThisHeart === 1) return 1;
@@ -66,7 +66,7 @@ export function heartFrameIndex(remainingForThisHeart: number): number {
 
 /**
  * True exactly while health is at its last half-heart unit — the "critical"
- * state the low-health canvas glow (S-010) uses. Zero hit points is death,
+ * state the low-health canvas glow uses. Zero hit points is death,
  * not critical: the death transition takes over the screen instead of a
  * glow (see PlatformerPage.tsx's lifecycle handling).
  */

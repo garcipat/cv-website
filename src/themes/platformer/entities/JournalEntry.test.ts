@@ -87,7 +87,12 @@ describe('formatJournalEntry', () => {
     const result = formatJournalEntry(
       fact({
         sectionId: 'experience',
-        data: { company: 'Acme Corp', role: 'Senior Engineer', startDate: '2020-01', highlights: [] },
+        data: {
+          company: 'Acme Corp',
+          role: 'Senior Engineer',
+          startDate: '2020-01',
+          highlights: [],
+        },
       }),
     );
     expect(result.subtitle).toBe('2020-01–Present');
@@ -109,7 +114,12 @@ describe('formatJournalEntry', () => {
     const result = formatJournalEntry(
       fact({
         sectionId: 'courses',
-        data: { title: 'Advanced React Patterns', provider: 'Frontend Masters', date: '2024-06', category: 'Web Development' },
+        data: {
+          title: 'Advanced React Patterns',
+          provider: 'Frontend Masters',
+          date: '2024-06',
+          category: 'Web Development',
+        },
       }),
     );
     expect(result.title).toBe('Advanced React Patterns');
@@ -121,7 +131,11 @@ describe('formatJournalEntry', () => {
     const result = formatJournalEntry(
       fact({
         sectionId: 'certificates',
-        data: { name: 'AWS Solutions Architect Associate', issuer: 'Amazon Web Services', date: '2023-06' },
+        data: {
+          name: 'AWS Solutions Architect Associate',
+          issuer: 'Amazon Web Services',
+          date: '2023-06',
+        },
       }),
     );
     expect(result.title).toBe('AWS Solutions Architect Associate');
@@ -131,7 +145,10 @@ describe('formatJournalEntry', () => {
 
   it('projectFact-anyData-titleIsNameNoSubtitle', () => {
     const result = formatJournalEntry(
-      fact({ sectionId: 'projects', data: { name: 'Open Source Task Runner', description: 'A thing' } }),
+      fact({
+        sectionId: 'projects',
+        data: { name: 'Open Source Task Runner', description: 'A thing' },
+      }),
     );
     expect(result.title).toBe('Open Source Task Runner');
     expect(result.subtitle).toBeUndefined();
@@ -169,7 +186,10 @@ describe('formatJournalEntry', () => {
 
 describe('splitIntoTwoColumns', () => {
   it('evenLength-splitsExactlyInHalf', () => {
-    expect(splitIntoTwoColumns([1, 2, 3, 4])).toEqual([[1, 2], [3, 4]]);
+    expect(splitIntoTwoColumns([1, 2, 3, 4])).toEqual([
+      [1, 2],
+      [3, 4],
+    ]);
   });
 
   it('oddLength-leftColumnGetsTheExtraOne', () => {

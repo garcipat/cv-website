@@ -22,7 +22,7 @@ describe('spawnHeartPickup', () => {
 
 describe('HEART_PICKUP_RENDERED_SIZE', () => {
   it('isSmallerThanTheHudHeartIcon', () => {
-    // Smaller than the 32px HUD heart (Health.ts's HEART_RENDERED_SIZE) —
+    // Smaller than the 32px HUD heart (Health.ts's HEART_RENDERED_SIZE)
     // the user asked for a less prominent world pickup than the HUD icon.
     expect(HEART_PICKUP_RENDERED_SIZE).toBe(24);
   });
@@ -48,7 +48,11 @@ describe('heart view', () => {
   });
 
   it('onPickup-healsTheFullHeartPickupAmount', () => {
-    const outcome = heart.onPickup(spawnHeartPickup('h1', 0, 0), { pool: [], total: 0, collectedBefore: 0 });
+    const outcome = heart.onPickup(spawnHeartPickup('h1', 0, 0), {
+      pool: [],
+      total: 0,
+      collectedBefore: 0,
+    });
     expect(outcome).toEqual({ heal: HEART_PICKUP_HEAL_AMOUNT });
     expect(outcome).not.toHaveProperty('disposition');
     expect(outcome).not.toHaveProperty('self');

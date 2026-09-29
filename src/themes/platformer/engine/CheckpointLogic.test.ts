@@ -47,7 +47,7 @@ function statesFor(markers: readonly { col: number; row: number }[]): Checkpoint
 }
 
 /** A player standing exactly on a marker's cell — its hitbox (24x38) always
- *  overlaps the cell's 32x32 box. */
+ * overlaps the cell's 32x32 box. */
 function playerOn(col: number, row: number): PlayerState {
   const { x, y } = tileToPixel(col, row);
   return makePlayer(x, y);
@@ -67,7 +67,7 @@ describe('hasSolidGroundBelow', () => {
   });
 });
 
-describe('resolveCheckpointContacts — ground gating (FR-004)', () => {
+describe('resolveCheckpointContacts — ground gating', () => {
   it('dormantOverlapWithSolidGroundBelow-raisesItAndReportsIt', () => {
     const level = parseLevel(['C', 'G']);
     const placements = placementsFor([{ col: 0, row: 0 }]);
@@ -141,7 +141,7 @@ describe('resolveCheckpointContacts — ground gating (FR-004)', () => {
   });
 });
 
-describe('resolveCheckpointContacts — reading order and purity (FR-009)', () => {
+describe('resolveCheckpointContacts — reading order and purity', () => {
   it('twoDormantOverlapsInOneTick-raiseBothAndPickTheFirstInReadingOrder', () => {
     const level = parseLevel(['CC', 'GG']);
     const result = resolveCheckpointContacts(
@@ -185,10 +185,12 @@ describe('resolveCheckpointContacts — reading order and purity (FR-009)', () =
   });
 });
 
-describe('resolveCheckpointContacts — already-raised behaviour (FR-006/FR-008)', () => {
+describe('resolveCheckpointContacts — already-raised behaviour', () => {
   it('alreadyRaisedOverlap-doesNotReplayAndIsNotInActivatedIds', () => {
     const level = parseLevel(['C', 'G']);
-    const raised = [activateCheckpoint(toCheckpointState(placementsFor([{ col: 0, row: 0 }])[0]), 1)];
+    const raised = [
+      activateCheckpoint(toCheckpointState(placementsFor([{ col: 0, row: 0 }])[0]), 1),
+    ];
 
     const result = resolveCheckpointContacts(
       playerOn(0, 0),
@@ -211,9 +213,20 @@ describe('resolveCheckpointContacts — already-raised behaviour (FR-006/FR-008)
       { col: 0, row: 0 },
       { col: 1, row: 0 },
     ]);
-    const states = [activateCheckpoint(toCheckpointState(placements[0]), 1), toCheckpointState(placements[1])];
+    const states = [
+      activateCheckpoint(toCheckpointState(placements[0]), 1),
+      toCheckpointState(placements[1]),
+    ];
 
-    const result = resolveCheckpointContacts(playerOn(0, 0), placements, states, level, null, 7, true);
+    const result = resolveCheckpointContacts(
+      playerOn(0, 0),
+      placements,
+      states,
+      level,
+      null,
+      7,
+      true,
+    );
 
     expect(result.activatedIds).toEqual(['checkpoint-1-0']);
     expect(result.activeId).toBe('checkpoint-1-0');
@@ -232,7 +245,15 @@ describe('resolveCheckpointContacts — already-raised behaviour (FR-006/FR-008)
       activateCheckpoint(toCheckpointState(placements[1]), 2),
     ];
 
-    const result = resolveCheckpointContacts(playerOn(1, 0), placements, states, level, 'checkpoint-0-0', 9, true);
+    const result = resolveCheckpointContacts(
+      playerOn(1, 0),
+      placements,
+      states,
+      level,
+      'checkpoint-0-0',
+      9,
+      true,
+    );
 
     expect(result.activatedIds).toEqual([]);
     expect(result.activeId).toBe('checkpoint-1-0');

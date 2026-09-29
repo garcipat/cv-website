@@ -54,11 +54,11 @@ const JOURNAL_LABEL_CENTER_PERCENT = 91.96;
 const INTERACT_LABEL_CENTER_PERCENT = ARROW_CLUSTER_CENTER_PERCENT;
 
 /**
- * Universal controls overlay (spec.md FR-036) — shown once
+ * Universal controls overlay — shown once
  * gameplay reaches the `playing` phase, listing the game's universal
  * controls via the real keycap sprite (`controls_overlay_keys.png`: the
  * arrow-key cluster, Space, and J) plus short translated captions, centered
- * where collected-fact text already lands (roughly 30% down the viewport —
+ * where collected-fact text already lands (roughly 30% down the viewport
  * see PlatformerPage.tsx's own `midY` convention) rather than
  * in a background panel. Eases in over `FADE_IN_DURATION_MS` instead of
  * popping straight to its baseline opacity.
@@ -71,8 +71,8 @@ const INTERACT_LABEL_CENTER_PERCENT = ARROW_CLUSTER_CENTER_PERCENT;
  * module-level one-shot latch — see PlatformerState.ts) never reappearing for
  * the rest of the session, including across a Reset Game or a death/respawn.
  *
- * Deliberately does NOT pause the game loop or touch `GameLifecycle.ts` —
- * unlike the Journal/Thank You screen, FR-036 doesn't require pausing, and
+ * Deliberately does NOT pause the game loop or touch `GameLifecycle.ts`
+ * unlike the Journal/Thank You screen, doesn't require pausing, and
  * the overlay is purely advisory over already-running gameplay.
  */
 export const ControlsOverlay = () => {
@@ -122,7 +122,7 @@ export const ControlsOverlay = () => {
   // deliberately left alone: it already starts false and a same-value
   // setState from a mount effect was found, in PlatformerPage.test.tsx's
   // chest/ending-screen tests, to desync React's act()-driven flush timing
-  // for unrelated signal-triggered DOM updates elsewhere on the page —
+  // for unrelated signal-triggered DOM updates elsewhere on the page
   // `revealed` only needs the same care applied when it's actually
   // changing, which is exactly the case here.)
   useEffect(() => {
@@ -171,7 +171,7 @@ export const ControlsOverlay = () => {
     }, FADE_OUT_DURATION_MS);
     return () => {
       window.clearTimeout(timer);
-      // If shouldShow flips false (e.g. the journal opens) mid-fade-out —
+      // If shouldShow flips false (e.g. the journal opens) mid-fade-out
       // after triggeredRef.current was set by beginFadeOut(), but before
       // this timer fired — this effect gets cleaned up without the latch
       // ever flipping. Fade-out was genuinely triggered, so treat it as
@@ -224,7 +224,8 @@ export const ControlsOverlay = () => {
           className="absolute bottom-full mb-1.5 w-full text-xl whitespace-nowrap text-white"
           style={{
             fontFamily: `"${RESTART_PROMPT_FONT_FAMILY}", sans-serif`,
-            textShadow: '1px 1px 0 rgba(0,0,0,0.8), -1px -1px 0 rgba(0,0,0,0.8), 1px -1px 0 rgba(0,0,0,0.8), -1px 1px 0 rgba(0,0,0,0.8)',
+            textShadow:
+              '1px 1px 0 rgba(0,0,0,0.8), -1px -1px 0 rgba(0,0,0,0.8), 1px -1px 0 rgba(0,0,0,0.8), -1px 1px 0 rgba(0,0,0,0.8)',
           }}
         >
           <span
@@ -244,7 +245,8 @@ export const ControlsOverlay = () => {
           className="absolute top-full mt-1.5 w-full text-xl whitespace-nowrap text-white"
           style={{
             fontFamily: `"${RESTART_PROMPT_FONT_FAMILY}", sans-serif`,
-            textShadow: '1px 1px 0 rgba(0,0,0,0.8), -1px -1px 0 rgba(0,0,0,0.8), 1px -1px 0 rgba(0,0,0,0.8), -1px 1px 0 rgba(0,0,0,0.8)',
+            textShadow:
+              '1px 1px 0 rgba(0,0,0,0.8), -1px -1px 0 rgba(0,0,0,0.8), 1px -1px 0 rgba(0,0,0,0.8), -1px 1px 0 rgba(0,0,0,0.8)',
           }}
         >
           <span

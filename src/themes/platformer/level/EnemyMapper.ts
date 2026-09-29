@@ -33,15 +33,15 @@ export interface EnemyPlacement extends EnemyDef {
   x: number;
   y: number;
   /** Any course facts beyond `fact` itself — populated only when this level
-   *  has fewer green markers than courses, so a single slime's position-based
-   *  slice of the pool (see `placeEnemies` below) spans more than one course.
-   *  Undefined (not `[]`) when there's nothing extra, matching how `fact`
-   *  itself is undefined rather than present-but-empty. */
+   * has fewer green markers than courses, so a single slime's position-based
+   * slice of the pool (see `placeEnemies` below) spans more than one course.
+   * Undefined (not `[]`) when there's nothing extra, matching how `fact`
+   * itself is undefined rather than present-but-empty. */
   extraFacts?: CollectedFact[];
 }
 
 /** Hand-authored marker positions for each enemy type, keyed the same way
- *  `EnemyDef.type` is — see `placeEnemies` below. */
+ * `EnemyDef.type` is — see `placeEnemies` below. */
 export interface EnemyMarkerPositions {
   slimeGreen: readonly { col: number; row: number }[];
   slimePurple: readonly { col: number; row: number }[];
@@ -50,7 +50,7 @@ export interface EnemyMarkerPositions {
 
 /**
  * Places enemy defs at hand-authored marker positions, all through the one
- * `placeAtMarkers` loop (FR-003/FR-005) — `M` markers (LevelParser.ts's
+ * `placeAtMarkers` loop — `M` markers (LevelParser.ts's
  * findGreenEnemyTiles) become green slimes, `m` markers
  * (findPurpleEnemyTiles) become purple ones, `q` markers (findBeeTiles)
  * become bees. There is no auto-placement: an enemy's position is always

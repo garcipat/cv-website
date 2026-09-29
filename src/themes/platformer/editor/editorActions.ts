@@ -66,7 +66,7 @@ const FALLBACK_TOOL: EditorTool = 'G';
  * leaving the grid's own array alone (a rightward/downward growth needs no
  * shift — new foreground cells appended past the background grid's own
  * bounds already read as `null` via `backgroundAt`). Renamed from
- * `shiftBackgroundPlacements` (there is no longer a placement list to shift —
+ * `shiftBackgroundPlacements` (there is no longer a placement list to shift
  * a grid grows, it doesn't shift discrete placements) and reimplemented as an
  * array/row-shift over `BackgroundGrid` rather than a per-placement
  * coordinate rebase.
@@ -85,7 +85,7 @@ const shiftBackgroundGrid = (
 };
 
 /**
- * The marker grid's own analogue of `shiftBackgroundGrid` (D9): a left/up
+ * The marker grid's own analogue of `shiftBackgroundGrid`: a left/up
  * growth prepends empty rows/columns so every marker keeps its cell, and a
  * right/down growth needs no shift. Marker paint itself never grows, so this
  * is only ever called from a terrain growth (a paint or a placement).
@@ -105,8 +105,8 @@ const shiftMarkerGrid = (
 // --- Selection / toggles -----------------------------------------------------
 
 /** Selecting a tool is unambiguously "I want to paint again", so it
- *  disarms any armed blueprint. The reverse is deliberately not true: arming a
- *  blueprint leaves `selectedTool` alone so disarming restores it. */
+ * disarms any armed blueprint. The reverse is deliberately not true: arming a
+ * blueprint leaves `selectedTool` alone so disarming restores it. */
 export const selectTool = (tool: EditorTool): void => {
   editorSelectedToolSignal.value = tool;
   editorArmedBlueprintIdSignal.value = null;
@@ -145,16 +145,19 @@ export const armBlueprint = (id: string | null): void => {
 };
 
 /** One-shot mount-time reconciliation of persisted state: the mode and the
- *  selected tool/armed blueprint are all persisted, so the editor can come back
- *  up on either canvas with the other canvas's exclusive tool still armed
- *  without any toggle click ever happening. */
+ * selected tool/armed blueprint are all persisted, so the editor can come back
+ * up on either canvas with the other canvas's exclusive tool still armed
+ * without any toggle click ever happening. */
 export const reconcilePersistedEditorState = (): void => {
   // Mounting already in blueprint mode lets that canvas consume the one-shot
   // centering request (a no-op on a spawn-less grid), so the level owes itself
   // a centering to be paid on the FIRST switch back to Level.
   editorLevelCenterPendingSignal.value = editorCanvasModeSignal.value === 'blueprint';
 
-  if (editorCanvasModeSignal.value === 'blueprint' && editorSelectedToolSignal.value === SPAWN_CHAR) {
+  if (
+    editorCanvasModeSignal.value === 'blueprint' &&
+    editorSelectedToolSignal.value === SPAWN_CHAR
+  ) {
     editorSelectedToolSignal.value = FALLBACK_TOOL;
   }
   if (
@@ -171,12 +174,12 @@ export const reconcilePersistedEditorState = (): void => {
 // --- Appearance --------------------------------------------------------------
 
 /** Writes the editor's own light/dark appearance; the signal's subscription
- *  persists it immediately (a single scalar, so no debounce). */
+ * persists it immediately (a single scalar, so no debounce). */
 export const setEditorAppearance = (appearance: EditorAppearance): void => {
   editorAppearanceSignal.value = appearance;
 };
 
-/** Flips the editor's appearance between light and dark (O-015 FR-001). */
+/** Flips the editor's appearance between light and dark. */
 export const toggleEditorAppearance = (): void => {
   editorAppearanceSignal.value = editorAppearanceSignal.value === 'dark' ? 'light' : 'dark';
 };
@@ -184,9 +187,9 @@ export const toggleEditorAppearance = (): void => {
 // --- Canvas ------------------------------------------------------------------
 
 /** Writes a paint result into the active canvas, marks it dirty, clears the
- *  save result and placement snapshot, and shifts any background placements by
- *  the growth. Returns the shift so the pane (owner of the transient pan) can
- *  compensate the viewport. */
+ * save result and placement snapshot, and shifts any background placements by
+ * the growth. Returns the shift so the pane (owner of the transient pan) can
+ * compensate the viewport. */
 export const applyPaint = (result: PaintResult): GrowthShift => {
   const { grid, colShift, rowShift } = result;
 
@@ -216,9 +219,9 @@ export const applyPaint = (result: PaintResult): GrowthShift => {
 /**
  * Writes the active canvas's marker grid, marks it dirty, and clears the save
  * result and placement snapshot. There is no `GrowthShift` because marker
- * paint never grows the grid (FR-010) — the caller writes a terrain growth's
+ * paint never grows the grid — the caller writes a terrain growth's
  * shift through `applyPaint` first, then calls this at the post-growth
- * coordinates (D8's ordering invariant).
+ * coordinates.
  */
 export const applyMarkerPaint = (next: MarkerGrid): void => {
   if (editorCanvasModeSignal.value === 'blueprint') {
@@ -247,8 +250,8 @@ export const applyBackgroundPaint = (next: BackgroundChar[][]): void => {
 };
 
 /** Commits an armed blueprint at `(col, row)`. Refuses (returns `null`, writes
- *  nothing) when nothing is armed or the blueprint does not fit; snapshots
- *  grid + background before writing and keeps the blueprint armed. */
+ * nothing) when nothing is armed or the blueprint does not fit; snapshots
+ * grid + background before writing and keeps the blueprint armed. */
 export const commitPlacement = (col: number, row: number): GrowthShift | null => {
   const armedId = editorArmedBlueprintIdSignal.value;
   const armedBlueprint = armedId === null ? undefined : findBlueprint(armedId);
@@ -281,7 +284,7 @@ export const commitPlacement = (col: number, row: number): GrowthShift | null =>
   );
 
   // Same ordering for markers: shift first, then stamp at the post-growth
-  // anchor, overwriting (FR-018/FR-020).
+  // anchor, overwriting.
   shiftMarkerGrid(
     editorMarkerSignal,
     result.colShift,
@@ -300,7 +303,7 @@ export const commitPlacement = (col: number, row: number): GrowthShift | null =>
 };
 
 /** Restores the grid, background and markers from immediately before the most
- *  recently committed placement. A no-op with no snapshot. */
+ * recently committed placement. A no-op with no snapshot. */
 export const undoLastPlacement = (): void => {
   const snapshot = editorLastPlacementSnapshotSignal.value;
   if (snapshot === null) return;
@@ -313,12 +316,12 @@ export const undoLastPlacement = (): void => {
 // --- File / navigation -------------------------------------------------------
 
 /** Loads a level onto the level canvas. Writes the persisted signals directly
- *  (not only through the debounce) so a pending write cannot resurrect
- *  discarded work. */
+ * (not only through the debounce) so a pending write cannot resurrect
+ * discarded work. */
 export const loadLevel = (level: LevelEntry): void => {
   // A file with no `markers` field is pre-feature, so its `T` is the old
   // falling-stalactite hazard and must migrate to `⊤` (the `T` generation
-  // rule, D5). A new-format file's `T` stays the sign character.
+  // rule). A new-format file's `T` stays the sign character.
   const legacyT = level.markers === undefined;
   const levelGrid = importLayout(level.layout, legacyT);
   editorLevelSignal.value = levelGrid;
@@ -332,7 +335,7 @@ export const loadLevel = (level: LevelEntry): void => {
 
   // A character no longer a recognized BACKGROUND_CHARS key would render as
   // nothing and be permanently un-erasable, so drop it once at load time
-  // (FR-012) rather than at every render — importBackgroundLayout already
+  // rather than at every render — importBackgroundLayout already
   // does this.
   editorBackgroundSignal.value = importBackgroundLayout(level.background ?? []);
   editorLoadedLevelNameSignal.value = level.name;
@@ -376,7 +379,7 @@ export const saveCurrentBlueprint = async (name: string): Promise<void> => {
 };
 
 /** Exports the level into the in-memory layout the game reads, resets game
- *  progress, and navigates into the game with the debug panel visible. */
+ * progress, and navigates into the game with the debug panel visible. */
 export const tryLayout = (): void => {
   const cropped = cropLevelForExport(
     editorLevelSignal.value,

@@ -34,7 +34,7 @@ export function importLayout(layout: readonly string[], legacyT = false): TileCh
   const grid: TileChar[][] = Array.from({ length: layout.length }, () =>
     new Array<TileChar>(width).fill('.'),
   );
-  // The one shared character walk (FR-010); only the `TileChar` +
+  // The one shared character walk; only the `TileChar` +
   // legacy-marker migration mapping lives here.
   walkLayout(layout, ({ char, col, row }) => {
     if (char === SIGN_CHAR) {
@@ -55,7 +55,7 @@ export function importLayout(layout: readonly string[], legacyT = false): TileCh
  * The tile meta layer's analogue of `importLayout` — lifts every legacy
  * marker character out of a saved layout and merges the file's own
  * `storedMarkers` on top, via the same `parseMarkers` the runtime uses
- * (FR-015). The editor grid it accompanies is produced by `importLayout`
+ *. The editor grid it accompanies is produced by `importLayout`
  * with `legacyT` matching this file's generation, so the two stay aligned.
  */
 export function importMarkerGrid(
@@ -70,7 +70,7 @@ export function importMarkerGrid(
 /**
  * The background layer's analogue of `importLayout` — converts a saved
  * `background: readonly string[]` layout (a level/blueprint file's own,
- * post-O-014 storage shape) into the editor's `BackgroundChar[][]` grid.
+ * post- storage shape) into the editor's `BackgroundChar[][]` grid.
  * Same right-pad-with-`.` convention as `importLayout`, plus one background-
  * specific step: any character not a recognized `BACKGROUND_CHARS` key (an
  * old/malformed save, or simply `'.'` itself) reads as `'.'` rather than

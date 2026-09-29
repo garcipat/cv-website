@@ -8,7 +8,7 @@ import type { EnemyPlacement } from '../../../level/EnemyMapper';
 import { RENDERED_TILE_SIZE } from '../../../level/Terrain';
 
 /**
- * The bee's flight contract (FR-004/FR-005/FR-006, SC-002/SC-003): horizontal
+ * The bee's flight contract: horizontal
  * patrol with NO ledge check, a bounded periodic bob around the placement
  * row, and `dt <= 0` a no-op.
  */
@@ -97,7 +97,7 @@ describe('flyMovement — horizontal', () => {
   });
 
   it('aGapAhead-keepsMovingAcrossItInsteadOfReversingLikePatrol', () => {
-    // SC-002: the same geometry a slime reverses at. Fly has no ledge check.
+    // : the same geometry a slime reverses at. Fly has no ledge check.
     const level = makeLevel(10, [], [7]);
     const enemy = { ...makeBeeAt(5), direction: 'right' as const };
 
@@ -221,11 +221,7 @@ describe('flyMovement — purity', () => {
       elapsed: 0.3,
     };
     const withPlayer = fly.step(enemy, ctx, 1 / 30);
-    const withoutPlayer = fly.step(
-      enemy,
-      { ...ctx, player: null },
-      1 / 30,
-    );
+    const withoutPlayer = fly.step(enemy, { ...ctx, player: null }, 1 / 30);
     expect(withPlayer).toEqual(withoutPlayer);
   });
 });

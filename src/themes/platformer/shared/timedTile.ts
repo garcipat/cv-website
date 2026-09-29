@@ -1,5 +1,5 @@
 /**
- * The shared timed-tile core (R-004 US2/FR-008): the arm / advance /
+ * The shared timed-tile core: the arm / advance /
  * elapsed-lookup / shake scaffolding the bouncy-mushroom squash, the floor
  * spike, the crumbling floor, and the falling stalactite each used to
  * re-implement. A pure leaf — it imports only `shared/math.ts` — so both

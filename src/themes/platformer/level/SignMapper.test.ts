@@ -10,7 +10,9 @@ describe('placeSigns', () => {
   it('oneMarker-returnsSignPlacementAtItsPixelPosition', () => {
     const result = placeSigns([{ col: 1, row: 1, hintId: 'bridgeDropThrough' }]);
     const { x, y } = tileToPixel(1, 1);
-    expect(result).toEqual([{ id: 'sign-bridgeDropThrough-1-1', hintId: 'bridgeDropThrough', x, y }]);
+    expect(result).toEqual([
+      { id: 'sign-bridgeDropThrough-1-1', hintId: 'bridgeDropThrough', x, y },
+    ]);
   });
 
   it('twoMarkersOfTheSameHint-getDistinctIds', () => {
@@ -26,7 +28,17 @@ describe('placeSigns', () => {
 
 describe('signBox', () => {
   it('sign-returnsOneRenderedTileSquareAtItsPosition', () => {
-    const sign: SignPlacement = { id: 'sign-bridgeDropThrough-1-1', hintId: 'bridgeDropThrough', x: 100, y: 100 };
-    expect(signBox(sign)).toEqual({ x: 100, y: 100, width: RENDERED_TILE_SIZE, height: RENDERED_TILE_SIZE });
+    const sign: SignPlacement = {
+      id: 'sign-bridgeDropThrough-1-1',
+      hintId: 'bridgeDropThrough',
+      x: 100,
+      y: 100,
+    };
+    expect(signBox(sign)).toEqual({
+      x: 100,
+      y: 100,
+      width: RENDERED_TILE_SIZE,
+      height: RENDERED_TILE_SIZE,
+    });
   });
 });

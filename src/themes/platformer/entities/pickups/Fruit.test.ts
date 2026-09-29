@@ -38,7 +38,7 @@ describe('fruitFrameSource', () => {
   });
 });
 
-// Folded in from the removed entities/BonusFruit.test.ts (R-002 FR-022).
+// Folded in from the removed entities/BonusFruit.test.ts.
 const testFact: CollectedFact = {
   id: 'qmark-cert-x',
   sectionId: 'certificates',

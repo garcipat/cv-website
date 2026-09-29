@@ -9,7 +9,7 @@ const hasBackgroundContent = (background: readonly string[]): boolean =>
   background.some((row) => [...row].some((char) => char !== '.'));
 
 /**
- * The one level/blueprint JSON serializer (FR-011, D9): the file's name plus
+ * The one level/blueprint JSON serializer: the file's name plus
  * its already-cropped layout, pretty-printed and newline-terminated so the
  * file reads like the rest of the repo's JSON rather than one long line. The
  * background layer is included only when it holds at least one painted cell,

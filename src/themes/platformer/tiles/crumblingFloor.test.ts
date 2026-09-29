@@ -67,7 +67,10 @@ describe('armCrumblingFloor', () => {
   it('unrelatedCells-areUnaffected', () => {
     const states = [{ col: 5, row: 5, elapsed: 0.1 }];
     const next = armCrumblingFloor(states, 1, 2);
-    expect(next).toEqual([{ col: 5, row: 5, elapsed: 0.1 }, { col: 1, row: 2, elapsed: 0 }]);
+    expect(next).toEqual([
+      { col: 5, row: 5, elapsed: 0.1 },
+      { col: 1, row: 2, elapsed: 0 },
+    ]);
   });
 });
 
@@ -196,7 +199,11 @@ describe('isCrumblingFloorBroken', () => {
 
   it('reformingPhase-isBroken', () => {
     const states = [
-      { col: 0, row: 0, elapsed: CRUMBLING_FLOOR_CRACK_SECONDS + CRUMBLING_FLOOR_BROKEN_SECONDS + 0.1 },
+      {
+        col: 0,
+        row: 0,
+        elapsed: CRUMBLING_FLOOR_CRACK_SECONDS + CRUMBLING_FLOOR_BROKEN_SECONDS + 0.1,
+      },
     ];
     expect(isCrumblingFloorBroken(states, 0, 0)).toBe(true);
   });
@@ -232,7 +239,9 @@ describe('crumblingFloorReformRatioAt', () => {
   });
 
   it('halfwayThroughReform-isAroundHalf', () => {
-    expect(crumblingFloorReformRatioAt(reformStart + CRUMBLING_FLOOR_REFORM_SECONDS / 2)).toBeCloseTo(0.5, 5);
+    expect(
+      crumblingFloorReformRatioAt(reformStart + CRUMBLING_FLOOR_REFORM_SECONDS / 2),
+    ).toBeCloseTo(0.5, 5);
   });
 
   it('atFullCycle-isOne', () => {

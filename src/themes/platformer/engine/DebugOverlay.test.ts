@@ -8,7 +8,12 @@ import {
   PLAYER_FOOT_PADDING,
   playerHeadPaddingFor,
 } from '../entities/Player';
-import { toEnemyState, enemyRenderedSize, enemyTileOffsetX, enemyTileOffsetY } from '../entities/Enemy';
+import {
+  toEnemyState,
+  enemyRenderedSize,
+  enemyTileOffsetX,
+  enemyTileOffsetY,
+} from '../entities/Enemy';
 import { typeOf } from '../entities/enemies';
 import type { HazardPlacement } from '../level/HazardMapper';
 import { RENDERED_TILE_SIZE } from '../level/Terrain';
@@ -152,7 +157,11 @@ describe('drawDebugOverlay', () => {
     drawDebugOverlay(ctx, idlePlayer, level, 0, 0);
 
     const greenTileCalls = (ctx.strokeRect as ReturnType<typeof vi.fn>).mock.calls.filter(
-      (call) => call[0] === 0 && call[1] === 0 && call[2] === RENDERED_TILE_SIZE && call[3] === RENDERED_TILE_SIZE,
+      (call) =>
+        call[0] === 0 &&
+        call[1] === 0 &&
+        call[2] === RENDERED_TILE_SIZE &&
+        call[3] === RENDERED_TILE_SIZE,
     );
     expect(greenTileCalls).toHaveLength(1);
 
@@ -244,7 +253,8 @@ describe('drawDebugOverlay', () => {
 
     const box = typeOf(enemy).box(enemy);
     const hitboxCalls = (ctx.strokeRect as ReturnType<typeof vi.fn>).mock.calls.filter(
-      (call) => call[0] === box.x && call[1] === box.y && call[2] === box.width && call[3] === box.height,
+      (call) =>
+        call[0] === box.x && call[1] === box.y && call[2] === box.width && call[3] === box.height,
     );
     expect(hitboxCalls).toHaveLength(1);
     expect(box.width).toBeLessThan(enemyRenderedSize('slimePurple'));
@@ -283,7 +293,15 @@ describe('drawDebugOverlay', () => {
     // facingBox) — the tile's right-hand 10 rendered px — not the full tile.
     const ctx = makeMockContext();
     const level: LevelDef = { width: 1, height: 1, terrain: [['empty']] };
-    const hazard: HazardPlacement = { id: 'h1', hazardType: 'spike', facing: 'left', x: 100, y: 200, col: 0, row: 0 };
+    const hazard: HazardPlacement = {
+      id: 'h1',
+      hazardType: 'spike',
+      facing: 'left',
+      x: 100,
+      y: 200,
+      col: 0,
+      row: 0,
+    };
     const originX = 10;
     const originY = 20;
     const band = 10;

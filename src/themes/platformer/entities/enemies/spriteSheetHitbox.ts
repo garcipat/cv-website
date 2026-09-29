@@ -12,7 +12,7 @@ import type { Rect } from '../../contracts/geometry';
  * the sprite exactly as the frame itself does, so a bigger slime gets a
  * proportionally bigger inset instead of a fixed one. The `bottom` inset
  * shifts the box down with the draw's own bottom anchor and pulls its bottom
- * edge up to the visible art's bottom (FR-019): a bottom-anchored sheet
+ * edge up to the visible art's bottom: a bottom-anchored sheet
  * declares `bottom: 0` and reproduces the pre-seam box exactly.
  *
  * Size and offsets are computed from `sprite` here rather than imported from

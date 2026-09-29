@@ -16,7 +16,7 @@ export { BLUEPRINTS_FOLDER };
  * The extra `'new'` guard is not cosmetic: `BLANK_BLUEPRINT.id` is `'new'` and
  * the Save dialog pre-fills the name field with the loaded blueprint's name,
  * which starts out as `'new'` too. Accepting that default would write
- * `new.json`, whose id shadows the dropdown's own built-in blank entry —
+ * `new.json`, whose id shadows the dropdown's own built-in blank entry
  * `find` would always resolve to the blank one and two `<SelectItem>`s would
  * share a key. Suffixing keeps the two apart permanently.
  */
@@ -30,12 +30,12 @@ export const blueprintId = (name: string): string => {
 };
 
 /** The blueprint's filename — always exactly its registry id plus `.json`, so
- *  the file's stem and the id derived back out of it cannot drift apart. */
+ * the file's stem and the id derived back out of it cannot drift apart. */
 export const blueprintFileName = (name: string): string => `${blueprintId(name)}.json`;
 
 /**
  * Saves the blueprint as a thin parameterisation of the one generic save
- * module (FR-011): the blueprint endpoint and filename plus `layoutFileJson`'s
+ * module: the blueprint endpoint and filename plus `layoutFileJson`'s
  * contents (a `Blueprint` is deliberately the same `{ name, layout,
  * background?, markers? }` shape a saved level file is).
  */

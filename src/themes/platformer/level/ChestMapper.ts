@@ -13,7 +13,7 @@ function experienceToChest(experience: Experience): ChestDef {
 }
 
 /**
- * Flattens CVData into one chest per Experience entry (spec.md FR-009/023)
+ * Flattens CVData into one chest per Experience entry (/023)
  * — Experience is treated as the CV's "most valuable" section, worth its own
  * dedicated main-objective collectible rather than sharing the crate
  * mechanic with Education/Activities/Languages. Mirrors

@@ -77,8 +77,8 @@ export interface DeployableItemTickContext {
 }
 
 /** One CV fact a player activation asks the shared applier to reveal, plus
- *  its flying-text anchor/effect id and optional counter popup. Mirrors
- *  `RevealOptions`. */
+ * its flying-text anchor/effect id and optional counter popup. Mirrors
+ * `RevealOptions`. */
 export interface DeployableItemReveal {
   fact: CollectedFact;
   effectId: string;
@@ -88,10 +88,8 @@ export interface DeployableItemReveal {
 }
 
 /** A kind's activation result: a new state to apply (plus any key cost/fact
- *  reveal), or a blocked hint to show. Declarative, like `PickupOutcome`. */
-export type DeployableItemInteractionOutcome<
-  S extends DeployableItemState = DeployableItemState,
-> =
+ * reveal), or a blocked hint to show. Declarative, like `PickupOutcome`. */
+export type DeployableItemInteractionOutcome<S extends DeployableItemState = DeployableItemState> =
   | { kind: 'activate'; state: S; keyCost?: number; reveal?: DeployableItemReveal }
   | { kind: 'blocked'; hint: BubbleMessageId };
 
@@ -119,7 +117,7 @@ export interface DeployableSpawnContext {
  * player interaction, self-owned consequences and reset scope needs, owned
  * entirely by that kind's own module. A new kind is one module plus one
  * registry line; nothing in `SceneRenderer.ts`, `Collision.ts` or the page's
- * tick/draw/interaction dispatch needs to change (R-008 FR-001).
+ * tick/draw/interaction dispatch needs to change.
  *
  * Composition is `WorldType<S>`, NOT `Boxed<S>`: a non-solid placed bomb and
  * a terrain ladder have no rectangle consumer, so `box` stays optional and
@@ -141,17 +139,17 @@ export interface DeployableItemType<
   /** Which band `drawDeployableItems` draws this kind in. */
   drawLayer: DeployableItemDrawLayer;
   /** Which reset clears this kind's entries: `death` (a placed bomb) or
-   *  `progress` (an authored ladder/chest). */
+   * `progress` (an authored ladder/chest). */
   resetScope: 'death' | 'progress';
   /** OPTIONAL lifecycle advance, run by `tickDeployableItems` (early site). */
   step?(state: S, dt: number): S;
   /** OPTIONAL — the bomb/ladder have no collision-rectangle consumer; the
-   *  chest supplies its trigger rect. */
+   * chest supplies its trigger rect. */
   box?(state: S): Rect;
   /** OPTIONAL late-phase consequence hook (see `applyDeployableItemConsequences`). */
   onTick?(state: S, ctx: DeployableItemTickContext): DeployableItemOutcome;
   /** OPTIONAL player-initiated activation. Returns the new state, or `null`
-   *  when this item is not the interaction target. */
+   * when this item is not the interaction target. */
   onPlayerInteract?(
     state: S,
     ctx: DeployableItemInteractContext,
@@ -164,15 +162,16 @@ export interface DeployableItemType<
 }
 
 /** The player spawns it at runtime — requires a creation entry point and a
- *  lifecycle advance (today the placed bomb, created by the `B` key). */
-export interface SpawnedType<S extends DeployableItemState = DeployableItemState>
-  extends DeployableItemType<S> {
+ * lifecycle advance (today the placed bomb, created by the `B` key). */
+export interface SpawnedType<
+  S extends DeployableItemState = DeployableItemState,
+> extends DeployableItemType<S> {
   spawn(ctx: DeployableSpawnContext): S;
   step(state: S, dt: number): S;
 }
 
 /** Placed in the level and activated by the player — requires the activation
- *  hook and its precedence (today the rope ladder and the chest). */
+ * hook and its precedence (today the rope ladder and the chest). */
 export interface WorldInteractableType<
   S extends DeployableItemState = DeployableItemState,
 > extends DeployableItemType<S> {

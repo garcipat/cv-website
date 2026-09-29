@@ -119,7 +119,9 @@ describe('parseLevelModules', () => {
   });
 
   it('moduleWithoutAName-fallsBackToItsFilenameStem', () => {
-    const entries = parseLevelModules({ './levels/no-name.json': { default: { layout: ['GGG'] } } });
+    const entries = parseLevelModules({
+      './levels/no-name.json': { default: { layout: ['GGG'] } },
+    });
     expect(entries[0].name).toBe('no-name');
   });
 
@@ -192,7 +194,12 @@ describe('parseBlueprintModules', () => {
 
   it('malformedOptionalFields-dropOnlyThoseFieldsNotTheWholeEntry', () => {
     const entries = parseBlueprintModules({
-      './blueprints/broken.json': { name: 'Broken', layout: ['G'], background: 'nope', markers: 'nope' },
+      './blueprints/broken.json': {
+        name: 'Broken',
+        layout: ['G'],
+        background: 'nope',
+        markers: 'nope',
+      },
     });
     expect(entries).toHaveLength(1);
     expect(entries[0].layout).toEqual(['G']);
@@ -201,9 +208,9 @@ describe('parseBlueprintModules', () => {
   });
 
   it('emptyLayout-isSkipped', () => {
-    expect(parseBlueprintModules({ './blueprints/empty.json': { default: { layout: [] } } })).toEqual(
-      [],
-    );
+    expect(
+      parseBlueprintModules({ './blueprints/empty.json': { default: { layout: [] } } }),
+    ).toEqual([]);
   });
 
   it('multipleModules-areSortedById', () => {

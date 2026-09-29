@@ -7,11 +7,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogClose,
@@ -48,7 +44,7 @@ export interface EditorEntrySelectProps {
 
 /**
  * The single entry selector behind both the level and blueprint dropdowns
- * (FR-021, SC-005). The two call sites differ only by entry source and labels.
+ *. The two call sites differ only by entry source and labels.
  *
  * Deliberately driven as an action menu — `value` is pinned to `null` and the
  * loaded entry's name is shown as the trigger's own text — so re-picking the

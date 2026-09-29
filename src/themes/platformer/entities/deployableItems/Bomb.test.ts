@@ -289,7 +289,11 @@ describe('bomb view', () => {
   });
 
   it('onPickup-addsExactlyOneBomb', () => {
-    const outcome = bomb.onPickup(spawnBombPickup('b1', 0, 0), { pool: [], total: 0, collectedBefore: 0 });
+    const outcome = bomb.onPickup(spawnBombPickup('b1', 0, 0), {
+      pool: [],
+      total: 0,
+      collectedBefore: 0,
+    });
     expect(outcome).toEqual({ bombs: 1 });
     expect(outcome).not.toHaveProperty('disposition');
     expect(outcome).not.toHaveProperty('self');

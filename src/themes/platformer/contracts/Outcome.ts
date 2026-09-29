@@ -1,36 +1,22 @@
 import type { CollectedFact } from '../types';
 import type { Rect } from './geometry';
+import type { HitEffect } from './HitEffect';
 import type { PickupKind } from './PickupKind';
 import type { CounterPopupLabelKey } from './counters';
 
 /**
- * What an entity asks the engine to do to the PLAYER about a contact.
- * Composed by every family's outcome type rather than restated per family, so
- * "bounce the player" means one thing everywhere.
+ * What an entity asks the engine to do to the PLAYER about a contact: an
+ * ordered list of `HitEffect`s, so "bounce the player" means one thing
+ * everywhere. The engine resolves it through `HitResolver`; no entity ever
+ * knows invulnerability exists.
  *
- * Deliberately two small interfaces (this and `RewardEffects`) rather than one
- * outcome type covering everything: see `CollisionOutcome`'s doc comment —
- * an outcome type that grows past a handful of fields has become the
- * scattered conditionals it replaced, and a unified type would hand every
- * family fields that are meaningless to it.
+ * Kept as two small interfaces (this and `RewardEffects`) rather than one
+ * outcome type covering everything: an outcome type that grows past a handful
+ * of fields has become the scattered conditionals it replaced, and a unified
+ * type would hand every family fields that are meaningless to it.
  */
 export interface PlayerEffects {
-  /** Half-hearts to deal to the player. The engine ignores this while the
-   *  player is invulnerable; no entity ever knows invulnerability exists. */
-  damagePlayer?: number;
-  /**
-   * Upward velocity impulse in px/s (negative = up), supplied by the TYPE
-   * rather than chosen by the applier — an enemy stomp
-   * (`stompBounceVelocity`, -330) and a pot landing
-   * (`potBounceVelocity`, -220) are deliberately different strengths, so
-   * a boolean here could not express both. The engine applies it uniformly as
-   * `vy` + `bounceAscending: true` (the flag that protects the impulse from
-   * the variable-jump-height cut). Not to be confused with `knockback`'s
-   * `'awayAndUp'`, which is an involuntary reaction and deliberately NOT
-   * gated by `bounceAscending`.
-   */
-  bounceVelocity?: number;
-  knockback?: 'none' | 'away' | 'awayAndUp';
+  readonly effects?: readonly HitEffect[];
 }
 
 /**
@@ -40,7 +26,7 @@ export interface PlayerEffects {
  */
 export interface RewardEffects {
   /** A CV fact to reveal — pushed to `collectedFacts`, flown to the journal,
-   *  and counted in its counter popup, all by `RewardReveal.ts`. */
+   * and counted in its counter popup, all by `RewardReveal.ts`. */
   revealFact?: CollectedFact;
   /**
    * Which HUD counter popup this reward feeds, declared by the entity rather
@@ -52,7 +38,7 @@ export interface RewardEffects {
    */
   counterKey?: CounterPopupLabelKey;
   /**
-   * Which pickup to spawn at this entity's position, keyed by `PICKUP_TYPES` —
+   * Which pickup to spawn at this entity's position, keyed by `PICKUP_TYPES`
    * one field rather than a boolean per spawnable thing, so a block that drops
    * a key needs no new field here.
    *
@@ -60,7 +46,7 @@ export interface RewardEffects {
    * transient visual (`FlyingTextEffect`/`PuffEffect`/`CounterPopupEffect`),
    * whereas a spawned pickup is real world state the player can walk over and
    * collect. `'fruit'` names the rising, fact-carrying reward a question-mark
-   * block drops (the former `'bonusFruit'`; R-002 FR-022).
+   * block drops (the former `'bonusFruit'`).
    */
   spawnPickup?: PickupKind;
 }
@@ -80,16 +66,16 @@ export interface RewardEffects {
  */
 export interface DefeatApi {
   /** Spawns a pickup of `kind` at the enemy's position (its `x`/`y` at the
-   *  moment of defeat), routed through `PICKUP_TYPES[kind].spawn` + the
-   *  generic pickup store — never a page-side `spawnKeyPickup` call. */
+   * moment of defeat), routed through `PICKUP_TYPES[kind].spawn` + the
+   * generic pickup store — never a page-side `spawnKeyPickup` call. */
   spawnPickup(kind: PickupKind): void;
   /** Reveals one fact at the enemy's position. Per-fact: a kind that owns
-   *  several facts (a green slime with `fact` + `extraFacts`) calls this once
-   *  per fact. */
+   * several facts (a green slime with `fact` + `extraFacts`) calls this once
+   * per fact. */
   revealFact(fact: CollectedFact, effectId: string): void;
   /** Requests a transient HUD counter popup for `key`. The applier dedupes by
-   *  key and flushes after the `rewardGiven`/`deathEffectGiven` update, so
-   *  several same-tick defeats bump a key exactly once. */
+   * key and flushes after the `rewardGiven`/`deathEffectGiven` update, so
+   * several same-tick defeats bump a key exactly once. */
   bumpCounter(key: CounterPopupLabelKey): void;
 }
 
@@ -103,13 +89,16 @@ export type ContactSide = 'top' | 'side' | 'bottom';
  */
 export interface Contact {
   /** 'top' iff the player is falling AND its hitbox bottom edge is at or above
-   *  the entity hitbox's vertical midpoint — the rule that distinguishes
-   *  "jumped on" from "walked into". */
+   * the entity hitbox's vertical midpoint — the rule that distinguishes
+   * "jumped on" from "walked into". */
   side: ContactSide;
   playerVx: number;
   playerVy: number;
   playerBox: Rect;
   selfBox: Rect;
+  /** Which way "away from this entity" points: -1 = left, 1 = right, from the
+   * two hitbox centres — so a kind can sign its own `velocity.x`. */
+  awayDirection: -1 | 1;
 }
 
 /**
@@ -128,12 +117,14 @@ export interface Contact {
  * scattered conditionals it replaced. Anything exotic goes through an
  * `onDefeat(entity, world)` style hook receiving a narrow WorldApi instead.
  *
- * Folded in here from the removed `contracts/Contact.ts` (R-002 FR-020) so the
- * contract vocabulary has one home and stays a strict `contracts/` leaf.
+ * Folded in here from the removed `contracts/Contact.ts` so the contract
+ * vocabulary has one home and stays a strict `contracts/` leaf.
  */
-export interface CollisionOutcome<S> extends PlayerEffects {
-  /** Replacement state, if the contact changed this entity. */
-  self?: S;
+export interface CollisionOutcome extends PlayerEffects {
+  /** What a contact asks the engine to apply to THIS entity (a stomp is
+   * `[damage 1, reaction]`); the engine folds it and reports whether it took
+   * damage. */
+  readonly selfEffects?: readonly HitEffect[];
 }
 
 /**
@@ -153,7 +144,10 @@ export interface CollisionOutcome<S> extends PlayerEffects {
  * `next`, so a stomp and a coin-pot landing in the same tick resolve
  * independently rather than picking the stronger of the two.
  */
-export function strongerBounce(current: number | undefined, candidate: number | undefined): number | undefined {
+export function strongerBounce(
+  current: number | undefined,
+  candidate: number | undefined,
+): number | undefined {
   if (candidate === undefined) return current;
   if (current === undefined) return candidate;
   return candidate < current ? candidate : current;

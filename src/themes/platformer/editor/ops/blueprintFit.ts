@@ -16,7 +16,7 @@ const EMPTY_CHAR: TileChar = '.';
  * blueprint's connection points are stamped into a level, since a placed
  * marker carries no memory of its source blueprint's bounds). A blueprint's
  * markers are stamped separately (`placeBlueprintMarkers`) and never take part
- * in this check ÔÇö placement validity is terrain-only (FR-019).
+ * in this check ÔÇö placement validity is terrain-only.
  *
  * `cells` are the blueprint's own `'.'`-free cells (`blueprintCells`), so its
  * padding is never checked: a room can be dropped over existing terrain that

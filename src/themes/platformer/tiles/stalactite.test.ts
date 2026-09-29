@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  stalactiteEntry,
-  isStalactiteTwin,
-  TWIN_LEFT_RECT,
-  TWIN_RIGHT_RECT,
-} from './stalactite';
+import { stalactiteEntry, isStalactiteTwin, TWIN_LEFT_RECT, TWIN_RIGHT_RECT } from './stalactite';
 
 const DECORATIONS_SHEET_WIDTH = 67;
 const DECORATIONS_SHEET_HEIGHT = 35;
@@ -16,7 +11,9 @@ describe('stalactiteEntry', () => {
       for (let row = 0; row < 8; row++) {
         const entry = stalactiteEntry(col, row);
         expect(entry.sx + (entry.width ?? TILE_SIZE)).toBeLessThanOrEqual(DECORATIONS_SHEET_WIDTH);
-        expect(entry.sy + (entry.height ?? TILE_SIZE)).toBeLessThanOrEqual(DECORATIONS_SHEET_HEIGHT);
+        expect(entry.sy + (entry.height ?? TILE_SIZE)).toBeLessThanOrEqual(
+          DECORATIONS_SHEET_HEIGHT,
+        );
       }
     }
   });

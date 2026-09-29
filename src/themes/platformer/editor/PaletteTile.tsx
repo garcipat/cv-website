@@ -6,13 +6,13 @@ interface PaletteTileProps {
   /** Stable test handle for this tile (`editor-palette-tile-*`). */
   testId?: string;
   /** What the tile does, appended to `label` in the button's hover tooltip
-   *  (see `PALETTE_TOOLS[...].description`). Omitted, the tooltip is just the
-   *  name. */
+   * (see `PALETTE_TOOLS[...].description`). Omitted, the tooltip is just the
+   * name. */
   description?: string;
   sprite: TileSpriteSpec | null;
   /** Character drawn inside the empty square when `sprite` is `null`, so two
-   *  sprite-less tools don't render as the same blank button (see
-   *  `PALETTE_TOOLS[...].glyph`). Ignored when a sprite is given. */
+   * sprite-less tools don't render as the same blank button (see
+   * `PALETTE_TOOLS[...].glyph`). Ignored when a sprite is given. */
   glyph?: string;
   selected: boolean;
   onClick: () => void;
@@ -30,7 +30,7 @@ const SPRITE_PADDING = 10;
 /**
  * One square in the palette catalog: either a cropped sprite (plain `<img>`
  * of the whole sheet, absolutely positioned inside an `overflow: hidden`
- * box, both scaled up so the target frame fills most of `TILE_BOX_SIZE` —
+ * box, both scaled up so the target frame fills most of `TILE_BOX_SIZE`
  * a CSS "sprite sheet" crop, no canvas involved) or, when `sprite` is
  * `null` (the Eraser and Patrol Boundary tools), an empty square with just a
  * border, holding `glyph` if one was given. When the
@@ -116,7 +116,8 @@ export const PaletteTile = ({
                 top:
                   sprite.overlay.anchor === 'top'
                     ? (sprite.topOffset ?? 0) * scale
-                    : (sprite.frameHeight - (sprite.overlay.frameHeight ?? sprite.frameHeight)) * scale,
+                    : (sprite.frameHeight - (sprite.overlay.frameHeight ?? sprite.frameHeight)) *
+                      scale,
                 width: sprite.frameWidth * scale,
                 height: (sprite.overlay.frameHeight ?? sprite.frameHeight) * scale,
                 overflow: 'hidden',
@@ -145,10 +146,10 @@ export const PaletteTile = ({
             </div>
           )}
           {sprite.tint && (
-            // Editor-only wash (O-027): a translucent tint so a camouflage
+            // Editor-only wash: a translucent tint so a camouflage
             // hazard (`T`) is distinguishable from the decorative tile at a
             // glance. Masked by the sprite's own sheet/crop (same math as the
-            // base <img> above), so only the art's opaque pixels are tinted —
+            // base <img> above), so only the art's opaque pixels are tinted
             // an unmasked `inset: 0` fill would wash the transparent
             // background around the stone too. Pointer-events none so it never
             // steals the button's own click.

@@ -1,5 +1,5 @@
 /**
- * The one home for CV-derived id vocabulary (FR-006, D5). `slugify` moved here
+ * The one home for CV-derived id vocabulary. `slugify` moved here
  * verbatim from `CollectibleMapper.ts` (whose cross-mapper export it replaces),
  * and `slugId` composes it with a kind prefix for the placement ids the
  * mappers build (`block-edu-…`, `qmark-cert-…`, `enemy-course-…`,
@@ -10,8 +10,8 @@
  */
 
 /** Lowercases and hyphenates a label into a stable id fragment (e.g.
- *  "DevOps & Tools" -> "devops-tools"). Not full slugify (no unicode
- *  normalization) — CV category/language names are plain ASCII today. */
+ * "DevOps & Tools" -> "devops-tools"). Not full slugify (no unicode
+ * normalization) — CV category/language names are plain ASCII today. */
 export function slugify(label: string): string {
   return label
     .toLowerCase()
@@ -20,8 +20,8 @@ export function slugify(label: string): string {
 }
 
 /** `slugId('block-edu', 'B.Sc.', 'TU Berlin')` -> `block-edu-b-sc-tu-berlin`.
- *  The one way a mapper derives a CV-backed placement id; `parts` are joined
- *  with `-` before slugging, so a two-part id stays a single slug run. */
+ * The one way a mapper derives a CV-backed placement id; `parts` are joined
+ * with `-` before slugging, so a two-part id stays a single slug run. */
 export function slugId(prefix: string, ...parts: string[]): string {
   return `${prefix}-${slugify(parts.join('-'))}`;
 }

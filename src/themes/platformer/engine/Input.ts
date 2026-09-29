@@ -1,9 +1,9 @@
 /**
  * Keys the game reads. Their default browser behavior (e.g. page scroll on
- * arrow keys) is suppressed so gameplay isn't fighting the page — FR-007
+ * arrow keys) is suppressed so gameplay isn't fighting the page
  * reserves Arrow Left/Right/Up/Down and Space exclusively for the game.
  * ArrowDown/KeyS trigger bridge drop-through; they have no other purpose
- * today. KeyB places a carried bomb (O-012).
+ * today. KeyB places a carried bomb.
  */
 const GAME_KEYS = new Set([
   'ArrowLeft',
@@ -42,7 +42,7 @@ export interface KeyboardInput {
 
 /**
  * Tracks which keys are currently held, polled per-frame by the game loop
- * (FR-007: input is read every tick so held keys produce continuous
+ * ( input is read every tick so held keys produce continuous
  * movement) instead of reacting to individual keystrokes.
  */
 export function createKeyboardInput(): KeyboardInput {

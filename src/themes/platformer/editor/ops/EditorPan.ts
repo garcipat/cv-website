@@ -3,7 +3,7 @@ import type { TileChar } from '../../level/LevelParser';
 
 /**
  * Editor-only 2D pan state, driven by right-mouse-button drag. Unrelated to
- * the game's `engine/Camera.ts` (a 1D auto-follow-the-player behavior) —
+ * the game's `engine/Camera.ts` (a 1D auto-follow-the-player behavior)
  * kept in its own module so the two are never confused or coupled.
  */
 const SPAWN_CHAR: TileChar = 'S';

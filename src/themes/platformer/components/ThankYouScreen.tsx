@@ -8,11 +8,11 @@ export interface ThankYouScreenProps {
 }
 
 /**
- * The Thank You screen (spec.md FR-024) — shown once every chest in the
+ * The Thank You screen — shown once every chest in the
  * level is opened. Pauses the game (PlatformerPage.tsx transitions
  * `gamePhase` to `'ending-screen'` before mounting this) and reveals
  * Contact, which is otherwise never placed as a collectible or added to the
- * journal (per spec.md FR-013). Dismissed by any key press or click —
+ * journal . Dismissed by any key press or click
  * deliberately non-blocking, per spec, so a visitor who hasn't finished
  * every coin/crate isn't locked out.
  *

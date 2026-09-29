@@ -46,7 +46,9 @@ describe('journalOpenFrameWidthPercent', () => {
 
   it('called-withOutOfRangeFrame-clampsBeforeLookup', () => {
     expect(journalOpenFrameWidthPercent(0)).toBe(journalOpenFrameWidthPercent(1));
-    expect(journalOpenFrameWidthPercent(99)).toBe(journalOpenFrameWidthPercent(JOURNAL_OPEN_FRAME_COUNT));
+    expect(journalOpenFrameWidthPercent(99)).toBe(
+      journalOpenFrameWidthPercent(JOURNAL_OPEN_FRAME_COUNT),
+    );
   });
 });
 

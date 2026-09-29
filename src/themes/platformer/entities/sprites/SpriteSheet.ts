@@ -13,7 +13,7 @@ export interface SpriteSheet {
   frameWidth: number;
   frameHeight: number;
   /** Frames are addressed by index, read left-to-right then top-to-bottom;
-   *  `columns` is what turns an index into a source rect. */
+   * `columns` is what turns an index into a source rect. */
   columns: number;
 }
 

@@ -88,7 +88,7 @@ describe('torchPhase', () => {
   it('adjacentCellsAreOutOfPhase', () => {
     // (0,0) hashes to phase 0 and (1,0) to phase 1 — two neighbouring cells
     // must not always share a phase, or every torch on screen would strobe in
-    // unison (spec FR-009).
+    // unison.
     expect(torchPhase(0, 0)).not.toBe(torchPhase(1, 0));
   });
 

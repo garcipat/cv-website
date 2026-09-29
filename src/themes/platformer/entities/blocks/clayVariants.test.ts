@@ -25,7 +25,7 @@ describe('clayVariantAt', () => {
 
   it('adjacentColumns-inTheSameRow-neverShareAVariant', () => {
     // Two horizontally adjacent clay pots are the tiles a visitor reads as
-    // "the bunch", so they must never repeat a size (FR-009/SC-002). The
+    // "the bunch", so they must never repeat a size. The
     // filler only guarantees base-vs-filler, not base-vs-base — this is the
     // rule that actually makes a run of pots read as varied sizes.
     for (let row = 0; row < 12; row++) {
@@ -38,7 +38,7 @@ describe('clayVariantAt', () => {
   it('isAFunctionOfTheTileAlone-soASurvivorKeepsItsVariantWhenItsNeighbourIsGone', () => {
     // The signature takes only (col, row): there is no run input, so a
     // surviving pot's variant cannot change when a neighbour breaks or a
-    // bunch re-forms (FR-010, SC-008).
+    // bunch re-forms.
     const before = clayVariantAt(5, 2);
     expect(clayVariantAt(5, 2)).toBe(before);
   });
@@ -71,7 +71,7 @@ describe('fillerVariantAt', () => {
     // The rendered sequence of a run is base(c0), filler(c0), base(c1),
     // filler(c1), ... — a filler always sits between two base pots, so
     // pairwise-distinct neighbours for the whole sequence is exactly the
-    // no-neighbour-repeat guarantee FR-009/SC-002 require, however long the
+    // no-neighbour-repeat guarantee / require, however long the
     // run.
     for (let row = 0; row < 4; row++) {
       const rendered: number[] = [];

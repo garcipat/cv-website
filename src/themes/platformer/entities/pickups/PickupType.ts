@@ -5,11 +5,7 @@ import type { DrawContext } from '../../contracts/DrawContext';
 import type { Pickup } from '../../contracts/Pickup';
 import type { PickupKind } from '../../contracts/PickupKind';
 import type { CollectedFact } from '../../types';
-import type {
-  PickupCollisionContext,
-  PickupContext,
-  PickupOutcome,
-} from '../../contracts/Pickup';
+import type { PickupCollisionContext, PickupContext, PickupOutcome } from '../../contracts/Pickup';
 
 /** The band `drawPickups` draws this kind in (see engine/render/SceneRenderer.ts). */
 export type PickupDrawLayer = 'belowBlocks' | 'beforeEnemies' | 'afterEnemies';

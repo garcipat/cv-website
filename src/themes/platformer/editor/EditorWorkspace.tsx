@@ -29,8 +29,8 @@ import {
 /**
  * The editor's single signal-reading container. It subscribes once with
  * `useSignals()` and passes the current editor values down to the presentational
- * containers, keeping `LevelEditorPage` a layout shell (FR-015) while giving
- * every editor value exactly one signal source (FR-017).
+ * containers, keeping `LevelEditorPage` a layout shell while giving
+ * every editor value exactly one signal source.
  */
 export const EditorWorkspace = () => {
   useSignals();
@@ -40,8 +40,7 @@ export const EditorWorkspace = () => {
 
   // The editor owns its palette: the attribute lives on <html> while the
   // editor is mounted so portaled Dialog/Select/Tooltip content inherits the
-  // tokens too, and it is removed on unmount so no other route does (O-015
-  // FR-004/FR-005).
+  // tokens too, and it is removed on unmount so no other route does.
   // `useLayoutEffect` (not `useEffect`): `EditorCanvas` reads the
   // `--editor-canvas-backdrop` token in its own passive redraw effect, and
   // React runs child passive effects before parent passive effects. Setting the

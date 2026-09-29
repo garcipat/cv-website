@@ -42,12 +42,7 @@ import type {
 } from './editorState';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -146,8 +141,8 @@ const ToolbarToggleGroup = ({ options }: { options: ToggleOption[] }) => (
 );
 
 /** An icon command with a tooltip, wrapping the trigger element it is given
- *  (a plain button, or a `DialogTrigger` for Export). The element must be a
- *  Base UI primitive so the tooltip's props/ref reach the DOM node. */
+ * (a plain button, or a `DialogTrigger` for Export). The element must be a
+ * Base UI primitive so the tooltip's props/ref reach the DOM node. */
 const IconAction = ({ label, render }: { label: string; render: ReactElement }) => (
   <Tooltip>
     <TooltipTrigger render={render} />
@@ -170,15 +165,15 @@ export interface EditorToolbarProps {
   saveResult: SaveResultState | null;
   levelGrid: TileChar[][];
   /** The level canvas's own tile meta layer — folded into the Export
-   *  dialog's complete JSON (`layoutFileJson`), markers included. */
+   * dialog's complete JSON (`layoutFileJson`), markers included. */
   markerGrid: MarkerGrid;
   /** The level canvas's own background grid — cropped to the same origin as
-   *  the foreground and the markers for the Export dialog's complete JSON. */
+   * the foreground and the markers for the Export dialog's complete JSON. */
   backgroundGrid: BackgroundChar[][];
 }
 
 /**
- * The editor's header toolbar (FR-001–FR-006): every command and toggle as a
+ * The editor's header toolbar: every command and toggle as a
  * compact control, right-aligned and wrapping rather than scrolling, laid out
  * on a bordered panel like the Palette. The layer and canvas pairs are visible
  * segmented toggles; Undo/Save/Export/Try sit in their own group; the entry
@@ -214,7 +209,7 @@ export const EditorToolbar = ({
   // All three layers share the same crop origin/bounds (cropLevelForExport,
   // the same alignment `saveCurrentLevel`/`tryLayout` rely on). The Export
   // textarea shows the complete level JSON via the same `layoutFileJson` a
-  // save writes (FR-033/FR-034), so the two can never drift apart.
+  // save writes, so the two can never drift apart.
   const cropped = cropLevelForExport(levelGrid, backgroundGrid, markerGrid);
   const exportedText = layoutFileJson(
     loadedLevelName,
@@ -422,7 +417,11 @@ export const EditorToolbar = ({
             onLoadBlueprint={loadBlueprint}
           />
         ) : (
-          <LevelSelect loadedLevelName={loadedLevelName} isDirty={isDirty} onLoadLevel={loadLevel} />
+          <LevelSelect
+            loadedLevelName={loadedLevelName}
+            isDirty={isDirty}
+            onLoadLevel={loadLevel}
+          />
         )}
         {saveResult?.target === 'level' && saveResult.result.written === true && (
           <p

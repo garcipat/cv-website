@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  ATLAS_STRIDE,
-  atlasCell,
-  type QuarterTurns,
-  type TileAtlasEntry,
-} from './tileAtlas';
+import { ATLAS_STRIDE, atlasCell, type QuarterTurns, type TileAtlasEntry } from './tileAtlas';
 
 describe('ATLAS_STRIDE', () => {
   it('value-isTheSixteenPixelTilePlusThreePixelGutter', () => {

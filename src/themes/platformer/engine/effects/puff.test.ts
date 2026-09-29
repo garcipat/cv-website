@@ -140,7 +140,10 @@ describe('drawPuffEffect', () => {
 
   it('expiredPuff-doesNotDrawSparkleCircles', () => {
     const ctx = makeMockContext() as unknown as { arc: ReturnType<typeof vi.fn> };
-    const effect = tickPuffEffect(startPuffEffect('rock-1', 100, 200), SPARKLE_DURATION_SECONDS + 0.01);
+    const effect = tickPuffEffect(
+      startPuffEffect('rock-1', 100, 200),
+      SPARKLE_DURATION_SECONDS + 0.01,
+    );
 
     drawPuffEffect(effect, renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]));
 

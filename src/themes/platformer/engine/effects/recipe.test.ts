@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { advanceEffects, defaultExpired, defaultTick, type TransientEffect } from './transientEffect';
+import {
+  advanceEffects,
+  defaultExpired,
+  defaultTick,
+  type TransientEffect,
+} from './transientEffect';
 import type { EffectRegistryEntry } from './effectRegistry';
 import { drawEffectsFrom } from './drawEffects';
 import { makeMockContext, renderContext } from './testContext';

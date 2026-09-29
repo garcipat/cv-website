@@ -1,11 +1,6 @@
 import { frameSource, collectSheetSources } from './SpriteSheet';
 import type { SpriteDescriptor } from './SpriteSheet';
-import {
-  SLIME_GREEN_SHEET,
-  SLIME_PURPLE_SHEET,
-  BOMB_SHEET,
-  EXPLOSION_SHEET,
-} from './sheets';
+import { SLIME_GREEN_SHEET, SLIME_PURPLE_SHEET, BOMB_SHEET, EXPLOSION_SHEET } from './sheets';
 
 describe('frameSource', () => {
   it('indexZero-returnsTopLeftFrame', () => {

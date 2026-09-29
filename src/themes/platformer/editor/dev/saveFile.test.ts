@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { downloadFile, saveFile } from './saveFile';
 
-const CONTENTS = '{\n  "name": "Cave"\n}\n';
+const CONTENTS = '{\n "name": "Cave"\n}\n';
 
 describe('downloadFile', () => {
   afterEach(() => {
@@ -58,10 +58,17 @@ describe('saveFile', () => {
   };
 
   it('devServerAccepts-postsTheFileNameAndContentsAndReportsThePathWithoutDownloading', async () => {
-    const fetchMock = stubFetch({ ok: true, json: () => Promise.resolve({ path: 'levels/cave.json' }) });
+    const fetchMock = stubFetch({
+      ok: true,
+      json: () => Promise.resolve({ path: 'levels/cave.json' }),
+    });
     const click = stubDownload();
 
-    const result = await saveFile({ endpoint: '/__save-level', fileName: 'cave.json', contents: CONTENTS });
+    const result = await saveFile({
+      endpoint: '/__save-level',
+      fileName: 'cave.json',
+      contents: CONTENTS,
+    });
 
     expect(result).toEqual({ written: true, path: 'levels/cave.json' });
     expect(click).not.toHaveBeenCalled();
@@ -75,7 +82,11 @@ describe('saveFile', () => {
     stubFetch({ ok: false, json: () => Promise.resolve({ error: 'outside the folder' }) });
     const click = stubDownload();
 
-    const result = await saveFile({ endpoint: '/__save-level', fileName: 'cave.json', contents: CONTENTS });
+    const result = await saveFile({
+      endpoint: '/__save-level',
+      fileName: 'cave.json',
+      contents: CONTENTS,
+    });
 
     expect(result).toEqual({ written: false, error: 'outside the folder' });
     expect(click).toHaveBeenCalledOnce();
@@ -85,7 +96,11 @@ describe('saveFile', () => {
     stubFetch({ ok: true, json: () => Promise.resolve({}) });
     const click = stubDownload();
 
-    const result = await saveFile({ endpoint: '/__save-level', fileName: 'cave.json', contents: CONTENTS });
+    const result = await saveFile({
+      endpoint: '/__save-level',
+      fileName: 'cave.json',
+      contents: CONTENTS,
+    });
 
     expect(result).toEqual({ written: false });
     expect(click).toHaveBeenCalledOnce();
@@ -95,7 +110,11 @@ describe('saveFile', () => {
     stubFetch(new Error('no dev server'));
     const click = stubDownload();
 
-    const result = await saveFile({ endpoint: '/__save-level', fileName: 'cave.json', contents: CONTENTS });
+    const result = await saveFile({
+      endpoint: '/__save-level',
+      fileName: 'cave.json',
+      contents: CONTENTS,
+    });
 
     expect(result).toEqual({ written: false });
     expect(click).toHaveBeenCalledOnce();

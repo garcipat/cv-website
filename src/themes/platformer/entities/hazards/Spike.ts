@@ -11,10 +11,10 @@ import type { Rect } from '../../contracts/geometry';
  * tiles) of each facing's pre-drawn sprite — the artist already drew all 4
  * orientations, so no runtime rotation is needed. Confirmed against the
  * actual asset before this module was written:
- *   up    (floor spike, tip up):    column 3, row 7
- *   down  (ceiling spike, tip down): column 4, row 6
- *   right (mounted on a left wall):  column 3, row 6
- *   left  (mounted on a right wall): column 4, row 7
+ * up (floor spike, tip up): column 3, row 7
+ * down (ceiling spike, tip down): column 4, row 6
+ * right (mounted on a left wall): column 3, row 6
+ * left (mounted on a right wall): column 4, row 7
  */
 const FACING_TILE: Record<HazardFacing, { col: number; row: number }> = {
   up: { col: 3, row: 7 },
@@ -48,13 +48,23 @@ function facingBox(hazard: HazardPlacement): Rect {
   const band = BAND_NATIVE * RENDER_SCALE;
   switch (hazard.facing) {
     case 'up':
-      return { x: hazard.x, y: hazard.y + RENDERED_TILE_SIZE - band, width: RENDERED_TILE_SIZE, height: band };
+      return {
+        x: hazard.x,
+        y: hazard.y + RENDERED_TILE_SIZE - band,
+        width: RENDERED_TILE_SIZE,
+        height: band,
+      };
     case 'down':
       return { x: hazard.x, y: hazard.y, width: RENDERED_TILE_SIZE, height: band };
     case 'right':
       return { x: hazard.x, y: hazard.y, width: band, height: RENDERED_TILE_SIZE };
     case 'left':
-      return { x: hazard.x + RENDERED_TILE_SIZE - band, y: hazard.y, width: band, height: RENDERED_TILE_SIZE };
+      return {
+        x: hazard.x + RENDERED_TILE_SIZE - band,
+        y: hazard.y,
+        width: band,
+        height: RENDERED_TILE_SIZE,
+      };
   }
 }
 

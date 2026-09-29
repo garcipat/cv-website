@@ -1,4 +1,4 @@
-﻿import { RENDERED_TILE_SIZE, TILE_SIZE } from '../level/Terrain';
+import { RENDERED_TILE_SIZE, TILE_SIZE } from '../level/Terrain';
 import { pickVariant } from '../shared/variants';
 import type { StaticObjectEntry } from './spriteRects';
 import type { TileDrawContext, TileModule } from './TileModule';
@@ -6,7 +6,7 @@ import type { TileDrawContext, TileModule } from './TileModule';
 /**
  * `crystalCluster` — a single-sprite cave decoration (`c`). Non-solid,
  * non-climbable, fogged; drawn in the terrain band. Owns its variant table +
- * lookup relocated from `engine/StaticObjectsCatalog.ts` (US4/T033).
+ * lookup relocated from `engine/StaticObjectsCatalog.ts`.
  */
 
 /**
@@ -27,8 +27,15 @@ function draw(rc: TileDrawContext): void {
   if (!decorations) return;
   const entry = crystalClusterEntry(col, row);
   ctx.drawImage(
-    decorations, entry.sx, entry.sy, entry.width ?? TILE_SIZE, entry.height ?? TILE_SIZE,
-    destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+    decorations,
+    entry.sx,
+    entry.sy,
+    entry.width ?? TILE_SIZE,
+    entry.height ?? TILE_SIZE,
+    destX,
+    destY,
+    RENDERED_TILE_SIZE,
+    RENDERED_TILE_SIZE,
   );
 }
 

@@ -38,38 +38,38 @@ export interface HazardType<S> extends WorldType<S>, Boxed<S> {
   /** Must equal this module's slot in HAZARD_TYPES. */
   key: string;
   /** Half-heart units a single touch costs — see Health.ts's SIDE_HIT_DAMAGE
-   *  for the shared convention every other damage source already uses.
-   *  Never read when `lethal` is true. */
+   * for the shared convention every other damage source already uses.
+   * Never read when `lethal` is true. */
   damage: number;
   /** When true, a qualifying contact is an instant kill: health goes straight
-   *  to zero and every invulnerability window is ignored. The kind applies no
-   *  half-heart damage, knockback, hit animation or splatter (O-020 FR-004/
-   *  FR-005). Absent/false leaves every existing kind's half-heart behavior
-   *  untouched. */
+   * to zero and every invulnerability window is ignored. The kind applies no
+   * half-heart damage, knockback, hit animation or splatter ( /
+   * ). Absent/false leaves every existing kind's half-heart behavior
+   * untouched. */
   lethal?: boolean;
   /** Whether a qualifying non-lethal contact knocks the player back. `false`
-   *  for the floor spike and falling stalactite (half-heart, no knockback);
-   *  `true` for the spike and spear. The crouch suppression (a crouched hit
-   *  never knocks back) is player-side and is NOT this flag. */
+   * for the floor spike and falling stalactite (half-heart, no knockback);
+   * `true` for the spike and spear. The crouch suppression (a crouched hit
+   * never knocks back) is player-side and is NOT this flag. */
   knocksBack: boolean;
   /** Whether this specific overlap qualifies as a contact. Absent = always
-   *  true (any `box` overlap), preserving every existing kind's behavior.
-   *  The spear returns true only for a descent onto its top tips from above
-   *  (O-020 FR-003). `PlayerState` is a type-only import and `Rect` (rather
-   *  than `Collision.ts`'s structurally-identical `Box`) avoids a
-   *  hazard↔collision import cycle. */
+   * true (any `box` overlap), preserving every existing kind's behavior.
+   * The spear returns true only for a descent onto its top tips from above
+   *. `PlayerState` is a type-only import and `Rect` (rather
+   * than `Collision.ts`'s structurally-identical `Box`) avoids a
+   * hazard↔collision import cycle. */
   isContact?(state: S, player: PlayerState, hitbox: Rect): boolean;
   /** Merges this kind's live per-tick state into the placement, returning a
-   *  new placement. Only stateful kinds implement it (floor spike:
-   *  phase/extension; falling stalactite: phase/offset/shake); every other
-   *  kind passes through unchanged by omitting it (`?? placement`). Reads
-   *  only its parameters — no state import. */
+   * new placement. Only stateful kinds implement it (floor spike:
+   * phase/extension; falling stalactite: phase/offset/shake); every other
+   * kind passes through unchanged by omitting it (`?? placement`). Reads
+   * only its parameters — no state import. */
   withTickState?(placement: HazardPlacement, timers: HazardTickContext): HazardPlacement;
   /** The player-overlap rects (world space) that arm this hazard, returned
-   *  only when the hazard is eligible to be newly armed (not already armed).
-   *  Present only on armed-then-cycle kinds (floor spike: its trigger band;
-   *  falling stalactite: its detection-zone cells as rects); a static kind
-   *  (spike/spear) omits it. The engine overlaps the player's hitbox against
-   *  each rect and arms the hazard once. Reads only its parameters. */
+   * only when the hazard is eligible to be newly armed (not already armed).
+   * Present only on armed-then-cycle kinds (floor spike: its trigger band;
+   * falling stalactite: its detection-zone cells as rects); a static kind
+   * (spike/spear) omits it. The engine overlaps the player's hitbox against
+   * each rect and arms the hazard once. Reads only its parameters. */
   armTriggerRects?(hazard: HazardPlacement, timers: HazardTickContext): readonly Rect[];
 }

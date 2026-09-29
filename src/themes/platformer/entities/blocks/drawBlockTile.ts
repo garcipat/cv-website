@@ -28,5 +28,15 @@ export function drawBlockTile(block: BlockState, dc: DrawContext, frameIndex: nu
   const dx = block.x + dc.originX;
   const dy = block.y + dc.originY + blockBumpOffsetY(block);
 
-  dc.ctx.drawImage(image, sx, sy, TILE_SIZE, TILE_SIZE, dx, dy, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+  dc.ctx.drawImage(
+    image,
+    sx,
+    sy,
+    TILE_SIZE,
+    TILE_SIZE,
+    dx,
+    dy,
+    RENDERED_TILE_SIZE,
+    RENDERED_TILE_SIZE,
+  );
 }

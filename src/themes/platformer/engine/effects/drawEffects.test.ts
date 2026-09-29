@@ -25,10 +25,18 @@ describe('drawEffects — layer filtering', () => {
     const aura = startHealAuraEffect('h');
     const effects = [aura];
 
-    drawEffects(renderContext(ctx as unknown as CanvasRenderingContext2D, effects), 'worldEffects', effects);
+    drawEffects(
+      renderContext(ctx as unknown as CanvasRenderingContext2D, effects),
+      'worldEffects',
+      effects,
+    );
     expect(ctx.createRadialGradient).not.toHaveBeenCalled();
 
-    drawEffects(renderContext(ctx as unknown as CanvasRenderingContext2D, effects), 'midWorld', effects);
+    drawEffects(
+      renderContext(ctx as unknown as CanvasRenderingContext2D, effects),
+      'midWorld',
+      effects,
+    );
     expect(ctx.createRadialGradient).toHaveBeenCalled();
   });
 
@@ -44,7 +52,10 @@ describe('drawEffects — layer filtering', () => {
   });
 
   it('aboveWorldDrawsOnlyExplosions', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn>; arc: ReturnType<typeof vi.fn> };
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      arc: ReturnType<typeof vi.fn>;
+    };
     const puff = startPuffEffect('p', 0, 0);
     const explosion = startExplosionEffect('e', 100, 200);
     const effects = [puff, explosion];
@@ -57,7 +68,10 @@ describe('drawEffects — layer filtering', () => {
   });
 
   it('hudLastDrawsOnlyCounterPopups', () => {
-    const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn>; arc: ReturnType<typeof vi.fn> };
+    const ctx = makeMockContext() as unknown as {
+      drawImage: ReturnType<typeof vi.fn>;
+      arc: ReturnType<typeof vi.fn>;
+    };
     const coinIcon = { tag: 'coin' } as unknown as HTMLImageElement;
     const popup = startCounterPopup('coins', 1, 4);
     const puff = startPuffEffect('p', 0, 0);
@@ -81,7 +95,11 @@ describe('drawEffects — layer filtering', () => {
   });
 
   it('emptyCollection-drawsNothingAtAnyLayer', () => {
-    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn>; arc: ReturnType<typeof vi.fn>; drawImage: ReturnType<typeof vi.fn> };
+    const ctx = makeMockContext() as unknown as {
+      fillText: ReturnType<typeof vi.fn>;
+      arc: ReturnType<typeof vi.fn>;
+      drawImage: ReturnType<typeof vi.fn>;
+    };
     for (const layer of ['midWorld', 'worldEffects', 'aboveWorld', 'hudLast'] as const) {
       drawEffects(renderContext(ctx as unknown as CanvasRenderingContext2D, []), layer, []);
     }
@@ -150,7 +168,12 @@ describe('drawEffects — ordering and context', () => {
     ]);
     const effects = [effect];
     drawEffects(
-      withSprites(ctx as unknown as CanvasRenderingContext2D, effects, { 'a.png': image }, { x: 10, y: 0 }),
+      withSprites(
+        ctx as unknown as CanvasRenderingContext2D,
+        effects,
+        { 'a.png': image },
+        { x: 10, y: 0 },
+      ),
       'worldEffects',
       effects,
     );

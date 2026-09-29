@@ -9,13 +9,12 @@ import type { EditorTool } from './editorState';
 import type { TileModule } from '../tiles/TileModule';
 
 /**
- * FR-017 structural guard (R-010).
+ * Structural guard.
  *
  * This is the automated regression watch for the single-implementation
- * invariants and R-001/R-015 edges in `contracts/layer-invariants.md` §3. It
- * reads source files with `node:fs`/`node:path` — test-only — so a
- * structural regression fails the suite rather than drifting silently
- * (mirroring `tiles/registry.test.ts`).
+ * invariants and layer edges. It reads source files with `node:fs`/`node:path`
+ * — test-only — so a structural regression fails the suite rather than
+ * drifting silently (mirroring `tiles/registry.test.ts`).
  *
  * Each check has a frozen expectation, so deleting an invariant's subject
  * cannot silently vacate the check.
@@ -107,7 +106,7 @@ function importSpecifiers(source: string): string[] {
   return specifiers;
 }
 
-describe('FR-017 guard — (1) no editor-local finder/synthesizer pipeline', () => {
+describe('guard: no editor-local finder/synthesizer pipeline', () => {
   it('gridRenderState-noLongerExists', () => {
     expect(fs.existsSync(path.join(EDITOR_DIR, frag('grid', 'RenderState', '.ts')))).toBe(false);
   });
@@ -128,7 +127,7 @@ describe('FR-017 guard — (1) no editor-local finder/synthesizer pipeline', () 
   });
 });
 
-describe('FR-017 guard — (2) one palette descriptor consuming R-015', () => {
+describe('guard: one palette descriptor', () => {
   const registry = TILE_MODULES as Record<string, TileModule>;
 
   it('exactlyOnePaletteToolsDeclaration', () => {
@@ -186,7 +185,7 @@ describe('FR-017 guard — (2) one palette descriptor consuming R-015', () => {
   });
 });
 
-describe('FR-017 guard — (3) one mapper-placement contract', () => {
+describe('guard: one mapper-placement contract', () => {
   const MAPPER_FILES = [
     'level/BlockMapper.ts',
     'level/EnemyMapper.ts',
@@ -198,7 +197,9 @@ describe('FR-017 guard — (3) one mapper-placement contract', () => {
   ];
 
   it('exactlyOnePlaceAtMarkersAndOnePlaceWithFactPool', () => {
-    expect(filesMatching(rx('export function place', 'AtMarkers<'))).toEqual(['level/placement.ts']);
+    expect(filesMatching(rx('export function place', 'AtMarkers<'))).toEqual([
+      'level/placement.ts',
+    ]);
     expect(filesMatching(rx('export function place', 'WithFactPool<'))).toEqual([
       'level/placement.ts',
     ]);
@@ -214,8 +215,8 @@ describe('FR-017 guard — (3) one mapper-placement contract', () => {
   });
 
   it('noMapperContainsItsOwnPlaceLoop', () => {
-    const offenders = MAPPER_FILES.filter(
-      (file) => /markers\.map\(|markers\.forEach\(/.test(SOURCES[file] ?? ''),
+    const offenders = MAPPER_FILES.filter((file) =>
+      /markers\.map\(|markers\.forEach\(/.test(SOURCES[file] ?? ''),
     );
     expect(offenders).toEqual([]);
   });
@@ -232,10 +233,14 @@ describe('FR-017 guard — (3) one mapper-placement contract', () => {
   });
 });
 
-describe('FR-017 guard — (4) one paint / walk / crop / save', () => {
+describe('guard: one paint / walk / crop / save', () => {
   it('exactlyOnePaintPrimitive', () => {
-    expect(filesMatching(rx('export function stamp', 'GridCells'))).toEqual(['editor/ops/paintGrid.ts']);
-    expect(filesMatching(rx('export function paint', 'GridCell'))).toEqual(['editor/ops/paintGrid.ts']);
+    expect(filesMatching(rx('export function stamp', 'GridCells'))).toEqual([
+      'editor/ops/paintGrid.ts',
+    ]);
+    expect(filesMatching(rx('export function paint', 'GridCell'))).toEqual([
+      'editor/ops/paintGrid.ts',
+    ]);
   });
 
   it('exactlyOneLayoutCharacterWalk', () => {
@@ -249,7 +254,9 @@ describe('FR-017 guard — (4) one paint / walk / crop / save', () => {
   });
 
   it('exactlyOneSaveModule', () => {
-    expect(filesMatching(rx('export async function save', 'File'))).toEqual(['editor/dev/saveFile.ts']);
+    expect(filesMatching(rx('export async function save', 'File'))).toEqual([
+      'editor/dev/saveFile.ts',
+    ]);
   });
 
   it('cropLevelForExportObtainsBothLayersFromTheSharedCrop', () => {
@@ -264,7 +271,7 @@ describe('FR-017 guard — (4) one paint / walk / crop / save', () => {
   });
 });
 
-describe('FR-017 guard — (5) one LayoutFile', () => {
+describe('guard: one LayoutFile', () => {
   it('exactlyOneLayoutFileDeclaration', () => {
     expect(filesMatching(rx('(interface|type)\\s+Layout', 'File\\b'))).toEqual([
       'level/rawLayoutFile.ts',
@@ -279,7 +286,9 @@ describe('FR-017 guard — (5) one LayoutFile', () => {
     const levelBody = levelRegistry.slice(
       levelRegistry.indexOf('interface LevelEntry extends LayoutFile'),
     );
-    const bpBody = blueprintData.slice(blueprintData.indexOf('interface Blueprint extends LayoutFile'));
+    const bpBody = blueprintData.slice(
+      blueprintData.indexOf('interface Blueprint extends LayoutFile'),
+    );
     for (const body of [
       levelBody.slice(0, levelBody.indexOf('}')),
       bpBody.slice(0, bpBody.indexOf('}')),
@@ -291,7 +300,7 @@ describe('FR-017 guard — (5) one LayoutFile', () => {
   });
 });
 
-describe('FR-017 guard — (6) editor concern split', () => {
+describe('guard: editor concern split', () => {
   const D11_OPS_MODULES = [
     'paletteTiles',
     'backgroundPaletteTiles',
@@ -336,7 +345,9 @@ describe('FR-017 guard — (6) editor concern split', () => {
   it('everyD11PureTransformLivesUnderOpsAndNoneAtTheRoot', () => {
     for (const name of D11_OPS_MODULES) {
       expect(fs.existsSync(path.join(OPS_DIR, `${name}.ts`)), `missing ops/${name}.ts`).toBe(true);
-      expect(fs.existsSync(path.join(EDITOR_DIR, `${name}.ts`)), `stray editor/${name}.ts`).toBe(false);
+      expect(fs.existsSync(path.join(EDITOR_DIR, `${name}.ts`)), `stray editor/${name}.ts`).toBe(
+        false,
+      );
     }
   });
 
@@ -353,7 +364,7 @@ describe('FR-017 guard — (6) editor concern split', () => {
   });
 });
 
-describe('FR-017 guard — (7) R-001/R-015 layer edges', () => {
+describe('guard: layer edges', () => {
   it('contractsIsStillALeaf', () => {
     const offenders: string[] = [];
     for (const file of listSourceFiles(CONTRACTS_DIR)) {
@@ -428,7 +439,7 @@ describe('FR-017 guard — (7) R-001/R-015 layer edges', () => {
   });
 });
 
-describe('FR-017 guard — (8) shared apply-tool op', () => {
+describe('guard: shared apply-tool op', () => {
   it('editorCanvasApplyToolAtHoldsNoPerToolPlacementSemantics', () => {
     const source = SOURCES['editor/EditorCanvas.tsx'];
     expect(source).toContain('applyTool(');

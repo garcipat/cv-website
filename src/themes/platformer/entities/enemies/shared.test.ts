@@ -26,7 +26,11 @@ function configWithReaction(seconds: number): EnemyBaseConfig {
 
 describe('takeHit', () => {
   it('anyEnemy-entersHitStateAtFrameZeroAndFreezesMovement', () => {
-    const state = { ...ENEMY_TYPES.slimeGreen.create(makeGreenPlacement(), 0), vx: 60, direction: 'right' as const };
+    const state = {
+      ...ENEMY_TYPES.slimeGreen.create(makeGreenPlacement(), 0),
+      vx: 60,
+      direction: 'right' as const,
+    };
     const next = takeHit(state);
     expect(next.animState).toBe('hit');
     expect(next.animFrame).toBe(0);
@@ -36,7 +40,7 @@ describe('takeHit', () => {
   });
 
   it('enemyAlreadyMidHitReactionFromAnEarlierStomp-resetsAnimationAgain', () => {
-    // takeHit itself never refuses a second call (see its doc comment) —
+    // takeHit itself never refuses a second call (see its doc comment)
     // calling it again mid-reaction must replay from frame 0, not continue
     // wherever the first stomp's animation had gotten to. The type module's
     // own `onPlayerCollide` (via `isInvulnerable`) is what actually prevents this
@@ -89,8 +93,18 @@ describe('baseEnemyState/baseRevive hitTimer seeding', () => {
   });
 
   it('bothSlimeTypes-stillSeedTheSharedConstantAndSpawnVulnerable', () => {
-    const greenPlacement: EnemyPlacement = { id: 'enemy-cert-x', type: 'slimeGreen', x: 320, y: 96 };
-    const purplePlacement: EnemyPlacement = { id: 'enemy-cert-y', type: 'slimePurple', x: 320, y: 96 };
+    const greenPlacement: EnemyPlacement = {
+      id: 'enemy-cert-x',
+      type: 'slimeGreen',
+      x: 320,
+      y: 96,
+    };
+    const purplePlacement: EnemyPlacement = {
+      id: 'enemy-cert-y',
+      type: 'slimePurple',
+      x: 320,
+      y: 96,
+    };
     const greenState = ENEMY_TYPES.slimeGreen.create(greenPlacement, 0);
     const purpleState = ENEMY_TYPES.slimePurple.create(purplePlacement, 0);
 
@@ -134,7 +148,11 @@ describe('baseEnemyState/baseRevive resting-state seeding', () => {
       defaultAnimState: 'fly',
       animations: { fly: { frames: [10, 11, 12], frameDuration: 0.2 } },
     };
-    const spawned = { ...baseEnemyState(placement, 0, config), type: 'slimeGreen' as const, animState: 'hit' };
+    const spawned = {
+      ...baseEnemyState(placement, 0, config),
+      type: 'slimeGreen' as const,
+      animState: 'hit',
+    };
     expect(baseRevive(spawned, config).animState).toBe('fly');
   });
 });

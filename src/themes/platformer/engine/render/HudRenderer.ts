@@ -1,4 +1,4 @@
-﻿import {
+import {
   MAX_HEARTS,
   HEART_FRAME_SIZE,
   HEART_RENDERED_SIZE,
@@ -92,10 +92,10 @@ const RESTART_PROMPT_TEXT = 'Press any button to restart';
 export const RESTART_PROMPT_FONT_URL = '/fonts/bytebounce.medium.ttf';
 
 /** Draws the death-screen restart prompt, centered on the canvas. Only ever
- *  drawn on top of a fully-closed drawIrisOverlay (radius 0), so no
- *  background/contrast handling is needed here. Falls back to the
- *  sans-serif stack if RESTART_PROMPT_FONT_FAMILY hasn't finished loading
- *  (or failed to) by the time this is drawn. */
+ * drawn on top of a fully-closed drawIrisOverlay (radius 0), so no
+ * background/contrast handling is needed here. Falls back to the
+ * sans-serif stack if RESTART_PROMPT_FONT_FAMILY hasn't finished loading
+ * (or failed to) by the time this is drawn. */
 export function drawRestartPrompt(
   ctx: CanvasRenderingContext2D,
   canvasWidth: number,
@@ -111,8 +111,8 @@ export function drawRestartPrompt(
 }
 
 /** Border thickness of the low-health glow, in canvas px â€” a fixed HUD-style
- *  size, not scaled to canvas width/height (same convention as the fixed-size
- *  heart/journal HUD icons). */
+ * size, not scaled to canvas width/height (same convention as the fixed-size
+ * heart/journal HUD icons). */
 export const LOW_HEALTH_GLOW_WIDTH_PX = 18;
 /** Full breathe-in/breathe-out cycle length for the pulse. */
 export const LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS = 1.4;
@@ -121,18 +121,18 @@ const LOW_HEALTH_GLOW_PULSE_ALPHA = 0.45;
 const LOW_HEALTH_GLOW_COLOR = '#ff1f1f';
 
 /** 0..1 sine breathing curve mapped to [BASE, BASE+PULSE] alpha, driven by a
- *  plain elapsed-seconds counter (not tied to any one effect's lifetime â€”
- *  the glow is ambient and open-ended for as long as health stays critical,
- *  see PlatformerPage.tsx's `worldAnimElapsed`). */
+ * plain elapsed-seconds counter (not tied to any one effect's lifetime â€”
+ * the glow is ambient and open-ended for as long as health stays critical,
+ * see PlatformerPage.tsx's `worldAnimElapsed`). */
 export function lowHealthGlowAlpha(elapsedSeconds: number): number {
   const wave = (pulse(elapsedSeconds / LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS) + 1) / 2;
   return LOW_HEALTH_GLOW_BASE_ALPHA + wave * LOW_HEALTH_GLOW_PULSE_ALPHA;
 }
 
 /** Draws a soft red glow pulsing inward from all four canvas edges â€” the
- *  low-health warning (spec.md FR-007/FR-008). The caller gates WHETHER
- *  this is called at all (critical health, live gameplay only); this
- *  function only draws, unconditionally, whenever it's invoked. */
+ * low-health warning. The caller gates WHETHER
+ * this is called at all (critical health, live gameplay only); this
+ * function only draws, unconditionally, whenever it's invoked. */
 export function drawLowHealthGlow(
   ctx: CanvasRenderingContext2D,
   canvasWidth: number,
@@ -202,7 +202,7 @@ export type HudCounterIcon = HudCounterSheetFrameIcon | HudCounterScaledImageIco
  * Declarative description of one persistent HUD counter â€” the single data
  * shape the generic `drawHudCounter`/`hudCounterWidth` consume. The drawer
  * branches only on `icon.kind` (geometry) and `image === null`; it never
- * branches on a counter name (FR-005/FR-014).
+ * branches on a counter name.
  */
 export interface HudCounterDescriptor {
   /** null = measurement-only descriptor (draws nothing). */
@@ -371,48 +371,48 @@ export function hudCounterX(
 }
 
 /** Total on-screen width of the 3-heart row (drawHearts), used to position
- *  the chest counter just past it in the same HUD row. */
+ * the chest counter just past it in the same HUD row. */
 const HEARTS_ROW_WIDTH = MAX_HEARTS * HEART_RENDERED_SIZE + (MAX_HEARTS - 1) * HEART_SPACING;
 
 /** Shared horizontal gap between HUD groups (heartsâ†’chest, chestâ†’key) â€” one
- *  constant reused for every gap on this row, rather than separately
- *  hand-tuned numbers, so the rhythm between groups is equal by
- *  construction instead of by coincidence. */
+ * constant reused for every gap on this row, rather than separately
+ * hand-tuned numbers, so the rhythm between groups is equal by
+ * construction instead of by coincidence. */
 export const HUD_GROUP_GAP = 24;
 
 /** Horizontal screen position for the persistent chest counter â€” placed
- *  just to the right of the heart row, same HUD row as the hearts (not a
- *  second row below them). */
+ * just to the right of the heart row, same HUD row as the hearts (not a
+ * second row below them). */
 export const CHEST_COUNTER_X = HEARTS_START_X + HEARTS_ROW_WIDTH + HUD_GROUP_GAP;
 
 /** Vertical screen position for the persistent chest counter â€” vertically
- *  centered on the same row the hearts occupy (drawHearts draws hearts with
- *  their top edge at HUD_MARGIN; the counters treat y as a vertical CENTER,
- *  so this is offset by half a heart's height to align). */
+ * centered on the same row the hearts occupy (drawHearts draws hearts with
+ * their top edge at HUD_MARGIN; the counters treat y as a vertical CENTER,
+ * so this is offset by half a heart's height to align). */
 export const CHEST_COUNTER_Y = HUD_MARGIN + HEART_RENDERED_SIZE / 2;
 
 /** Chest icon height: chest art is edge-to-edge with no transparent padding
- *  (unlike hearts), so it reads oversized at HEART_RENDERED_SIZE â€” shrunk
- *  down from that, but not all the way to 20 (read as too small next to the
- *  other HUD icons). */
+ * (unlike hearts), so it reads oversized at HEART_RENDERED_SIZE â€” shrunk
+ * down from that, but not all the way to 20 (read as too small next to the
+ * other HUD icons). */
 export const CHEST_COUNTER_ICON_HEIGHT = 26;
 
 /** Wider gap than the collectible counter's shared 6px between the chest icon
- *  and its "N / M" text â€” a dedicated constant so this counter's spacing can
- *  be tuned independently. Exported so tests can pin the exact text x. */
+ * and its "N / M" text â€” a dedicated constant so this counter's spacing can
+ * be tuned independently. Exported so tests can pin the exact text x. */
 export const CHEST_COUNTER_TEXT_GAP = 12;
 
 export const KEY_COUNTER_Y = CHEST_COUNTER_Y;
 
 /** Between CHEST_COUNTER_ICON_HEIGHT (26) and HEART_RENDERED_SIZE (32) â€” the
- *  current key.png is a bold, chunky shape (unlike an earlier thin 14x28
- *  version, which needed the full heart height to avoid looking shrunk), so
- *  a smaller HUD icon than the world sprite reads fine without looking
- *  undersized next to the hearts/chest icons on the same row. Exported so the
- *  page's key descriptor can pass it. */
+ * current key.png is a bold, chunky shape (unlike an earlier thin 14x28
+ * version, which needed the full heart height to avoid looking shrunk), so
+ * a smaller HUD icon than the world sprite reads fine without looking
+ * undersized next to the hearts/chest icons on the same row. Exported so the
+ * page's key descriptor can pass it. */
 export const KEY_COUNTER_ICON_HEIGHT = 24;
 
 /** Between CHEST_COUNTER_ICON_HEIGHT (26) and HEART_RENDERED_SIZE (32) â€”
- *  matches the key counter's own icon height so the two HUD groups read at
- *  the same scale. Exported so the page's bomb descriptor can pass it. */
+ * matches the key counter's own icon height so the two HUD groups read at
+ * the same scale. Exported so the page's bomb descriptor can pass it. */
 export const BOMB_COUNTER_ICON_HEIGHT = 24;

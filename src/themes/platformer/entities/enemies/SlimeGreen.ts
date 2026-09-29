@@ -2,7 +2,6 @@ import type { EnemyType, BaseEnemyState } from './EnemyType';
 import {
   baseEnemyState,
   baseRevive,
-  takeHit,
   ENEMY_HIT_REACTION_SECONDS,
   type EnemyBaseConfig,
 } from './shared';
@@ -13,7 +12,7 @@ import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import { drawSpriteSheetEntity } from './drawSpriteSheetEntity';
 import { spriteSheetHitbox } from './spriteSheetHitbox';
 import { patrolMovement } from './movement/patrol';
-import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
+import { DEFAULT_HIT_KNOCKBACK, DEFAULT_STOMP_BOUNCE_VY } from '../../shared/knockback';
 import type { CollectedFact } from '../../types';
 
 export interface SlimeGreenState extends BaseEnemyState {
@@ -21,9 +20,9 @@ export interface SlimeGreenState extends BaseEnemyState {
 }
 
 /** Transparent margin inside the native frame, in pre-scale pixels — the
- *  inset `box` below takes the collision hitbox in from the render slot by.
- *  `bottom: 0`: the slime's feet already touch the native frame's bottom edge,
- *  so its box and anchor are unchanged by FR-019's bottom inset. */
+ * inset `box` below takes the collision hitbox in from the render slot by.
+ * `bottom: 0`: the slime's feet already touch the native frame's bottom edge,
+ * so its box and anchor are unchanged by 's bottom inset. */
 const HITBOX_PADDING_NATIVE = { side: 5, top: 9, bottom: 0 };
 
 const SLIME_GREEN_SPRITE: SpriteDescriptor = {
@@ -84,8 +83,20 @@ export const slimeGreen: EnemyType<SlimeGreenState> = {
     // against the very enemy just stomped.
     if (isInvulnerable(enemy, slimeGreen.hitReactionSeconds) || enemy.hitPoints <= 0) return {};
     if (contact.side === 'top') {
-      return { self: takeHit(enemy), bounceVelocity: PHYSICS_CONFIG.stompBounceVelocity };
+      return {
+        selfEffects: [{ type: 'damage', amount: 1 }, { type: 'reaction' }],
+        effects: [{ type: 'velocity', y: DEFAULT_STOMP_BOUNCE_VY, preserveJump: true }],
+      };
     }
-    return { damagePlayer: 1, knockback: 'away' };
+    return {
+      effects: [
+        { type: 'damage', amount: 1 },
+        {
+          type: 'velocity',
+          x: contact.awayDirection * DEFAULT_HIT_KNOCKBACK.vx,
+          duration: DEFAULT_HIT_KNOCKBACK.duration,
+        },
+      ],
+    };
   },
 };

@@ -6,13 +6,13 @@ import { coinBobOffset } from './Coin';
 import { RENDERED_TILE_SIZE } from '../../level/Terrain';
 
 /** Native pixel dimensions of public/sprites/key.png — a hand-drawn asset the
- *  user provided (as a screenshot, not an exact pixel-perfect export),
- *  reconstructed here by center-sampling each of its ~16-physical-pixel
- *  blocks (avoiding the blur a plain resize would introduce at the block
- *  boundaries) and snapping the result to a small flat color palette. A
- *  single standalone image, not a sheet — no sx/sy frame lookup needed,
- *  matching Chest.ts's convention for its own standalone (non-tiling)
- *  sprites. */
+ * user provided (as a screenshot, not an exact pixel-perfect export),
+ * reconstructed here by center-sampling each of its ~16-physical-pixel
+ * blocks (avoiding the blur a plain resize would introduce at the block
+ * boundaries) and snapping the result to a small flat color palette. A
+ * single standalone image, not a sheet — no sx/sy frame lookup needed,
+ * matching Chest.ts's convention for its own standalone (non-tiling)
+ * sprites. */
 export const KEY_FRAME_WIDTH = 14;
 export const KEY_FRAME_HEIGHT = 22;
 
@@ -24,15 +24,17 @@ export const KEY_FRAME_HEIGHT = 22;
  * 14:22 aspect ratio.
  */
 export const KEY_RENDERED_HEIGHT = RENDERED_TILE_SIZE;
-export const KEY_RENDERED_WIDTH = Math.round((KEY_FRAME_WIDTH / KEY_FRAME_HEIGHT) * KEY_RENDERED_HEIGHT);
+export const KEY_RENDERED_WIDTH = Math.round(
+  (KEY_FRAME_WIDTH / KEY_FRAME_HEIGHT) * KEY_RENDERED_HEIGHT,
+);
 
 /** Horizontal centering offset over the key's placement tile (same formula
- *  Enemy.ts's enemyTileOffsetX uses). */
+ * Enemy.ts's enemyTileOffsetX uses). */
 export const KEY_TILE_OFFSET_X = (RENDERED_TILE_SIZE - KEY_RENDERED_WIDTH) / 2;
 
 /** Bottom-anchoring offset — 0 here (the key's rendered height exactly fills
- *  one tile), kept as its own named constant so `box`/`draw`/`onPickup` read
- *  the same bottom-anchoring pattern Enemy.ts's enemyTileOffsetY establishes. */
+ * one tile), kept as its own named constant so `box`/`draw`/`onPickup` read
+ * the same bottom-anchoring pattern Enemy.ts's enemyTileOffsetY establishes. */
 export const KEY_TILE_OFFSET_Y = RENDERED_TILE_SIZE - KEY_RENDERED_HEIGHT;
 
 /**
@@ -50,8 +52,8 @@ export interface KeyPickupState extends Pickup {
 }
 
 /** Spawns a key pickup at a defeated purple slime's position (its `x`/`y` at
- *  the moment of defeat — the same tile-anchored pixel coordinates the enemy
- *  itself occupied). */
+ * the moment of defeat — the same tile-anchored pixel coordinates the enemy
+ * itself occupied). */
 export function spawnKeyPickup(id: string, x: number, y: number): KeyPickupState {
   return { id, kind: 'key', x, y, collected: false };
 }

@@ -8,25 +8,25 @@ import type { CrumblingFloorTimerState } from '../../../tiles/crumblingFloor';
  * `null` in headless tests and the editor preview.
  *
  * Pure data — no signals, canvas or React. See
- * `specs/O-024-enemy-movement-seam/contracts/movement-strategy.md`.
+ * `specs/-enemy-movement-seam/contracts/movement-strategy.md`.
  */
 export interface MovementContext {
   /** Static terrain (walls, `patrol` tiles, ground). */
   level: LevelDef;
   /** Live crate/questionMark/fragileRock cells — the same set the pre-seam
-   *  patrol step already received (see PlatformerPage.tsx). */
+   * patrol step already received (see PlatformerPage.tsx). */
   blockedTiles: readonly { col: number; row: number }[];
   /** Player box for proximity strategies; `null` when absent. */
   player: { x: number; y: number; width: number; height: number } | null;
   /** Seconds since level start; freezes with the world on pause/death. The
-   *  fly bob's phase clock. */
+   * fly bob's phase clock. */
   elapsed: number;
-  /** Live crumbling floor (O-023) cycle timers — an at-rest/cracking tile
-   *  counts as solid ground for `stepHorizontal`'s wall/ledge checks
-   *  exactly like ordinary terrain; broken/reforming does not. Defaults to
-   *  empty in any context that doesn't pass it (e.g. pre-seam
-   *  characterization tests), matching ordinary terrain's behavior when no
-   *  crumbling floor tile is on the level at all. */
+  /** Live crumbling floor cycle timers — an at-rest/cracking tile
+   * counts as solid ground for `stepHorizontal`'s wall/ledge checks
+   * exactly like ordinary terrain; broken/reforming does not. Defaults to
+   * empty in any context that doesn't pass it (e.g. pre-seam
+   * characterization tests), matching ordinary terrain's behavior when no
+   * crumbling floor tile is on the level at all. */
   crumblingFloorStates?: readonly CrumblingFloorTimerState[];
 }
 

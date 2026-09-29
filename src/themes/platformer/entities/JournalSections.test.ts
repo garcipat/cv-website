@@ -57,7 +57,10 @@ describe('nonEmptySections', () => {
   });
 
   it('onlySkillsNonEmpty-returnsPersonalityAndSkills', () => {
-    const cv: CVData = { ...emptyCV, skills: [{ category: 'Frontend', skills: [{ name: 'React', level: 80 }] }] };
+    const cv: CVData = {
+      ...emptyCV,
+      skills: [{ category: 'Frontend', skills: [{ name: 'React', level: 80 }] }],
+    };
     expect(nonEmptySections(cv)).toEqual(['personality', 'skills']);
   });
 
@@ -115,7 +118,13 @@ describe('sectionTotal', () => {
     const cv: CVData = {
       ...emptyCV,
       skills: [
-        { category: 'Frontend', skills: [{ name: 'React', level: 80 }, { name: 'Vue', level: 60 }] },
+        {
+          category: 'Frontend',
+          skills: [
+            { name: 'React', level: 80 },
+            { name: 'Vue', level: 60 },
+          ],
+        },
         { category: 'Backend', skills: [{ name: 'Go', level: 70 }] },
       ],
     };

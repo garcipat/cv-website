@@ -5,7 +5,7 @@ import * as Hud from './HudRenderer';
 import * as Scene from './SceneRenderer';
 
 /**
- * FR-015 structural guard for the renderer split (SC-001/SC-002/SC-003).
+ * structural guard for the renderer split.
  * A static property is checked against the module source text, because an
  * export-only check cannot catch a private helper (see `keyCounterWidth` in
  * the pre-split module).
@@ -18,7 +18,7 @@ function readSource(relativePath: string): string {
 const sceneSource = readSource('./SceneRenderer.ts');
 const hudSource = readSource('./HudRenderer.ts');
 
-/** The eight per-kind counter symbols removed by FR-005/FR-006/SC-002. */
+/** The eight per-kind counter symbols removed by //. */
 const REMOVED_COUNTER_SYMBOLS = [
   'drawCollectibleCounter',
   'drawChestCounter',
@@ -30,7 +30,7 @@ const REMOVED_COUNTER_SYMBOLS = [
   'bombCounterX',
 ] as const;
 
-describe('renderer modules do not import each other (FR-001)', () => {
+describe('renderer modules do not import each other', () => {
   it('sceneRenderer-doesNotImportHudRenderer', () => {
     expect(sceneSource).not.toMatch(/from\s+['"][^'"]*HudRenderer[^'"]*['"]/);
     expect(sceneSource).not.toMatch(/import\(\s*['"][^'"]*HudRenderer[^'"]*['"]\s*\)/);
@@ -42,7 +42,7 @@ describe('renderer modules do not import each other (FR-001)', () => {
   });
 });
 
-describe('no per-kind counter path survives (FR-005/FR-006/SC-002)', () => {
+describe('no per-kind counter path survives', () => {
   it('eitherModuleSource-neverDeclaresOrUsesARemovedCounterSymbol', () => {
     for (const symbol of REMOVED_COUNTER_SYMBOLS) {
       expect(sceneSource).not.toContain(symbol);
@@ -58,7 +58,7 @@ describe('no per-kind counter path survives (FR-005/FR-006/SC-002)', () => {
   });
 });
 
-describe('one pickup pass and no renderer-local tile registry (FR-007/FR-008/SC-003)', () => {
+describe('one pickup pass and no renderer-local tile registry', () => {
   it('sceneRenderer-exportsDrawPickupsAsItsOnlyPickupPass', () => {
     expect(Scene).toHaveProperty('drawPickups');
     for (const wrapper of [
@@ -80,7 +80,7 @@ describe('one pickup pass and no renderer-local tile registry (FR-007/FR-008/SC-
   });
 });
 
-describe('the combined module is gone (FR-009/SC-001)', () => {
+describe('the combined module is gone', () => {
   it('engineRendererHasBeenDeleted-withNoBarrelAliasOrReExportInItsPlace', () => {
     const oldModuleRelative = ['..', 'Renderer.ts'].join('/');
     const oldModule = fileURLToPath(new URL(oldModuleRelative, import.meta.url));

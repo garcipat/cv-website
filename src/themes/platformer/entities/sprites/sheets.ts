@@ -27,7 +27,7 @@ const FRUIT_ICON_COLUMNS = 3;
  * Chest sheet geometry is declared here with local literals rather than
  * imported from `entities/chests/Chest.ts`, which imports its own `CHEST_*_SHEET`
  * from this file — importing its frame constants back would close a module
- * cycle at eval time (the same hazard R-006 hit for the pickup sheets). The
+ * cycle at eval time (the same hazard hit for the pickup sheets). The
  * chest module stays the behavioural source of truth for these numbers;
  * `entities/chests/index.test.ts` asserts they agree.
  */
@@ -60,10 +60,10 @@ export const SLIME_PURPLE_SHEET: SpriteSheet = {
 };
 
 /** A standalone single image, not a sheet — one frame filling the whole
- *  image, reusing KeyPickup.ts's own KEY_FRAME_WIDTH/HEIGHT (the source of
- *  truth for these numbers) so a purple slime's held-key overlay can
- *  discover this sheet via the same registry-driven asset loading every
- *  other sprite uses. */
+ * image, reusing KeyPickup.ts's own KEY_FRAME_WIDTH/HEIGHT (the source of
+ * truth for these numbers) so a purple slime's held-key overlay can
+ * discover this sheet via the same registry-driven asset loading every
+ * other sprite uses. */
 export const KEY_SHEET: SpriteSheet = {
   src: '/sprites/key.png',
   frameWidth: KEY_FRAME_WIDTH,
@@ -72,11 +72,11 @@ export const KEY_SHEET: SpriteSheet = {
 };
 
 /** `coin.png` is a 192x16 strip: 12 frames of one spin cycle, so its
- *  addressing stride is the whole strip. `frameSource(COIN_SHEET, i)` does
- *  NOT wrap for `i >= 12` the way `coinFrameIndex` does — harmless today
- *  since coin.png is a single row and every caller already passes a wrapped
- *  index, but this sheet is not a drop-in for `coinFrameIndex`'s wrapping
- *  behavior. */
+ * addressing stride is the whole strip. `frameSource(COIN_SHEET, i)` does
+ * NOT wrap for `i >= 12` the way `coinFrameIndex` does — harmless today
+ * since coin.png is a single row and every caller already passes a wrapped
+ * index, but this sheet is not a drop-in for `coinFrameIndex`'s wrapping
+ * behavior. */
 export const COIN_SHEET: SpriteSheet = {
   src: '/sprites/coin.png',
   frameWidth: COIN_FRAME_SIZE,
@@ -85,11 +85,11 @@ export const COIN_SHEET: SpriteSheet = {
 };
 
 /** `hearts.png` is a 48x16 strip: 3 frames (full/half/empty — see
- *  `Health.ts`'s `heartFrameIndex`). Registered here so a heart PICKUP
- *  (`entities/pickups/Heart.ts`) can be discovered/loaded through the same
- *  `PICKUP_TYPES`-driven sprite loader as every other pickup — the HUD's own
- *  direct `heartsSpriteRef` load in PlatformerPage.tsx stays as is, same dual-
- *  load convention `COIN_SHEET`/`KEY_SHEET` already established. */
+ * `Health.ts`'s `heartFrameIndex`). Registered here so a heart PICKUP
+ * (`entities/pickups/Heart.ts`) can be discovered/loaded through the same
+ * `PICKUP_TYPES`-driven sprite loader as every other pickup — the HUD's own
+ * direct `heartsSpriteRef` load in PlatformerPage.tsx stays as is, same dual-
+ * load convention `COIN_SHEET`/`KEY_SHEET` already established. */
 export const HEARTS_SHEET: SpriteSheet = {
   src: '/sprites/hearts.png',
   frameWidth: HEART_FRAME_SIZE,
@@ -98,10 +98,10 @@ export const HEARTS_SHEET: SpriteSheet = {
 };
 
 /** `fruit.png` is physically 64x64, but only its first three 16px columns
- *  hold icons — the fourth is empty and never addressed. `columns` is the
- *  addressing stride, so it reuses Fruit.ts's own FRUIT_ICON_COLUMNS (the
- *  source of truth for that number) rather than the image's width in
- *  frames. */
+ * hold icons — the fourth is empty and never addressed. `columns` is the
+ * addressing stride, so it reuses Fruit.ts's own FRUIT_ICON_COLUMNS (the
+ * source of truth for that number) rather than the image's width in
+ * frames. */
 export const FRUIT_SHEET: SpriteSheet = {
   src: '/sprites/fruit.png',
   frameWidth: FRUIT_FRAME_SIZE,
@@ -110,9 +110,9 @@ export const FRUIT_SHEET: SpriteSheet = {
 };
 
 /** `world_tileset.png` is a 16x16 grid of 16px tiles, shared by terrain and
- *  every block kind. Terrain addresses it through its own neighbour-aware
- *  lookup rather than by frame index; the sheet is the unit of loading, not
- *  of addressing. */
+ * every block kind. Terrain addresses it through its own neighbour-aware
+ * lookup rather than by frame index; the sheet is the unit of loading, not
+ * of addressing. */
 export const WORLD_TILESET_SHEET: SpriteSheet = {
   src: '/sprites/world_tileset.png',
   frameWidth: TILE_SIZE,
@@ -128,16 +128,16 @@ export const CRACK_OVERLAY_SHEET: SpriteSheet = {
   columns: 1,
 };
 
-/** `crumble_floor.png` — a single 16x16 frame (O-023): a half-height ledge,
- *  top-aligned within the cell (its art occupies roughly the top half, the
- *  bottom half transparent) — cropped from the reinstated `spring_.png`
- *  terrain tileset. One frame only; the tile has no color variants yet
- *  (spec's Out of Scope). */
+/** `crumble_floor.png` — a single 16x16 frame: a half-height ledge,
+ * top-aligned within the cell (its art occupies roughly the top half, the
+ * bottom half transparent) — cropped from the reinstated `spring_.png`
+ * terrain tileset. One frame only; the tile has no color variants yet
+ * (spec's Out of Scope). */
 /** 64x16 strip of four 16x16 frames, cropped from `spring_.png` row 11
- *  (cols 3/4/5/8, the salmon-dirt half-height ledge material): 0 = left cap,
- *  1 = middle (repeatable), 2 = right cap, 3 = single (an isolated tile with
- *  no crumblingFloor neighbour on either side; see `Terrain.ts`'s
- *  `horizontalRunPosition`, whose `'single'` result picks this frame). */
+ * (cols 3/4/5/8, the salmon-dirt half-height ledge material): 0 = left cap,
+ * 1 = middle (repeatable), 2 = right cap, 3 = single (an isolated tile with
+ * no crumblingFloor neighbour on either side; see `Terrain.ts`'s
+ * `horizontalRunPosition`, whose `'single'` result picks this frame). */
 export const CRUMBLE_FLOOR_SHEET: SpriteSheet = {
   src: '/sprites/crumble_floor.png',
   frameWidth: TILE_SIZE,
@@ -145,11 +145,11 @@ export const CRUMBLE_FLOOR_SHEET: SpriteSheet = {
   columns: 4,
 };
 
-/** `crumble_cracks.png` — a 48x8 strip of three 16x8 frames (O-023): 0 =
- *  light cracking, 1 = medium, 2 = heavy — composited over
- *  `CRUMBLE_FLOOR_SHEET` the same way `CRACK_OVERLAY_SHEET` composites over
- *  a cracked crate. 8px tall (not a full tile) to match the ledge art's own
- *  half-height content band. */
+/** `crumble_cracks.png` — a 48x8 strip of three 16x8 frames: 0 =
+ * light cracking, 1 = medium, 2 = heavy — composited over
+ * `CRUMBLE_FLOOR_SHEET` the same way `CRACK_OVERLAY_SHEET` composites over
+ * a cracked crate. 8px tall (not a full tile) to match the ledge art's own
+ * half-height content band. */
 export const CRUMBLE_CRACKS_SHEET: SpriteSheet = {
   src: '/sprites/crumble_cracks.png',
   frameWidth: TILE_SIZE,
@@ -158,11 +158,11 @@ export const CRUMBLE_CRACKS_SHEET: SpriteSheet = {
 };
 
 /** `background_tiles.png` is a 73x354 sheet of 16px tiles on a 19px stride:
- *  the purely-visual autotiled background mass's six materials (O-014).
- *  `BackgroundAtlas.ts` addresses it through its own sx/sy neighbour-mask
- *  lookup, not by frame index — like `WORLD_TILESET_SHEET`/
- *  `GROUND_ATLAS_SHEET`, this registration exists for loading, not
- *  addressing. */
+ * the purely-visual autotiled background mass's six materials.
+ * `BackgroundAtlas.ts` addresses it through its own sx/sy neighbour-mask
+ * lookup, not by frame index — like `WORLD_TILESET_SHEET`/
+ * `GROUND_ATLAS_SHEET`, this registration exists for loading, not
+ * addressing. */
 export const BACKGROUND_TILES_SHEET: SpriteSheet = {
   src: '/sprites/background_tiles.png',
   frameWidth: TILE_SIZE,
@@ -171,7 +171,7 @@ export const BACKGROUND_TILES_SHEET: SpriteSheet = {
 };
 
 /** The chest's two states are separate standalone images of different sizes,
- *  so each is its own one-frame sheet. */
+ * so each is its own one-frame sheet. */
 export const CHEST_CLOSED_SHEET: SpriteSheet = {
   src: '/sprites/chest_closed.png',
   frameWidth: CHEST_CLOSED_WIDTH,
@@ -187,10 +187,10 @@ export const CHEST_OPEN_SHEET: SpriteSheet = {
 };
 
 /** `tile_atlas.png` is the purpose-built ground sheet: 16px tiles on a 19px
- *  stride, 7 columns by 3 rows. Terrain addresses it through its own
- *  neighbour-mask table in `GroundAtlas.ts` rather than by frame index — the
- *  3px gutter means `frameSource`'s stride maths does not apply — so this
- *  registration exists for loading, not addressing. */
+ * stride, 7 columns by 3 rows. Terrain addresses it through its own
+ * neighbour-mask table in `GroundAtlas.ts` rather than by frame index — the
+ * 3px gutter means `frameSource`'s stride maths does not apply — so this
+ * registration exists for loading, not addressing. */
 export const GROUND_ATLAS_SHEET: SpriteSheet = {
   src: '/sprites/tile_atlas.png',
   frameWidth: TILE_SIZE,
@@ -199,10 +199,10 @@ export const GROUND_ATLAS_SHEET: SpriteSheet = {
 };
 
 /** `staticObjects.png` is a 288x144 sheet of 16px tiles: bush/tree pieces and
- *  a fence piece for the foreground decoration tiles. `StaticObjectsCatalog.ts`
- *  addresses it through its own sx/sy lookup, not by frame index — like
- *  `BACKGROUND_TILES_SHEET`, this registration exists for loading, not
- *  addressing. */
+ * a fence piece for the foreground decoration tiles. `StaticObjectsCatalog.ts`
+ * addresses it through its own sx/sy lookup, not by frame index — like
+ * `BACKGROUND_TILES_SHEET`, this registration exists for loading, not
+ * addressing. */
 export const STATIC_OBJECTS_SHEET: SpriteSheet = {
   src: '/sprites/staticObjects.png',
   frameWidth: TILE_SIZE,
@@ -211,12 +211,12 @@ export const STATIC_OBJECTS_SHEET: SpriteSheet = {
 };
 
 /** The combined sky/clouds/village parallax background sheet — sky, clouds/hills,
- *  and village/treeline stacked vertically in that order, cropped and chroma-keyed
- *  from `backgrounds.png`'s day/green scene (see
- *  `specs/O-009-platformer-background-layers/design.md`).
- *  `BackgroundLayers.ts` addresses it through its own sx/sy sub-rects, not by frame
- *  index — like `BACKGROUND_TILES_SHEET`, this registration exists for loading, not
- *  addressing. */
+ * and village/treeline stacked vertically in that order, cropped and chroma-keyed
+ * from `backgrounds.png`'s day/green scene (see
+ * `specs/-platformer-background-layers/design.md`).
+ * `BackgroundLayers.ts` addresses it through its own sx/sy sub-rects, not by frame
+ * index — like `BACKGROUND_TILES_SHEET`, this registration exists for loading, not
+ * addressing. */
 export const BACKGROUND_LAYERS_SHEET: SpriteSheet = {
   src: '/sprites/background_layers.png',
   frameWidth: 160,
@@ -225,8 +225,8 @@ export const BACKGROUND_LAYERS_SHEET: SpriteSheet = {
 };
 
 /** A small (7x20) tileable grass-texture swatch, separate from
- *  `BACKGROUND_LAYERS_SHEET` since it repeats both horizontally and vertically at a
- *  different scroll speed (full camera speed) than the village layer above it. */
+ * `BACKGROUND_LAYERS_SHEET` since it repeats both horizontally and vertically at a
+ * different scroll speed (full camera speed) than the village layer above it. */
 export const BACKGROUND_LAYER_GRASS_SHEET: SpriteSheet = {
   src: '/sprites/background_layer_grass.png',
   frameWidth: 7,
@@ -234,13 +234,13 @@ export const BACKGROUND_LAYER_GRASS_SHEET: SpriteSheet = {
   columns: 1,
 };
 
-/** The ambient cloud sheet (O-022) — a 185x32 strip of four differently-sized
- *  soft white cloud shapes, prepared in the backdrop's own palette. The sheet is
- *  not a uniform frame grid (the clouds differ in width), so `AmbientClouds.ts`
- *  addresses it through its own `AMBIENT_CLOUD_SOURCE_RECTS` sx/sy rects rather
- *  than by frame index — like `BACKGROUND_LAYERS_SHEET`, this registration
- *  exists for loading, not addressing. `frameWidth`/`frameHeight`/`columns`
- *  therefore do not describe the art; they only describe the image's bounds. */
+/** The ambient cloud sheet — a 185x32 strip of four differently-sized
+ * soft white cloud shapes, prepared in the backdrop's own palette. The sheet is
+ * not a uniform frame grid (the clouds differ in width), so `AmbientClouds.ts`
+ * addresses it through its own `AMBIENT_CLOUD_SOURCE_RECTS` sx/sy rects rather
+ * than by frame index — like `BACKGROUND_LAYERS_SHEET`, this registration
+ * exists for loading, not addressing. `frameWidth`/`frameHeight`/`columns`
+ * therefore do not describe the art; they only describe the image's bounds. */
 export const AMBIENT_CLOUDS_SHEET: SpriteSheet = {
   src: '/sprites/ambient_clouds.png',
   frameWidth: 185,
@@ -249,10 +249,10 @@ export const AMBIENT_CLOUDS_SHEET: SpriteSheet = {
 };
 
 /** Two 30px-tall wave-line animation frames stacked vertically (frame 0 on
- *  top, frame 1 below), cropped and chroma-keyed from `backgrounds.png`.
- *  Overlaid on the village layer by `BackgroundLayers.ts`, alternating over
- *  time — not addressed by frame index here either, same loading-only
- *  registration convention as the other background-layer sheets. */
+ * top, frame 1 below), cropped and chroma-keyed from `backgrounds.png`.
+ * Overlaid on the village layer by `BackgroundLayers.ts`, alternating over
+ * time — not addressed by frame index here either, same loading-only
+ * registration convention as the other background-layer sheets. */
 export const BACKGROUND_LAYER_RIVER_SHEET: SpriteSheet = {
   src: '/sprites/background_layer_river.png',
   frameWidth: 160,
@@ -261,10 +261,10 @@ export const BACKGROUND_LAYER_RIVER_SHEET: SpriteSheet = {
 };
 
 /** `decorations.png` is a 64x32 sheet of 16px tiles: cave-dressing pieces
- *  (cobwebs, crystals, stalactites/stalagmites) for the foreground decoration
- *  tiles. `StaticObjectsCatalog.ts` addresses it through its own sx/sy
- *  lookup, not by frame index — like `STATIC_OBJECTS_SHEET`, this
- *  registration exists for loading, not addressing. */
+ * (cobwebs, crystals, stalactites/stalagmites) for the foreground decoration
+ * tiles. `StaticObjectsCatalog.ts` addresses it through its own sx/sy
+ * lookup, not by frame index — like `STATIC_OBJECTS_SHEET`, this
+ * registration exists for loading, not addressing. */
 export const DECORATIONS_SHEET: SpriteSheet = {
   src: '/sprites/decorations.png',
   frameWidth: TILE_SIZE,
@@ -273,15 +273,15 @@ export const DECORATIONS_SHEET: SpriteSheet = {
 };
 
 /** `mushroom.png` is a 64x64 sheet: a 4x4 grid of 16px cells, one row per cap
- *  colour (red/orange/purple/green). O-018 uses only the red cap variant
- *  (row 0): col 0 is the complete mushroom, col 1 the cap + connector, col 2
- *  the small decorative mushroom, and col 3 the plain stalk at row 0. The one
- *  cross-row read is the `bottom` foot at (48, 16) — row 1 is the orange row,
- *  but that cell holds only the shared, colour-neutral tan stem/foot art (no
- *  orange cap pixels), identical in palette to the red row's own stalk at
- *  (48, 0); it is therefore not an orange-variant use. `StaticObjectsCatalog.ts`
- *  addresses it through its own sx/sy lookup, not by frame index — like
- *  `DECORATIONS_SHEET`, this registration exists for loading, not addressing. */
+ * colour (red/orange/purple/green). uses only the red cap variant
+ * (row 0): col 0 is the complete mushroom, col 1 the cap + connector, col 2
+ * the small decorative mushroom, and col 3 the plain stalk at row 0. The one
+ * cross-row read is the `bottom` foot at (48, 16) — row 1 is the orange row,
+ * but that cell holds only the shared, colour-neutral tan stem/foot art (no
+ * orange cap pixels), identical in palette to the red row's own stalk at
+ * (48, 0); it is therefore not an orange-variant use. `StaticObjectsCatalog.ts`
+ * addresses it through its own sx/sy lookup, not by frame index — like
+ * `DECORATIONS_SHEET`, this registration exists for loading, not addressing. */
 export const MUSHROOM_SHEET: SpriteSheet = {
   src: '/sprites/mushroom.png',
   frameWidth: TILE_SIZE,
@@ -290,13 +290,13 @@ export const MUSHROOM_SHEET: SpriteSheet = {
 };
 
 /** `torch.png` is a 48x14 horizontal strip: four 12x14 flame frames (spec
- *  FR-003/FR-004). The sheet is addressed by frame index via
- *  `frameSource(TORCH_SHEET, i)` — the same convention as `COIN_SHEET` — and
- *  the frame comes from `engine/Torch.ts`'s `torchFrameIndex`, which always
- *  passes a wrapped index in `[0, 4)`. Unlike the 16px-grid decoration
- *  sheets, a torch frame is 12x14, narrower and shorter than a cell; the
- *  artwork inside it is a 6x14 torch centred with a 3px transparent margin
- *  per side. */
+ * /). The sheet is addressed by frame index via
+ * `frameSource(TORCH_SHEET, i)` — the same convention as `COIN_SHEET` — and
+ * the frame comes from `engine/Torch.ts`'s `torchFrameIndex`, which always
+ * passes a wrapped index in `[0, 4)`. Unlike the 16px-grid decoration
+ * sheets, a torch frame is 12x14, narrower and shorter than a cell; the
+ * artwork inside it is a 6x14 torch centred with a 3px transparent margin
+ * per side. */
 export const TORCH_SHEET: SpriteSheet = {
   src: '/sprites/torch.png',
   frameWidth: 12,
@@ -305,12 +305,12 @@ export const TORCH_SHEET: SpriteSheet = {
 };
 
 /** `rope_ladder.png` is a 32x32 hand-authored flat 2D pixel sheet: the rolled
- *  bundle (16x16 at 0,0) plus a top cap, two step segments and a bottom cap,
- *  each 16x8 in the right half. Like `BACKGROUND_TILES_SHEET`/
- *  `STATIC_OBJECTS_SHEET`, this registration exists for LOADING only — the
- *  pieces are addressed through `StaticObjectsCatalog.ts`'s own sx/sy rects
- *  (`ropeLadderShaftPieces`), not by frame index, so `frameWidth`/`frameHeight`/
- *  `columns` do not describe the art. */
+ * bundle (16x16 at 0,0) plus a top cap, two step segments and a bottom cap,
+ * each 16x8 in the right half. Like `BACKGROUND_TILES_SHEET`/
+ * `STATIC_OBJECTS_SHEET`, this registration exists for LOADING only — the
+ * pieces are addressed through `StaticObjectsCatalog.ts`'s own sx/sy rects
+ * (`ropeLadderShaftPieces`), not by frame index, so `frameWidth`/`frameHeight`/
+ * `columns` do not describe the art. */
 export const ROPE_LADDER_SHEET: SpriteSheet = {
   src: '/sprites/rope_ladder.png',
   frameWidth: TILE_SIZE,
@@ -319,8 +319,8 @@ export const ROPE_LADDER_SHEET: SpriteSheet = {
 };
 
 /** `bomb.png` — a 96x16 strip of six 16x16 frames: 0 = unlit bomb (the HUD
- *  icon and world pickup), 1-3 = lit fuse burning down, 4 = pulse partner,
- *  5 = orange pre-detonation glow (O-012). */
+ * icon and world pickup), 1-3 = lit fuse burning down, 4 = pulse partner,
+ * 5 = orange pre-detonation glow. */
 export const BOMB_SHEET: SpriteSheet = {
   src: '/sprites/bomb.png',
   frameWidth: 16,
@@ -329,7 +329,7 @@ export const BOMB_SHEET: SpriteSheet = {
 };
 
 /** `explosion.png` — a 384x48 strip of eight 48x48 frames: the spiky,
- *  comic-style burst (the round-fireball candidate was dropped). */
+ * comic-style burst (the round-fireball candidate was dropped). */
 export const EXPLOSION_SHEET: SpriteSheet = {
   src: '/sprites/explosion.png',
   frameWidth: 48,
@@ -338,9 +338,9 @@ export const EXPLOSION_SHEET: SpriteSheet = {
 };
 
 /** `spears.png` — a standalone single 32x32 flat 2D pixel-art tile: three
- *  uneven, blood-tipped spear points pointing up (O-020's floor spear). One
- *  frame filling the whole image, like `KEY_SHEET`/`CHEST_CLOSED_SHEET`, so
- *  the art maps 1:1 onto the rendered tile (`RENDERED_TILE_SIZE` is 32). */
+ * uneven, blood-tipped spear points pointing up (the floor spear). One
+ * frame filling the whole image, like `KEY_SHEET`/`CHEST_CLOSED_SHEET`, so
+ * the art maps 1:1 onto the rendered tile (`RENDERED_TILE_SIZE` is 32). */
 export const SPEAR_SHEET: SpriteSheet = {
   src: '/sprites/spears.png',
   frameWidth: 32,
@@ -349,9 +349,9 @@ export const SPEAR_SHEET: SpriteSheet = {
 };
 
 /** `bee.png` — a 192x168 flat 2D pixel-art sheet: an 8x7 grid of 24x24
- *  cells. Row 5 (sheet frames 32-39) is the neutral flight loop the bee's
- *  `fly` animation plays (see entities/enemies/Bee.ts). Addressed by frame
- *  index via `frameSource`, the same convention as `SLIME_*_SHEET`. */
+ * cells. Row 5 (sheet frames 32-39) is the neutral flight loop the bee's
+ * `fly` animation plays (see entities/enemies/Bee.ts). Addressed by frame
+ * index via `frameSource`, the same convention as `SLIME_*_SHEET`. */
 export const BEE_SHEET: SpriteSheet = {
   src: '/sprites/bee.png',
   frameWidth: 24,
@@ -360,17 +360,17 @@ export const BEE_SHEET: SpriteSheet = {
 };
 
 /** `spikes.png` — a 48x20 strip of three horizontally-laid-out 16x20
- *  frames (O-021): 0 = at-rest tell, 1 = armed (a small nub, shown during
- *  the post-contact delay before the spike starts rising), 2 = the spike
- *  itself, drawn as a variable-height bottom-anchored crop rather than
- *  picked between fixed poses (see entities/hazards/FloorSpike.ts's
- *  `draw`). Each frame is 4px taller than a tile — a below-the-tile bleed
- *  margin every frame shares — so drawing a frame at its normal tile-
- *  aligned position lets its bottom rows bleed onto the tile below,
- *  reading as marks/spikes sitting ON the ground surface rather than
- *  floating inside their own tile. The margin is intentionally roomier
- *  than the art currently uses, to leave headroom for the tell/armed
- *  poses to be redrawn taller without a code change. */
+ * frames: 0 = at-rest tell, 1 = armed (a small nub, shown during
+ * the post-contact delay before the spike starts rising), 2 = the spike
+ * itself, drawn as a variable-height bottom-anchored crop rather than
+ * picked between fixed poses (see entities/hazards/FloorSpike.ts's
+ * `draw`). Each frame is 4px taller than a tile — a below-the-tile bleed
+ * margin every frame shares — so drawing a frame at its normal tile-
+ * aligned position lets its bottom rows bleed onto the tile below,
+ * reading as marks/spikes sitting ON the ground surface rather than
+ * floating inside their own tile. The margin is intentionally roomier
+ * than the art currently uses, to leave headroom for the tell/armed
+ * poses to be redrawn taller without a code change. */
 export const FLOOR_SPIKE_SHEET: SpriteSheet = {
   src: '/sprites/spikes.png',
   frameWidth: 16,

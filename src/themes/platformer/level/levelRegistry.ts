@@ -6,7 +6,7 @@ import { parseLevelModules } from './layoutFile';
  * One level the Level Editor can load. `layout` is the same
  * one-character-per-tile shape `parseLevel` and `importLayout` consume — a
  * registry entry is just a named layout, with no engine state attached.
- * `background`, since O-014's storage-unification revision, is the SAME
+ * `background`, since 's storage-unification revision, is the SAME
  * `readonly string[]` shape as `layout` (one character per cell, via
  * `BACKGROUND_CHARS`) rather than a pre-parsed `BackgroundGrid` — a
  * registry entry stores raw layouts only, exactly like `layout` itself;
@@ -23,7 +23,7 @@ export interface LevelEntry extends LayoutFile {
  * level the game loads, `empty` is the three-tile starting grid. They come
  * first in the dropdown and cannot be removed, which is what makes "put back
  * what ships" and "give me an empty page" always one selection away — the
- * editor has no separate Reset or Scratch button (spec FR-028).
+ * editor has no separate Reset or Scratch button.
  */
 export const BUILT_IN_LEVELS: readonly LevelEntry[] = [
   {

@@ -1,7 +1,7 @@
 /**
- * The shared position-hashed variant picker (R-015): relocated verbatim from
+ * The shared position-hashed variant picker: relocated verbatim from
  * `engine/StaticObjectsCatalog.ts` so both the engine catalogs and the `tiles/`
- * modules can use it without introducing a `tiles/ → engine/` edge. Pure —
+ * modules can use it without introducing a `tiles/ → engine/` edge. Pure
  * delegates to `shared/math.hash2D`.
  */
 

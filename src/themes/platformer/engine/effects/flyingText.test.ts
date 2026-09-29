@@ -80,15 +80,16 @@ describe('tickFlyingText', () => {
   });
 
   it('atExactlyRisePlusHold-transitionsToFlyingPhase', () => {
-    expect(
-      tickFlyingText(start(), RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS).state.phase,
-    ).toBe('flying');
+    expect(tickFlyingText(start(), RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS).state.phase).toBe(
+      'flying',
+    );
   });
 
   it('atExactlyTheFullDuration-transitionsToDonePhase', () => {
-    expect(tickFlyingText(start(), FLY_DURATION_SECONDS + RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS).state.phase).toBe(
-      'done',
-    );
+    expect(
+      tickFlyingText(start(), FLY_DURATION_SECONDS + RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS)
+        .state.phase,
+    ).toBe('done');
   });
 });
 
@@ -175,7 +176,9 @@ describe('createSlotAllocator', () => {
     const allocate = createSlotAllocator(0);
     const offsets = Array.from({ length: COLLECTION_TEXT_SLOT_COUNT + 1 }, () => allocate());
     expect(offsets[COLLECTION_TEXT_SLOT_COUNT]).toBe(offsets[0]);
-    expect(new Set(offsets.slice(0, COLLECTION_TEXT_SLOT_COUNT)).size).toBe(COLLECTION_TEXT_SLOT_COUNT);
+    expect(new Set(offsets.slice(0, COLLECTION_TEXT_SLOT_COUNT)).size).toBe(
+      COLLECTION_TEXT_SLOT_COUNT,
+    );
   });
 });
 
@@ -193,7 +196,10 @@ describe('drawFlyingText', () => {
   });
 
   it('effectWithIcon-drawsIconInSeparateSansSerifFillTextCall', () => {
-    const ctx = makeMockContext() as unknown as { fillText: ReturnType<typeof vi.fn>; font: string };
+    const ctx = makeMockContext() as unknown as {
+      fillText: ReturnType<typeof vi.fn>;
+      font: string;
+    };
     const fontsAtCall: string[] = [];
     ctx.fillText.mockImplementation(() => {
       fontsAtCall.push(ctx.font);
@@ -205,7 +211,12 @@ describe('drawFlyingText', () => {
     // 4 outline offsets + 1 final fill for the text, then the icon.
     expect(ctx.fillText).toHaveBeenCalledTimes(6);
     const lastCall = ctx.fillText.mock.calls.length;
-    expect(ctx.fillText).toHaveBeenNthCalledWith(lastCall, '🇩🇪', expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenNthCalledWith(
+      lastCall,
+      '🇩🇪',
+      expect.any(Number),
+      expect.any(Number),
+    );
     const iconFont = fontsAtCall[fontsAtCall.length - 1];
     expect(iconFont).toContain('sans-serif');
     expect(iconFont).not.toContain('"');

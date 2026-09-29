@@ -5,6 +5,6 @@
  * stays a strict `contracts/` leaf that imports nothing, exactly like
  * `PickupKind.ts`. `DEPLOYABLE_ITEM_TYPES` conforms to this union via a
  * `Record<DeployableItemKind, …>` annotation, so a kind added to one side
- * without the other fails to compile (R-008 FR-001/FR-014).
+ * without the other fails to compile.
  */
 export type DeployableItemKind = 'bomb' | 'ladder' | 'chest';

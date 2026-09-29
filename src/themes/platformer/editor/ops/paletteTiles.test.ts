@@ -159,9 +159,7 @@ describe('PALETTE_TOOLS — sprite specs', () => {
   });
 
   it('C-describesTheFinishedLevelBehaviour', () => {
-    expect(PALETTE_TOOLS.C.description).toBe(
-      'Checkpoint; step on it to set your respawn point',
-    );
+    expect(PALETTE_TOOLS.C.description).toBe('Checkpoint; step on it to set your respawn point');
   });
 
   it('p-hasASpriteMatchingThePurpleBottleFrame', () => {
@@ -404,9 +402,7 @@ describe('HAZARD_PALETTE_KEYS', () => {
     const expected: string[] = [];
     for (const char of Object.keys(HAZARD_CHARS)) {
       const kind = HAZARD_CHARS[char]!.hazardType;
-      const alreadyRepresented = expected.some(
-        (key) => HAZARD_CHARS[key]!.hazardType === kind,
-      );
+      const alreadyRepresented = expected.some((key) => HAZARD_CHARS[key]!.hazardType === kind);
       if (!alreadyRepresented) expected.push(char);
     }
     expect(HAZARD_PALETTE_KEYS).toEqual(expected);
@@ -434,7 +430,21 @@ describe('PALETTE_TOOLS grouping', () => {
   it('placesEachToolInTheSameGroupAsBefore', () => {
     expect(keysInGroup('terrain')).toEqual(['G', 'R', '#', 'B', 'H', 'I', '@', '§', 'g']);
     expect(keysInGroup('decoration')).toEqual(['n', 'N', 'X', 'c', '⊤', '⊥', '¥', 's']);
-    expect(keysInGroup('entities')).toEqual(['S', 'M', 'm', 'q', 'o', '=', '?', 'F', 'u', 'p', 'b', '$', 'C']);
+    expect(keysInGroup('entities')).toEqual([
+      'S',
+      'M',
+      'm',
+      'q',
+      'o',
+      '=',
+      '?',
+      'F',
+      'u',
+      'p',
+      'b',
+      '$',
+      'C',
+    ]);
     // The spike's facing variants carry the hazards group too but are never
     // rendered as separate buttons (see Palette.tsx's HAZARD_PALETTE_KEYS).
     expect(keysInGroup('hazards')).toEqual(['^', 'v', '<', '>', '¦', 'A', 'fallingStalactite']);
@@ -455,12 +465,16 @@ describe('PALETTE_TOOLS grouping', () => {
   });
 });
 
-describe('terrainPaletteTools (FR-008)', () => {
+describe('terrainPaletteTools', () => {
   it('returnsExactlyTheDescriptorKeysWhoseGroupIsTerrain', () => {
     const terrainKeys = (Object.keys(PALETTE_TOOLS) as EditorTool[]).filter(
       (key) => PALETTE_TOOLS[key].group === 'terrain',
     );
-    expect(terrainPaletteTools().map((tool) => tool.char).sort()).toEqual([...terrainKeys].sort());
+    expect(
+      terrainPaletteTools()
+        .map((tool) => tool.char)
+        .sort(),
+    ).toEqual([...terrainKeys].sort());
   });
 
   it('readsCharFogExemptAndDrawBandFromTileModules', () => {

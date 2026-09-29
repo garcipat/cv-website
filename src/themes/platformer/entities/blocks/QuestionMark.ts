@@ -5,8 +5,8 @@ import { drawBlockTile } from './drawBlockTile';
 /** Row 2, column 0 while intact. */
 const INTACT_FRAME = 32;
 /** The plain top-exposed groundRock tile (row 0, column 1) — a spent
- *  question-mark blends into ordinary ground rather than reading as a
- *  distinct block kind. */
+ * question-mark blends into ordinary ground rather than reading as a
+ * distinct block kind. */
 const SPENT_FRAME = 1;
 
 function questionMarkFrameIndex(hitsTaken: number): number {

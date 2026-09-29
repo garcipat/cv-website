@@ -1,5 +1,5 @@
 /**
- * The one generic save module (FR-011, D9): `saveFile` owns the exact
+ * The one generic save module: `saveFile` owns the exact
  * POST-to-the-dev-server-with-download-fallback sequence, `downloadFile` owns
  * the anchor/object-URL download. The level/blueprint savers are thin
  * parameterisations over these, so the fallback and filename handling exist
@@ -20,7 +20,7 @@ export interface SaveResult {
 
 /**
  * Hands `contents` to the browser as a download — the only way a static site
- * can produce a file (spec FR-031: no writes into the repository). The
+ * can produce a file ( no writes into the repository). The
  * developer moves it into the target folder themselves, which is what the
  * Save dialog explains.
  *
@@ -43,7 +43,7 @@ export function downloadFile(fileName: string, contents: string): void {
 /**
  * Saves a file the way the developer actually wants it saved: POSTed to the
  * dev server, which writes it straight into the target folder — so it needs no
- * moving afterwards (spec FR-032).
+ * moving afterwards.
  *
  * The endpoint only exists while `npm run dev` is running (its plugin is
  * `apply: 'serve'`), so anything else — a built site, a missing plugin, a

@@ -24,7 +24,7 @@ describe('layoutFileJson', () => {
     expect(layoutFileJson('Cave Run', layout, []).endsWith('\n')).toBe(true);
   });
 
-  // SC-012: a file the editor saved has to be a file the registry accepts.
+  // : a file the editor saved has to be a file the registry accepts.
   it('aLevelFile-roundTripsBackThroughTheRegistryToAGridEqualToTheSavedOne', () => {
     const entries = parseLevelModules({
       './levels/cave-run.json': {
@@ -60,7 +60,10 @@ describe('layoutFileJson — background field', () => {
   });
 
   it('emptyBackground-isOmittedFromTheSerializedJson', () => {
-    expect(JSON.parse(layoutFileJson('Plain', ['S'], []))).toEqual({ name: 'Plain', layout: ['S'] });
+    expect(JSON.parse(layoutFileJson('Plain', ['S'], []))).toEqual({
+      name: 'Plain',
+      layout: ['S'],
+    });
   });
 
   it('backgroundOfAllEmptyRows-isOmittedFromTheSerializedJson', () => {
@@ -72,9 +75,7 @@ describe('layoutFileJson — background field', () => {
 });
 
 describe('layoutFileJson — markers field', () => {
-  const markers: MarkerPlacement[] = [
-    { col: 1, row: 0, marker: { kind: 'sign', hintId: 'bomb' } },
-  ];
+  const markers: MarkerPlacement[] = [{ col: 1, row: 0, marker: { kind: 'sign', hintId: 'bomb' } }];
 
   it('nonEmptyMarkers-areIncludedAsTypedPlacements', () => {
     expect(JSON.parse(layoutFileJson('Cave', ['T'], [], markers))).toEqual({

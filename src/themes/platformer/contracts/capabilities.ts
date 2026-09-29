@@ -47,7 +47,7 @@ export interface SelfAnimated {
 export interface Damageable {
   hitPoints: number;
   /** False once dead. A dead entity stays in its array at its index for the
-   *  whole session so per-instance progress survives a respawn. */
+   * whole session so per-instance progress survives a respawn. */
   alive: boolean;
   hitTimer: number;
 }
@@ -80,12 +80,12 @@ export function isInvulnerable(state: Damageable, reactionSeconds: number): bool
 export interface DamageableType<S extends Damageable> {
   maxHitPoints: number;
   /** Length of the post-hit refractory window, in seconds — the window
-   *  `isInvulnerable` reads. Every call site asking whether one of these is
-   *  invulnerable takes the duration from here, never from a shared
-   *  constant, so a type wanting a longer stun changes one field. */
+   * `isInvulnerable` reads. Every call site asking whether one of these is
+   * invulnerable takes the duration from here, never from a shared
+   * constant, so a type wanting a longer stun changes one field. */
   hitReactionSeconds: number;
   /** What taking a hit does to this type beyond decrementing hit points.
-   *  Receives the already-decremented state and the damage that landed, and
-   *  returns the state to store. */
+   * Receives the already-decremented state and the damage that landed, and
+   * returns the state to store. */
   onDamaged?(state: S, amount: number): S;
 }

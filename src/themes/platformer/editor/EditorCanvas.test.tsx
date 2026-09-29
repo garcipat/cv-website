@@ -14,7 +14,12 @@ import { levelEditorPage } from './LevelEditorPage.page';
 import type { TileChar, BackgroundChar } from '../level/LevelParser';
 import type { MarkerEntry } from '../level/LevelData';
 import type { EditorImages } from './EditorCanvas';
-import { COIN_SHEET, STATIC_OBJECTS_SHEET, SPEAR_SHEET, BEE_SHEET } from '../entities/sprites/sheets';
+import {
+  COIN_SHEET,
+  STATIC_OBJECTS_SHEET,
+  SPEAR_SHEET,
+  BEE_SHEET,
+} from '../entities/sprites/sheets';
 import { PALETTE_TOOLS } from './ops/paletteTiles';
 
 vi.mock('../engine/render/SceneRenderer', () => ({
@@ -74,7 +79,7 @@ const EMPTY_IMAGES: EditorImages = {
   crumbleCracks: null,
 };
 
-// The O-027 stalactite tint pass masks its wash against the decorations sheet
+// The stalactite tint pass masks its wash against the decorations sheet
 // (a scratch `source-atop` composite). The actual `drawImage` is a stub, so a
 // truthy stand-in is enough to exercise the tint path.
 const TINT_IMAGES: EditorImages = { ...EMPTY_IMAGES, decorations: {} as HTMLImageElement };
@@ -392,9 +397,7 @@ describe('EditorCanvas', () => {
     expect(drawPickups).toHaveBeenCalledWith(
       expect.anything(),
       {
-        coin: expect.arrayContaining([
-          expect.objectContaining({ kind: 'coin', collected: false }),
-        ]),
+        coin: expect.arrayContaining([expect.objectContaining({ kind: 'coin', collected: false })]),
       },
       expect.objectContaining({
         originX: 5,
@@ -575,9 +578,7 @@ describe('EditorCanvas', () => {
       // distance per screen pixel.
       fireEvent.mouseDown(canvas, { button: 0, clientX: RENDERED_TILE_SIZE, clientY: 0 });
 
-      expect(onPaint).toHaveBeenCalledWith(
-        expect.objectContaining({ grid: expect.any(Array) }),
-      );
+      expect(onPaint).toHaveBeenCalledWith(expect.objectContaining({ grid: expect.any(Array) }));
       // paintCell's own contract is exercised elsewhere; here we only need to
       // know WHICH cell it was asked to paint. Re-derive it the same way
       // paintCell reports growth-free paints: the returned grid's column 2
@@ -849,7 +850,7 @@ describe('EditorCanvas', () => {
     expect(onPaint).toHaveBeenCalledWith(expect.objectContaining({ grid: [['.', 'G', 'G']] }));
 
     // The `grid` prop isn't updated between events in this test (the real
-    // app re-renders EditorCanvas with the new grid after each onPaint —
+    // app re-renders EditorCanvas with the new grid after each onPaint
     // see LevelEditorPage), so this second paint is still computed against
     // the original grid: only the newly-entered column (1) is erased.
     fireEvent.mouseMove(canvas, { button: 2, clientX: RENDERED_TILE_SIZE + 1, clientY: 1 });
@@ -1062,7 +1063,7 @@ describe('EditorCanvas overlay drawing at non-100% zoom', () => {
     expect(ctx.fillText).toHaveBeenCalledWith(PATROL_MARKER_GLYPH, 8, 8);
   });
 
-  // FR-006: overlays scale *together with* the tiles, which covers their text
+  // : overlays scale *together with* the tiles, which covers their text
   // and stroke weights, not just their positions and rectangle extents — an
   // 18px glyph on a 16px tile is exactly the "mismatched size relative to the
   // tiles around it" the spec's edge-case list rules out.
@@ -1459,9 +1460,11 @@ describe('EditorCanvas — background layer', () => {
     const tileset = {} as HTMLImageElement;
     const groundAtlas = {} as HTMLImageElement;
     let alphaDuringDrawTerrain: number | undefined;
-    (drawTerrain as ReturnType<typeof vi.fn>).mockImplementation((ctx: CanvasRenderingContext2D) => {
-      alphaDuringDrawTerrain = ctx.globalAlpha;
-    });
+    (drawTerrain as ReturnType<typeof vi.fn>).mockImplementation(
+      (ctx: CanvasRenderingContext2D) => {
+        alphaDuringDrawTerrain = ctx.globalAlpha;
+      },
+    );
 
     render(
       <EditorCanvas
@@ -1486,9 +1489,11 @@ describe('EditorCanvas — background layer', () => {
     const tileset = {} as HTMLImageElement;
     const groundAtlas = {} as HTMLImageElement;
     let alphaDuringDrawTerrain: number | undefined;
-    (drawTerrain as ReturnType<typeof vi.fn>).mockImplementation((ctx: CanvasRenderingContext2D) => {
-      alphaDuringDrawTerrain = ctx.globalAlpha;
-    });
+    (drawTerrain as ReturnType<typeof vi.fn>).mockImplementation(
+      (ctx: CanvasRenderingContext2D) => {
+        alphaDuringDrawTerrain = ctx.globalAlpha;
+      },
+    );
 
     render(
       <EditorCanvas
@@ -1526,8 +1531,17 @@ describe('EditorCanvas — background layer', () => {
     );
 
     expect(drawTerrain).toHaveBeenCalledWith(
-      expect.anything(), expect.anything(), expect.anything(), expect.anything(),
-      expect.anything(), expect.anything(), fakeStaticObjects, null, null, 0, null,
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      fakeStaticObjects,
+      null,
+      null,
+      0,
+      null,
     );
   });
 
@@ -1554,8 +1568,17 @@ describe('EditorCanvas — background layer', () => {
     // The editor previews each torch cell at worldElapsed 0, so it shows that
     // cell's deterministic position-hashed frame rather than a live animation.
     expect(drawTerrain).toHaveBeenCalledWith(
-      expect.anything(), expect.anything(), expect.anything(), expect.anything(),
-      expect.anything(), expect.anything(), null, null, fakeTorch, 0, null,
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      null,
+      null,
+      fakeTorch,
+      0,
+      null,
     );
   });
 
@@ -1589,8 +1612,7 @@ describe('EditorCanvas — background layer', () => {
 describe('EditorCanvas — readGameBackgroundColor', () => {
   it('readGameBackgroundColor-whenEditorBackdropTokenIsSet-returnsIt', () => {
     const spy = vi.spyOn(window, 'getComputedStyle').mockReturnValue({
-      getPropertyValue: (prop: string) =>
-        prop === '--editor-canvas-backdrop' ? '  #123456  ' : '',
+      getPropertyValue: (prop: string) => (prop === '--editor-canvas-backdrop' ? ' #123456 ' : ''),
     } as unknown as CSSStyleDeclaration);
 
     expect(readGameBackgroundColor()).toBe('#123456');
@@ -1612,7 +1634,10 @@ describe('EditorCanvas — readGameBackgroundColor', () => {
 describe('EditorCanvas — placement clicks (step 44c)', () => {
   const placementProps = (overrides: Partial<Parameters<typeof EditorCanvas>[0]> = {}) => ({
     ...BACKGROUND_LAYER_DEFAULT_PROPS,
-    grid: [['.', '.'], ['.', '.']] as TileChar[][],
+    grid: [
+      ['.', '.'],
+      ['.', '.'],
+    ] as TileChar[][],
     selectedTool: 'G' as TileChar,
     panOffset: { x: 0, y: 0 },
     images: EMPTY_IMAGES,
@@ -1621,12 +1646,7 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
     ...overrides,
   });
 
-  const clickCanvas = (
-    canvas: HTMLCanvasElement,
-    col: number,
-    row: number,
-    button = 0,
-  ) => {
+  const clickCanvas = (canvas: HTMLCanvasElement, col: number, row: number, button = 0) => {
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
     fireEvent.mouseDown(canvas, {
       button,
@@ -1790,9 +1810,7 @@ describe('EditorCanvas — placement clicks (step 44c)', () => {
   it('placementPropExplicitlyNull-leftClickStillPaints', () => {
     stubCanvasContext();
     const onPaint = vi.fn();
-    render(
-      <EditorCanvas {...placementProps({ onPaint })} placement={null} />,
-    );
+    render(<EditorCanvas {...placementProps({ onPaint })} placement={null} />);
 
     clickCanvas(levelEditorPage.canvas, 1, 1);
 
@@ -1806,7 +1824,10 @@ describe('EditorCanvas — placement preview (step 44c)', () => {
     valid: boolean;
   }) => ({
     ...BACKGROUND_LAYER_DEFAULT_PROPS,
-    grid: [['.', '.'], ['.', '.']] as TileChar[][],
+    grid: [
+      ['.', '.'],
+      ['.', '.'],
+    ] as TileChar[][],
     selectedTool: 'G' as TileChar,
     images: EMPTY_IMAGES,
     onPaint: () => {},
@@ -1977,7 +1998,7 @@ describe('EditorCanvas — placement preview (step 44c)', () => {
   });
 });
 
-describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
+describe('EditorCanvas — cave lighting preview', () => {
   const CAVE_BACKGROUND: BackgroundChar[][] = [['c']];
   const SPAWN_IN_CAVE_GRID: TileChar[][] = [
     ['.', '.', '¥'],
@@ -2178,7 +2199,7 @@ describe('EditorCanvas — cave lighting preview (O-015 US3)', () => {
 
     expect(order).toContain('darkness');
     // The affordances are re-drawn after the darkness overlay so they stay
-    // legible on top of it (FR-012).
+    // legible on top of it.
     expect(order.lastIndexOf('grid')).toBeGreaterThan(order.indexOf('darkness'));
     expect(order.lastIndexOf('text')).toBeGreaterThan(order.indexOf('darkness'));
   });
@@ -2191,8 +2212,11 @@ describe('EditorCanvas — scaling the shared renderer', () => {
     };
     const player = {} as HTMLImageElement;
     const backgroundAtlas = {} as HTMLImageElement;
-    const { drawTerrain, drawBackgroundTiles: drawBackgroundTilesFn, drawPlayer: drawPlayerFn } =
-      await import('../engine/render/SceneRenderer');
+    const {
+      drawTerrain,
+      drawBackgroundTiles: drawBackgroundTilesFn,
+      drawPlayer: drawPlayerFn,
+    } = await import('../engine/render/SceneRenderer');
 
     render(
       <EditorCanvas
@@ -2220,8 +2244,7 @@ describe('EditorCanvas — scaling the shared renderer', () => {
     expect(ctx.scale).toHaveBeenCalledWith(0.5, 0.5);
     // The origin passed to the shared renderer must be pre-divided by zoom,
     // so that after ctx.scale re-multiplies it, it lands back at the raw
-    // panOffset — panOffset itself must stay zoom-independent (design.md
-    // "Panning stays in raw pixels, outside the scale").
+    // panOffset — panOffset itself must stay zoom-independent.
     expect(drawTerrain).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
@@ -2268,7 +2291,11 @@ describe('EditorCanvas — scaling the shared renderer', () => {
         grid={[['G']]}
         selectedTool="."
         panOffset={{ x: 5, y: 7 }}
-        images={{ ...EMPTY_IMAGES, tileset: {} as HTMLImageElement, groundAtlas: {} as HTMLImageElement }}
+        images={{
+          ...EMPTY_IMAGES,
+          tileset: {} as HTMLImageElement,
+          groundAtlas: {} as HTMLImageElement,
+        }}
         onPaint={() => {}}
         onPan={() => {}}
       />,
@@ -2437,7 +2464,7 @@ describe('EditorCanvas zoom controls', () => {
   });
 });
 
-describe('EditorCanvas falling-stalactite tint (O-027)', () => {
+describe('EditorCanvas falling-stalactite tint', () => {
   const TINT = PALETTE_TOOLS.fallingStalactite.sprite!.tint!;
 
   it('tintsEveryFallingMarkerCellWithTheEditorOnlyReddishWashAndNoGlyph', () => {
@@ -2462,7 +2489,7 @@ describe('EditorCanvas falling-stalactite tint (O-027)', () => {
     );
 
     // The wash is applied to the scratch sprite mask at native size
-    // (`source-atop`) — NOT as a full-cell rectangle at the cell's offset —
+    // (`source-atop`) — NOT as a full-cell rectangle at the cell's offset
     // so only the stalactite's own opaque pixels get tinted.
     expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
     expect(ctx.fillStyle).toBe(TINT);
@@ -2524,7 +2551,7 @@ describe('EditorCanvas falling-stalactite tint (O-027)', () => {
   });
 });
 
-describe('EditorCanvas — marker tool clicks (US1)', () => {
+describe('EditorCanvas — marker tool clicks', () => {
   function clickCell(col: number, row: number, button = 0) {
     const canvas = levelEditorPage.canvas;
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0 } as DOMRect);
@@ -2582,7 +2609,7 @@ describe('EditorCanvas — marker tool clicks (US1)', () => {
   });
 
   it('anEntityOrHazardOrBackgroundToolClick-leavesTheMarkerGridUntouched', () => {
-    // FR-013: no tool writes a marker of a kind other than its own.
+    // : no tool writes a marker of a kind other than its own.
     for (const tool of ['M', '^'] as const) {
       stubCanvasContext();
       const onPaintMarker = vi.fn();
@@ -2625,9 +2652,7 @@ describe('EditorCanvas — marker tool clicks (US1)', () => {
     clickCell(0, 0, 2);
 
     // Only the patrol boundary is cleared; the connection point is untouched.
-    expect(onPaintMarker).toHaveBeenCalledWith([
-      [null, { kind: 'connectionPoint' }],
-    ]);
+    expect(onPaintMarker).toHaveBeenCalledWith([[null, { kind: 'connectionPoint' }]]);
   });
 
   it('theSignTool-writesTAndADefaultHintMarker', () => {
@@ -2651,7 +2676,9 @@ describe('EditorCanvas — marker tool clicks (US1)', () => {
     clickCell(1, 0);
 
     expect(onPaint).toHaveBeenCalledWith(expect.objectContaining({ grid: [['.', 'T']] }));
-    expect(onPaintMarker).toHaveBeenCalledWith([[null, { kind: 'sign', hintId: 'bridgeDropThrough' }]]);
+    expect(onPaintMarker).toHaveBeenCalledWith([
+      [null, { kind: 'sign', hintId: 'bridgeDropThrough' }],
+    ]);
   });
 
   it('theSignTool-reClicked-cyclesTheHint', () => {
@@ -2837,7 +2864,7 @@ describe('EditorCanvas — marker tool clicks (US1)', () => {
 
     clickCell(0, 0);
 
-    // A patrol boundary is independent of its terrain (FR-002).
+    // A patrol boundary is independent of its terrain.
     expect(onPaintMarker).not.toHaveBeenCalled();
   });
 
@@ -3005,7 +3032,7 @@ describe('EditorCanvas — marker tool clicks (US1)', () => {
   });
 });
 
-describe('EditorCanvas — marker hover tooltip (FR-029)', () => {
+describe('EditorCanvas — marker hover tooltip', () => {
   it('hoveringASign-showsItsHintsOwnTranslatedText', () => {
     stubCanvasContext();
     render(

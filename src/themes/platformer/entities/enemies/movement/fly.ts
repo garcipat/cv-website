@@ -18,19 +18,19 @@ export interface FlyMovementConfig {
 
 /**
  * The bee's behavior: horizontal patrol with **no ledge check** plus a
- * vertical bob around the placement row (FR-004/FR-005/FR-006).
+ * vertical bob around the placement row.
  *
  * Horizontal — identical to patrol's horizontal half except the ledge test is
  * skipped, so a bee crosses a gap a slime would reverse at. It shares
  * `stepHorizontal` with patrol, anchoring the blocking test on
  * `enemy.homeY` (the placement row) rather than the bobbed `y`, so the bob
- * never changes which tiles block it (research D9).
+ * never changes which tiles block it.
  *
  * Vertical — a pure function of the shared clock:
- *   `y  = homeY + bobAmplitude * sin(2π * elapsed / bobPeriod)`
- *   `vy = bobAmplitude * (2π / bobPeriod) * cos(2π * elapsed / bobPeriod)`
+ * `y = homeY + bobAmplitude * sin(2π * elapsed / bobPeriod)`
+ * `vy = bobAmplitude * (2π / bobPeriod) * cos(2π * elapsed / bobPeriod)`
  * so at `elapsed = 0` and every whole period `y = homeY` exactly, and
- * `|y - homeY| <= bobAmplitude` always (FR-006/SC-003).
+ * `|y - homeY| <= bobAmplitude` always.
  */
 export function flyMovement<S extends BaseEnemyState>(
   config: FlyMovementConfig,

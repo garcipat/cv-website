@@ -63,7 +63,10 @@ describe('tickSpeechBubbleEffect', () => {
 
   it('exiting-beforeFadeOutCompletes-staysExitingAndAdvancesElapsed', () => {
     const effect = bridge();
-    const exiting = beginSpeechBubbleExit({ ...effect, state: { ...effect.state, phase: 'shown' } });
+    const exiting = beginSpeechBubbleExit({
+      ...effect,
+      state: { ...effect.state, phase: 'shown' },
+    });
 
     const ticked = tickSpeechBubbleEffect(exiting, SPEECH_BUBBLE_FADE_OUT_SECONDS / 2)!;
 
@@ -73,7 +76,10 @@ describe('tickSpeechBubbleEffect', () => {
 
   it('exiting-onceFadeOutCompletes-returnsNull', () => {
     const effect = bridge();
-    const exiting = beginSpeechBubbleExit({ ...effect, state: { ...effect.state, phase: 'shown' } });
+    const exiting = beginSpeechBubbleExit({
+      ...effect,
+      state: { ...effect.state, phase: 'shown' },
+    });
 
     expect(tickSpeechBubbleEffect(exiting, SPEECH_BUBBLE_FADE_OUT_SECONDS)).toBeNull();
   });
@@ -136,7 +142,11 @@ describe('beginSpeechBubbleExit', () => {
 describe('beginSpeechBubbleEnter', () => {
   it('fromExiting-restartsEnteringAtZeroElapsed', () => {
     const effect = bridge();
-    const exiting = { ...effect, elapsed: 0.1, state: { ...effect.state, phase: 'exiting' as const } };
+    const exiting = {
+      ...effect,
+      elapsed: 0.1,
+      state: { ...effect.state, phase: 'exiting' as const },
+    };
 
     const restarted = beginSpeechBubbleEnter(exiting);
 
@@ -169,14 +179,20 @@ describe('speechBubbleGrowthAndOpacity', () => {
 
   it('exiting-atStart-isFullyGrownAndFullyOpaque', () => {
     const effect = bridge();
-    const exiting = beginSpeechBubbleExit({ ...effect, state: { ...effect.state, phase: 'shown' } });
+    const exiting = beginSpeechBubbleExit({
+      ...effect,
+      state: { ...effect.state, phase: 'shown' },
+    });
 
     expect(speechBubbleGrowthAndOpacity(exiting)).toEqual({ growth: 1, opacity: 1 });
   });
 
   it('exiting-halfwayThroughFadeOut-isHalfGrownAndHalfOpaque', () => {
     const effect = bridge();
-    const exiting = beginSpeechBubbleExit({ ...effect, state: { ...effect.state, phase: 'shown' } });
+    const exiting = beginSpeechBubbleExit({
+      ...effect,
+      state: { ...effect.state, phase: 'shown' },
+    });
     const halfway = { ...exiting, elapsed: SPEECH_BUBBLE_FADE_OUT_SECONDS / 2 };
 
     const result = speechBubbleGrowthAndOpacity(halfway);
@@ -190,7 +206,10 @@ describe('speechBubbleGrowthAndOpacity', () => {
     // have already returned null by this point, so it must still behave sanely
     // (clamped, not negative) if ever called with an elapsed past the fade-out.
     const effect = bridge();
-    const exiting = beginSpeechBubbleExit({ ...effect, state: { ...effect.state, phase: 'shown' } });
+    const exiting = beginSpeechBubbleExit({
+      ...effect,
+      state: { ...effect.state, phase: 'shown' },
+    });
     const pastEnd = { ...exiting, elapsed: SPEECH_BUBBLE_FADE_OUT_SECONDS * 2 };
 
     expect(speechBubbleGrowthAndOpacity(pastEnd)).toEqual({ growth: 0, opacity: 0 });
@@ -256,7 +275,7 @@ describe('drawSpeechBubbleEffect', () => {
     );
 
     // Identical geometry to the primitive called directly with the effect's own
-    // stored text anchored at playerAnchor.centerX / playerAnchor.headBottomY —
+    // stored text anchored at playerAnchor.centerX / playerAnchor.headBottomY
     // nothing is resolved from a render-context text lookup.
     expect(actual.roundRect.mock.calls).toEqual(expected.roundRect.mock.calls);
     expect(actual.fillText).toHaveBeenCalledWith('I have no bombs.', 200, expect.any(Number));
@@ -270,7 +289,12 @@ describe('drawSpeechBubble', () => {
       fillText: ReturnType<typeof vi.fn>;
     };
 
-    drawSpeechBubble(ctx as unknown as CanvasRenderingContext2D, 'Hold Down to drop through a bridge.', 200, 300);
+    drawSpeechBubble(
+      ctx as unknown as CanvasRenderingContext2D,
+      'Hold Down to drop through a bridge.',
+      200,
+      300,
+    );
 
     expect(ctx.roundRect).toHaveBeenCalledTimes(2); // border rounded-rect, then the inset bubble rounded-rect on top
     expect(ctx.fillText).toHaveBeenCalledWith(
@@ -354,7 +378,10 @@ describe('drawSpeechBubble', () => {
   });
 
   it('withOpacity-setsGlobalAlphaBeforeDrawing', () => {
-    const ctx = makeMockContext() as unknown as { globalAlpha: number; roundRect: ReturnType<typeof vi.fn> };
+    const ctx = makeMockContext() as unknown as {
+      globalAlpha: number;
+      roundRect: ReturnType<typeof vi.fn>;
+    };
     // Capture globalAlpha at the moment roundRect is called — save()/restore()
     // are no-ops in the mock, so without capturing mid-call, reading
     // ctx.globalAlpha afterward could reflect whatever restore() reset it to.
@@ -385,7 +412,11 @@ describe('drawSpeechBubble', () => {
       drawSpeechBubble(ctx as unknown as CanvasRenderingContext2D, 'Just one line.', 200, 300);
 
       expect(ctx.fillText).toHaveBeenCalledTimes(1);
-      expect(ctx.fillText).toHaveBeenCalledWith('Just one line.', expect.any(Number), expect.any(Number));
+      expect(ctx.fillText).toHaveBeenCalledWith(
+        'Just one line.',
+        expect.any(Number),
+        expect.any(Number),
+      );
     });
 
     it('twoLineText-boxWidthUsesTheWidestLineNotJustTheFirst', () => {
@@ -399,7 +430,12 @@ describe('drawSpeechBubble', () => {
         width: text === 'A short line' ? 20 : 200,
       }));
 
-      drawSpeechBubble(ctx as unknown as CanvasRenderingContext2D, 'A short line\nA much much longer second line', 200, 300);
+      drawSpeechBubble(
+        ctx as unknown as CanvasRenderingContext2D,
+        'A short line\nA much much longer second line',
+        200,
+        300,
+      );
 
       const [, , insetBoxWidth] = ctx.roundRect.mock.calls[1]; // index 1: inset bubble rect
       // BUBBLE_PADDING_X is 10 (module-private constant) — box width =
@@ -425,12 +461,24 @@ describe('drawSpeechBubble', () => {
       // regression-checked for the multi-line (taller) box too.
       const ctx = makeMockContext() as unknown as { roundRect: ReturnType<typeof vi.fn> };
 
-      drawSpeechBubble(ctx as unknown as CanvasRenderingContext2D, 'Line one\nLine two', 200, 300, 1);
+      drawSpeechBubble(
+        ctx as unknown as CanvasRenderingContext2D,
+        'Line one\nLine two',
+        200,
+        300,
+        1,
+      );
       const [, fullTop, , fullHeight] = ctx.roundRect.mock.calls[1];
       const fullBottom = fullTop + fullHeight;
       ctx.roundRect.mockClear();
 
-      drawSpeechBubble(ctx as unknown as CanvasRenderingContext2D, 'Line one\nLine two', 200, 300, 0.5);
+      drawSpeechBubble(
+        ctx as unknown as CanvasRenderingContext2D,
+        'Line one\nLine two',
+        200,
+        300,
+        0.5,
+      );
       const [, halfTop, , halfHeight] = ctx.roundRect.mock.calls[1];
       const halfBottom = halfTop + halfHeight;
 

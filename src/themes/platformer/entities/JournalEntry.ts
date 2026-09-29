@@ -15,9 +15,9 @@ export interface JournalEntryDisplay {
   ratedItems?: { name: string; stars: string }[];
 }
 
-/** One emoji per section, per FR-017 ("🏢 for experience, 🎓 for
+/** One emoji per section, per ("🏢 for experience, 🎓 for
  * education, etc."). Used as the fallback icon here — `languages` entries
- * use the fact's own flag emoji instead (see `formatJournalEntry` below) —
+ * use the fact's own flag emoji instead (see `formatJournalEntry` below)
  * and reused by `BookmarkTabs` as the tab icon, since a rotated text label
  * on a narrow tab is hard to read. */
 export const SECTION_ICON: Record<SectionId, string> = {
@@ -33,7 +33,7 @@ export const SECTION_ICON: Record<SectionId, string> = {
 };
 
 /** 0-100 integer level → a 5-star rating string, e.g. level 80 → "★★★★☆"
- * (FR-017: "TypeScript ★★★★☆"). Rounds to the nearest star rather than
+ * ( "TypeScript ★★★★☆"). Rounds to the nearest star rather than
  * flooring, so 80 (exactly 4 stars) doesn't read as weaker than intended. */
 function starRating(level: number): string {
   const filled = Math.max(0, Math.min(5, Math.round(level / 20)));
@@ -41,11 +41,11 @@ function starRating(level: number): string {
 }
 
 /**
- * Formats a collected fact for the Simple List entry style (FR-017): an
+ * Formats a collected fact for the Simple List entry style: an
  * icon, a one-line title, and an optional subtitle (dates/institution/
  * provider — whatever the section's second-most-important field is).
  * Falls back to the fact's `sectionLabel` for any section shape not
- * explicitly handled below (defensive — every section FR-009 maps to a
+ * explicitly handled below (defensive — every section maps to a
  * collectible is covered; this only matters for malformed/future data).
  */
 export function formatJournalEntry(fact: CollectedFact): JournalEntryDisplay {

@@ -8,7 +8,10 @@ import type { TileChar } from '../../level/LevelParser';
 describe('unionBoxes', () => {
   it('returnsTheSmallestBoxContainingBoth', () => {
     expect(
-      unionBoxes({ minRow: 1, maxRow: 2, minCol: 1, maxCol: 2 }, { minRow: 0, maxRow: 1, minCol: 3, maxCol: 4 }),
+      unionBoxes(
+        { minRow: 1, maxRow: 2, minCol: 1, maxCol: 2 },
+        { minRow: 0, maxRow: 1, minCol: 3, maxCol: 4 },
+      ),
     ).toEqual({ minRow: 0, maxRow: 2, minCol: 1, maxCol: 4 });
   });
 
@@ -123,7 +126,7 @@ describe('exportLayout', () => {
 
   it('exportLayout(importLayout(LEVEL_1_LAYOUT)) keeps every row since LEVEL_1_LAYOUT (post ladder-shaft rows) has no longer any leading/trailing all-"." row, only an interior one (which stays, per crop semantics)', () => {
     // Content-cropping (this function's own job) is unconditional — spec
-    // SC-010 — so it applies the same way to freshly-loaded data as to
+    // — so it applies the same way to freshly-loaded data as to
     // anything the developer paints and erases down to this shape. As of
     // this writing LEVEL_1_LAYOUT's only all-'.' row sits between two
     // content rows (interior, not leading/trailing), so nothing is cropped;

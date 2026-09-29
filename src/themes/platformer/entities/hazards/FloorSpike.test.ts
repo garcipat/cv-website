@@ -8,7 +8,16 @@ import type { HazardTickContext } from './HazardType';
 import { parseLevel } from '../../level/LevelParser';
 
 function hazardAt(phase: FloorSpikePhase | undefined): HazardPlacement {
-  return { id: 'h1', hazardType: 'floorSpike', facing: 'up', x: 16, y: 32, col: 0, row: 0, floorSpikePhase: phase };
+  return {
+    id: 'h1',
+    hazardType: 'floorSpike',
+    facing: 'up',
+    x: 16,
+    y: 32,
+    col: 0,
+    row: 0,
+    floorSpikePhase: phase,
+  };
 }
 
 describe('floorSpike', () => {
@@ -53,8 +62,7 @@ describe('floorSpike.isContact', () => {
   });
 });
 
-
-// ---- merged from engine/FloorSpike.test.ts (R-004 US4) ----
+// ---- merged from engine/FloorSpike.test.ts ----
 
 import {
   FLOOR_SPIKE_DELAY_SECONDS,
@@ -97,7 +105,10 @@ describe('armFloorSpike', () => {
   it('unrelatedIds-areUnaffected', () => {
     const states = [{ id: 'other', elapsed: 0.1 }];
     const next = armFloorSpike(states, 'h1');
-    expect(next).toEqual([{ id: 'other', elapsed: 0.1 }, { id: 'h1', elapsed: 0 }]);
+    expect(next).toEqual([
+      { id: 'other', elapsed: 0.1 },
+      { id: 'h1', elapsed: 0 },
+    ]);
   });
 });
 
@@ -142,7 +153,10 @@ describe('floorSpikePhaseAt', () => {
     [FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS - 0.001, 'warning'],
     [FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS, 'fullExtend'],
     [
-      FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + FLOOR_SPIKE_FULL_EXTEND_SECONDS - 0.001,
+      FLOOR_SPIKE_DELAY_SECONDS +
+        FLOOR_SPIKE_WARNING_SECONDS +
+        FLOOR_SPIKE_FULL_EXTEND_SECONDS -
+        0.001,
       'fullExtend',
     ],
     [
@@ -183,14 +197,24 @@ describe('floorSpikeExtensionAt', () => {
     [FLOOR_SPIKE_DELAY_SECONDS, 0],
     [FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS / 2, 0.5],
     [FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS, 1],
-    [FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + FLOOR_SPIKE_FULL_EXTEND_SECONDS - 0.001, 1],
+    [
+      FLOOR_SPIKE_DELAY_SECONDS +
+        FLOOR_SPIKE_WARNING_SECONDS +
+        FLOOR_SPIKE_FULL_EXTEND_SECONDS -
+        0.001,
+      1,
+    ],
   ] as const)('elapsed %d-isCloseTo %d', (elapsed, expected) => {
     expect(floorSpikeExtensionAt(elapsed)).toBeCloseTo(expected, 5);
   });
 
   it('midRetract-isHalfway', () => {
-    const fullExtendEnd = FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + FLOOR_SPIKE_FULL_EXTEND_SECONDS;
-    expect(floorSpikeExtensionAt(fullExtendEnd + FLOOR_SPIKE_RETRACT_SECONDS / 2)).toBeCloseTo(0.5, 5);
+    const fullExtendEnd =
+      FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + FLOOR_SPIKE_FULL_EXTEND_SECONDS;
+    expect(floorSpikeExtensionAt(fullExtendEnd + FLOOR_SPIKE_RETRACT_SECONDS / 2)).toBeCloseTo(
+      0.5,
+      5,
+    );
   });
 
   it('pastTheFullCycle-isZero', () => {
@@ -209,7 +233,7 @@ describe('floorSpikeExtensionFor', () => {
   });
 });
 
-describe('floorSpike dispatch hooks (R-007 D3)', () => {
+describe('floorSpike dispatch hooks', () => {
   function hazardCtx(overrides: Partial<HazardTickContext> = {}): HazardTickContext {
     return {
       floorSpikeTimers: [],
@@ -229,17 +253,25 @@ describe('floorSpike dispatch hooks (R-007 D3)', () => {
   it('withTickState-mergesPhaseAndExtensionFromItsOwnTimers', () => {
     const placement = hazardAt(undefined);
     const elapsed = FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS;
-    const merged = floorSpike.withTickState!(placement, hazardCtx({
-      floorSpikeTimers: [{ id: 'h1', elapsed }],
-    }));
+    const merged = floorSpike.withTickState!(
+      placement,
+      hazardCtx({
+        floorSpikeTimers: [{ id: 'h1', elapsed }],
+      }),
+    );
 
     // Byte-identical to the phase/extension helpers the inline branch used.
     expect(merged.floorSpikePhase).toBe(floorSpikePhaseFor([{ id: 'h1', elapsed }], 'h1'));
-    expect(merged.floorSpikeExtension).toBeCloseTo(floorSpikeExtensionFor([{ id: 'h1', elapsed }], 'h1'), 5);
+    expect(merged.floorSpikeExtension).toBeCloseTo(
+      floorSpikeExtensionFor([{ id: 'h1', elapsed }], 'h1'),
+      5,
+    );
     expect(merged.floorSpikePhase).toBe('fullExtend');
     expect(merged.floorSpikeExtension).toBeCloseTo(1, 5);
     // Every other field carried through untouched.
-    expect({ ...merged, floorSpikePhase: undefined, floorSpikeExtension: undefined }).toEqual(placement);
+    expect({ ...merged, floorSpikePhase: undefined, floorSpikeExtension: undefined }).toEqual(
+      placement,
+    );
   });
 
   it('withTickState-noTimer-readsAtRestAndZeroExtension', () => {

@@ -16,7 +16,7 @@ import { TERRAIN_CHARS, type TerrainChar } from '../tiles/registry';
 import { layoutWidth, walkLayout } from './layoutChars';
 
 /** An entity marker's kind — what it means, not what it looks like on the
- *  ground (every entity marker sits on `empty` terrain, see parseLevel). */
+ * ground (every entity marker sits on `empty` terrain, see parseLevel). */
 export type EntityKind =
   | 'spawn'
   | 'enemyGreen'
@@ -32,7 +32,7 @@ export type EntityKind =
   | 'chest'
   | 'checkpoint';
 
-// `TERRAIN_CHARS` is derived from the tile module registry (FR-002) and lives in
+// `TERRAIN_CHARS` is derived from the tile module registry and lives in
 // `tiles/registry.ts`; it is imported above and re-used by the parser and the
 // char-ownership guard below.
 
@@ -41,20 +41,20 @@ export type EntityKind =
  * marks: `S` (spawn), `M` (green/Course enemy), `m` (purple enemy — carries
  * no CV fact, drops a key on defeat), `o` (Skill-category coin), `=` (crate block — Education/Activity/
  * Language fact), `?` (question-mark block — no fact, spawns a bonus fruit),
- * `F` (fragileRock block — no fact, level-design filler), `u` (coin-pot block —
+ * `F` (fragileRock block — no fact, level-design filler), `u` (coin-pot block
  * destroyed by landing on top, drops a coin; lowercase, a small urn-shaped
  * glyph, unlike every other entity marker which is uppercase), `p` (potion-pot
  * block — destroyed by landing on top like a coin-pot, drops a heart pickup
  * that heals half a heart; no fact, same no-CVData-binding convention as
  * `coin-pot/fragileRock), `b` (bomb-pot block — destroyed by landing on top
  * like the other pots, drops a bomb pickup the player carries and places;
- * no fact, same no-CVData-binding convention, O-012), `q` (bee enemy — flies
+ * no fact, same no-CVData-binding convention), `q` (bee enemy — flies
  * horizontally over gaps, stompable like a green slime, drops nothing and
- * counts toward nothing; O-024), `$` (chest —
- * Experience fact, opened via Arrow Up while standing on it, spec.md
- * FR-023), `C` (checkpoint — no CV fact, raises a flag once stepped on with
+ * counts toward nothing), `$` (chest — carries a CV Experience fact, opened
+ * via Arrow Up while standing on it), `C` (checkpoint — no CV fact, raises a
+ * flag once stepped on with
  * solid ground below and becomes the active respawn point for the rest of the
- * run; O-001). Kept as its own
+ * run). Kept as its own
  * map, separate from TERRAIN_CHARS, since an entity marker isn't a terrain
  * tile — the ground it sits on is always `empty` (see parseLevel below), and
  * it's a fundamentally different kind of fact about a cell ("what starts
@@ -80,14 +80,14 @@ export const ENTITY_CHARS: Record<string, EntityKind | undefined> = {
  * The one uniform sign layout character. Every sign is a `T` cell; its hint
  * lives on the tile meta layer as a `{ kind: 'sign', hintId }` marker, so the
  * layout can be freely edited without scrambling which sign shows which text
- * (FR-025). Resolves to `'empty'` terrain, exactly as the old digit sign
+ *. Resolves to `'empty'` terrain, exactly as the old digit sign
  * characters did.
  */
 export const SIGN_CHAR = 'T';
 
 /**
  * The **only** place a marker character exists: the load-time migration map
- * for a file authored before the tile meta layer (FR-015). Every entry lifts
+ * for a file authored before the tile meta layer. Every entry lifts
  * to a typed `MarkerEntry` and its terrain cell is written `'empty'`. A legacy
  * `T` is not in this map because `T` is genuinely overloaded between the old
  * falling-stalactite hazard and the new sign character; `parseLevel` resolves
@@ -105,17 +105,17 @@ export const LEGACY_MARKER_CHARS: Record<string, MarkerEntry | undefined> = {
 };
 
 /** A spike hazard's facing — which of the 4 pre-drawn sprites in
- *  `staticObjects.png` (columns 3-4, rows 6-7) is shown. Purely cosmetic for
- *  collision purposes: touching any part of a spike's tile damages the
- *  player regardless of which face was touched (see Spike.ts's `box`) —
- *  facing only selects the sprite. */
+ * `staticObjects.png` (columns 3-4, rows 6-7) is shown. Purely cosmetic for
+ * collision purposes: touching any part of a spike's tile damages the
+ * player regardless of which face was touched (see Spike.ts's `box`)
+ * facing only selects the sprite. */
 export type HazardFacing = 'up' | 'down' | 'left' | 'right';
 
 /** Every hazard kind the game knows about — `HazardKind` is derived from the
- *  `entities/hazards` registry (`keyof typeof HAZARD_TYPES`), so adding a kind
- *  is a registry line, not an edit here. Every place that would otherwise
- *  hardcode a kind (HAZARD_CHARS's value type, findHazardTiles's return type,
- *  HazardMapper's HazardPlacement/placeHazards) is typed against it. */
+ * `entities/hazards` registry (`keyof typeof HAZARD_TYPES`), so adding a kind
+ * is a registry line, not an edit here. Every place that would otherwise
+ * hardcode a kind (HAZARD_CHARS's value type, findHazardTiles's return type,
+ * HazardMapper's HazardPlacement/placeHazards) is typed against it. */
 
 /**
  * Maps each hazard-marker character to the hazard it places. Same
@@ -124,23 +124,26 @@ export type HazardFacing = 'up' | 'down' | 'left' | 'right';
  * exact facing per cell, the same way every other tile is placed explicitly.
  * `hazardType` is carried on every entry (not hardcoded to `'spike'`
  * elsewhere) so a future hazard kind beyond spike only needs a new entry
- * here plus a new `HAZARD_TYPES` registry line (entities/hazards/index.ts) —
+ * here plus a new `HAZARD_TYPES` registry line (entities/hazards/index.ts)
  * nothing else in this file changes.
  */
-export const HAZARD_CHARS: Record<string, { hazardType: HazardKind; facing: HazardFacing } | undefined> = {
+export const HAZARD_CHARS: Record<
+  string,
+  { hazardType: HazardKind; facing: HazardFacing } | undefined
+> = {
   '^': { hazardType: 'spike', facing: 'up' },
   v: { hazardType: 'spike', facing: 'down' },
   '<': { hazardType: 'spike', facing: 'left' },
   '>': { hazardType: 'spike', facing: 'right' },
-  // O-020's floor spear: `¦` (U+00A6, BROKEN BAR), the floor orientation only.
+  // 's floor spear: `¦` (U+00A6, BROKEN BAR), the floor orientation only.
   '¦': { hazardType: 'spear', facing: 'up' },
-  // O-021's floor spike. Floor-only (FR-013) — no facing cycle, unlike the
+  // 's floor spike. Floor-only — no facing cycle, unlike the
   // static spike above.
   A: { hazardType: 'floorSpike', facing: 'up' },
-  // O-027's falling stalactite is NO LONGER a hazard character: it is a
-  // `{kind:'fallingStalactite'}` marker on the decorative `⊤` tile (FR-026),
+  // 's falling stalactite is NO LONGER a hazard character: it is a
+  // `{kind:'fallingStalactite'}` marker on the decorative `⊤` tile,
   // discovered by `findHazardTiles` below. Its freed `T` is the sign
-  // character (FR-025).
+  // character.
 };
 
 // A character can only mean one thing — guard against TERRAIN_CHARS,
@@ -167,20 +170,7 @@ if (sharedChars.length > 0) {
  * `Record<string, … | undefined>` (so `keyof` widens to plain `string`). Kept
  * in sync with the map by the test asserting every key appears in `TileChar`.
  */
-type EntityChar =
-  | 'S'
-  | 'M'
-  | 'm'
-  | 'q'
-  | 'o'
-  | '='
-  | '?'
-  | 'F'
-  | '$'
-  | 'u'
-  | 'p'
-  | 'b'
-  | 'C';
+type EntityChar = 'S' | 'M' | 'm' | 'q' | 'o' | '=' | '?' | 'F' | '$' | 'u' | 'p' | 'b' | 'C';
 
 /** Hazard characters (`HAZARD_CHARS`' keys), hand-listed for the same reason. */
 type HazardChar = '^' | 'v' | '<' | '>' | '¦' | 'A';
@@ -213,9 +203,9 @@ export type TileChar = TerrainChar | EntityChar | typeof SIGN_CHAR | HazardChar;
  */
 /**
  * Builds the tile meta layer for a layout, lifting every legacy marker
- * character out of `layout` and merging `storedMarkers` on top (FR-015/FR-016).
+ * character out of `layout` and merging `storedMarkers` on top.
  *
- * The **`T` generation rule** (FR-015 vs FR-025/FR-027): `T` is overloaded
+ * The **`T` generation rule** ( vs /): `T` is overloaded
  * between the old falling-stalactite hazard and the new sign character. The
  * `markers` field disambiguates. `storedMarkers === undefined` means the file
  * has no `markers` field at all, so it is pre-feature and a `T` lifts to
@@ -277,11 +267,11 @@ export function parseMarkers(
 }
 
 /** Narrows a stored marker value to the closed `MarkerEntry` union, falling
- *  back to `DEFAULT_HINT_ID` for a `sign` whose `hintId` is unregistered and to
- *  `DEFAULT_TORCH_STRENGTH` for a `torch` whose `strength` is out of `0`–`9`,
- *  and returning `null` for anything unrecognised (FR-016/FR-027). Exported so
- *  the editor's localStorage marker guard reuses this complete validator
- *  (fixing the dropped-torch-marker bug). */
+ * back to `DEFAULT_HINT_ID` for a `sign` whose `hintId` is unregistered and to
+ * `DEFAULT_TORCH_STRENGTH` for a `torch` whose `strength` is out of `0`–`9`,
+ * and returning `null` for anything unrecognised. Exported so
+ * the editor's localStorage marker guard reuses this complete validator
+ * (fixing the dropped-torch-marker bug). */
 export function normalizeMarkerEntry(value: unknown): MarkerEntry | null {
   if (value === null || typeof value !== 'object') return null;
   const kind = (value as { kind?: unknown }).kind;
@@ -294,7 +284,10 @@ export function normalizeMarkerEntry(value: unknown): MarkerEntry | null {
   }
   if (kind === 'torch') {
     const strength = (value as { strength?: unknown }).strength;
-    return { kind: 'torch', strength: isTorchStrength(strength) ? strength : DEFAULT_TORCH_STRENGTH };
+    return {
+      kind: 'torch',
+      strength: isTorchStrength(strength) ? strength : DEFAULT_TORCH_STRENGTH,
+    };
   }
   return null;
 }
@@ -313,7 +306,7 @@ export function normalizeMarkerEntry(value: unknown): MarkerEntry | null {
  * the terrain into the layer and their cell is written `'empty'` (a legacy `T`
  * becomes the decorative `⊤` tile) — see `parseMarkers`. `markers` is attached
  * only when at least one marker exists, so a marker-free `LevelDef` keeps its
- * pre-feature shape (FR-014).
+ * pre-feature shape.
  *
  * An unrecognized character is skipped (treated as `empty`) and logged via
  * `console.warn` once per distinct character, rather than throwing. A level
@@ -333,7 +326,7 @@ export function parseLevel(
     new Array<TileType>(width).fill('empty'),
   );
 
-  // The one shared character walk (FR-010); only the terrain mapping lives
+  // The one shared character walk; only the terrain mapping lives
   // here. Missing trailing cells of a short row are skipped by the walk,
   // leaving the pre-filled `'empty'` — the same right-pad the old loop did.
   walkLayout(layout, ({ char, col, row }) => {
@@ -431,10 +424,13 @@ export function parseBackgroundLayout(
 }
 
 /** Finds every character in a level layout whose ENTITY_CHARS entry has the
- *  given `kind`, in reading order (top-to-bottom, left-to-right). Shared by
- *  findSpawnTile/findGreenEnemyTiles/findPurpleEnemyTiles below — all three
- *  just look for a different entity kind. */
-function findAllOfKind(layout: readonly string[], kind: EntityKind): { col: number; row: number }[] {
+ * given `kind`, in reading order (top-to-bottom, left-to-right). Shared by
+ * findSpawnTile/findGreenEnemyTiles/findPurpleEnemyTiles below — all three
+ * just look for a different entity kind. */
+function findAllOfKind(
+  layout: readonly string[],
+  kind: EntityKind,
+): { col: number; row: number }[] {
   const tiles: { col: number; row: number }[] = [];
   for (let row = 0; row < layout.length; row++) {
     for (let col = 0; col < layout[row].length; col++) {
@@ -460,9 +456,11 @@ export function findSpawnTile(layout: readonly string[]): { col: number; row: nu
  * marker's position, or `null` when the layout has none. The editor's preview
  * needs "is there a spawn yet?" without throwing mid-edit (a fresh/empty grid
  * legitimately has none), and this removes the editor's last copy of the `S`
- * scan (D2/FR-001).
+ * scan.
  */
-export function findOptionalSpawnTile(layout: readonly string[]): { col: number; row: number } | null {
+export function findOptionalSpawnTile(
+  layout: readonly string[],
+): { col: number; row: number } | null {
   const [first] = findAllOfKind(layout, 'spawn');
   return first ?? null;
 }
@@ -480,89 +478,88 @@ export function findGreenEnemyTiles(layout: readonly string[]): { col: number; r
 }
 
 /** Finds every `m` (purple/Certificate) enemy marker's position in a level
- *  layout — same convention as findGreenEnemyTiles, for certificate-derived
- *  enemy defs instead of project-derived ones. */
+ * layout — same convention as findGreenEnemyTiles, for certificate-derived
+ * enemy defs instead of project-derived ones. */
 export function findPurpleEnemyTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'enemyPurple');
 }
 
 /** Finds every `q` (bee) marker's position in a level layout, in reading
- *  order — a plain, position-derived enemy carrying no CV fact (O-024), so
- *  every marker found here becomes one placement directly (see
- *  EnemyMapper.ts's placeBees). */
+ * order — a plain, position-derived enemy carrying no CV fact, so
+ * every marker found here becomes one placement directly (see
+ * EnemyMapper.ts's placeBees). */
 export function findBeeTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'enemyBee');
 }
 
 /** Finds every `o` (Skill-category coin) marker's position in a level
- *  layout, in reading order — `CollectibleMapper.ts`'s `placeCollectibles`
- *  turns each into a purely positional placement; which skill-category fact
- *  (if any) a given coin reveals is resolved dynamically at pickup time
- *  (see `mapCVDataToSkillFactPool`'s doc comment), not bound here. */
+ * layout, in reading order — `CollectibleMapper.ts`'s `placeCollectibles`
+ * turns each into a purely positional placement; which skill-category fact
+ * (if any) a given coin reveals is resolved dynamically at pickup time
+ * (see `mapCVDataToSkillFactPool`'s doc comment), not bound here. */
 export function findCoinTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'coin');
 }
 
 /** Finds every `=` (crate block) marker's position in a level layout — same
- *  convention as findCoinTiles, for crate block defs instead
- *  of collectible defs (see BlockMapper.ts's placeBlocks). */
+ * convention as findCoinTiles, for crate block defs instead
+ * of collectible defs (see BlockMapper.ts's placeBlocks). */
 export function findCrateTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'crate');
 }
 
 /** Finds every `?` (question-mark block) marker's position in a level
- *  layout. Question-mark blocks carry no CV fact (spec.md's FR-021
- *  amendment) — every marker found here becomes a placement directly (see
- *  BlockMapper.ts's placeBlocks), unlike findCrateTiles's markers which are
- *  zipped against CVData-derived defs. */
+ * layout. Question-mark blocks carry no CV fact — every marker found here
+ * becomes a placement directly (see BlockMapper.ts's placeBlocks), unlike
+ * findCrateTiles's markers which are zipped against CVData-derived defs. */
 export function findQuestionMarkTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'questionMark');
 }
 
-/** Finds every `F` (fragileRock block) marker's position in a level layout —
- *  same no-CV-fact convention as findQuestionMarkTiles. */
+/** Finds every `F` (fragileRock block) marker's position in a level layout
+ * same no-CV-fact convention as findQuestionMarkTiles. */
 export function findFragileRockTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'fragileRock');
 }
 
-/** Finds every `u` (coin-pot block) marker's position in a level layout —
- *  same no-CVData-mapping convention as findFragileRockTiles; the coin a
- *  destroyed coin-pot drops is resolved dynamically at pickup time (see
- *  CollectibleMapper.ts's mapCVDataToSkillFactPool doc comment). */
+/** Finds every `u` (coin-pot block) marker's position in a level layout
+ * same no-CVData-mapping convention as findFragileRockTiles; the coin a
+ * destroyed coin-pot drops is resolved dynamically at pickup time (see
+ * CollectibleMapper.ts's mapCVDataToSkillFactPool doc comment). */
 export function findCoinPotTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'coinPot');
 }
 
-/** Finds every `p` (potion-pot block) marker's position in a level layout —
- *  same no-CVData-mapping convention as findCoinPotTiles; the heart a
- *  destroyed potion-pot drops carries no fact of its own, only a fixed heal
- *  amount (see Health.ts's HEART_PICKUP_HEAL_AMOUNT). */
+/** Finds every `p` (potion-pot block) marker's position in a level layout
+ * same no-CVData-mapping convention as findCoinPotTiles; the heart a
+ * destroyed potion-pot drops carries no fact of its own, only a fixed heal
+ * amount (see Health.ts's HEART_PICKUP_HEAL_AMOUNT). */
 export function findPotionPotTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'potionPot');
 }
 
-/** Finds every `b` (bomb-pot block) marker's position in a level layout —
- *  same no-CVData-mapping convention as findCoinPotTiles/findPotionPotTiles;
- *  the bomb a destroyed bomb-pot drops carries no fact of its own, only an
- *  inventory count (O-012). */
+/** Finds every `b` (bomb-pot block) marker's position in a level layout
+ * same no-CVData-mapping convention as findCoinPotTiles/findPotionPotTiles;
+ * the bomb a destroyed bomb-pot drops carries no fact of its own, only an
+ * inventory count. */
 export function findBombPotTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'bombPot');
 }
 
 /** Finds every `$` (chest) marker's position in a level layout — same
- *  convention as findCrateTiles/findFragileRockTiles. Unlike those, a chest marker
- *  IS zipped against CVData-derived defs (one chest per Experience entry,
- *  spec.md FR-023) — see ChestMapper.ts's placeChests. */
+ * convention as findCrateTiles/findFragileRockTiles. Unlike those, a chest marker
+ * IS zipped against CVData-derived defs (one chest per Experience entry,
+ * ) — see ChestMapper.ts's placeChests. */
 export function findChestTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'chest');
 }
 
 /** Finds every `C` (checkpoint) marker's position in a level layout, in
- *  reading order — same convention as findChestTiles. Unlike a chest, a
- *  checkpoint carries no CVData binding at all: every marker found here
- *  becomes one placement directly (see CheckpointMapper.ts's
- *  placeCheckpoints), and the reading order is the contract the deterministic
- *  same-tick tie-break depends on (see CheckpointLogic.ts). */
+ * reading order — same convention as findChestTiles. Unlike a chest, a
+ * checkpoint carries no CVData binding at all: every marker found here
+ * becomes one placement directly (see CheckpointMapper.ts's
+ * placeCheckpoints), and the reading order is the contract the deterministic
+ * same-tick tie-break depends on (see CheckpointLogic.ts). */
 export function findCheckpointTiles(layout: readonly string[]): { col: number; row: number }[] {
   return findAllOfKind(layout, 'checkpoint');
 }
@@ -570,7 +567,7 @@ export function findCheckpointTiles(layout: readonly string[]): { col: number; r
 /**
  * Finds every sign in a level layout, in reading order, paired with the hint
  * it shows. Each `SIGN_CHAR` (`T`) cell is paired with a `sign` marker at that
- * cell, or `DEFAULT_HINT_ID` when the marker is absent (FR-027) — the runtime
+ * cell, or `DEFAULT_HINT_ID` when the marker is absent — the runtime
  * analogue of the editor preview's sign builder (`ops/previewPlacements.ts`).
  * There is no separate
  * CVData-derived list to zip these positions against.
@@ -597,7 +594,7 @@ export function findSignTiles(
  * it scans the layout for the character hazards (`^`/`v`/`<`/`>`/`¦`/`A`) and
  * the marker grid for `{kind:'fallingStalactite'}` entries, returning one
  * combined list for the existing `placeHazards` pipeline. A caller asks for
- * "the level's hazards", never for each source separately (FR-032).
+ * "the level's hazards", never for each source separately.
  */
 export function findHazardTiles(
   layout: readonly string[],
@@ -622,7 +619,7 @@ export function findHazardTiles(
  * `TERRAIN_CHARS` — the same scan-for-a-known-character shape as
  * `findSignTiles`/`findHazardTiles`, NOT the `ENTITY_CHARS`/`findAllOfKind`
  * path `findCoinTiles` uses. The positions feed `TORCH_TILES` and, through it,
- * the `torchPositions` light sources the lighting pass reads (research D4).
+ * the `torchPositions` light sources the lighting pass reads.
  */
 export function findTorchTiles(layout: readonly string[]): { col: number; row: number }[] {
   const tiles: { col: number; row: number }[] = [];
@@ -641,7 +638,7 @@ export function findTorchTiles(layout: readonly string[]): { col: number; row: n
  * layout, in reading order — the same direct `TERRAIN_CHARS` scan shape as
  * `findTorchTiles`, since a bundle is terrain rather than an entity marker.
  * The positions feed `LADDER_BUNDLE_TILES` and, through it, the per-bundle
- * deployment state `PlatformerState.ts` seeds (O-011).
+ * deployment state `PlatformerState.ts` seeds.
  */
 export function findLadderBundleTiles(layout: readonly string[]): { col: number; row: number }[] {
   const tiles: { col: number; row: number }[] = [];

@@ -7,8 +7,8 @@ import type { MarkerEntry, MarkerGrid } from '../../level/LevelData';
 import type { BackgroundChar, TileChar } from '../../level/LevelParser';
 
 /** Same shape `paintCell` returns, deliberately: a placement is just a bigger
- *  paint as far as `LevelEditorPage` is concerned, so it flows through the same
- *  grow/shift bookkeeping (`applyGrowthShift`) a single painted cell does. */
+ * paint as far as `LevelEditorPage` is concerned, so it flows through the same
+ * grow/shift bookkeeping (`applyGrowthShift`) a single painted cell does. */
 export type PlacementResult = GrowResult<TileChar>;
 
 /**
@@ -47,7 +47,7 @@ export const placeBlueprint = (
 /**
  * Every marker a blueprint carries, relative to the room's own top-left corner
  * — its stored `markers` field merged over any legacy marker characters still
- * in `layout` (FR-015), via the same `importMarkerGrid` the editor's load path
+ * in `layout`, via the same `importMarkerGrid` the editor's load path
  * uses. `blueprintCells` deliberately stays terrain-only; this is the marker
  * analogue a placement stamps alongside it.
  */
@@ -67,12 +67,12 @@ export function blueprintMarkers(
 
 /**
  * Stamps a blueprint's markers into `markers` at the placement's anchor,
- * replacing whatever marker was there (FR-018/FR-020). The level marker grid
+ * replacing whatever marker was there. The level marker grid
  * may be smaller than the placement's extent (a level with no markers starts
  * empty, and a right/down growth appends terrain without touching it), so the
  * grid is padded with `null` to fit; it never triggers a `GrowthShift`, since
  * markers never define a level's extent. `blueprintFit` is untouched and
- * terrain-only — a marker never blocks a placement (FR-019).
+ * terrain-only — a marker never blocks a placement.
  */
 export function placeBlueprintMarkers(
   markers: MarkerGrid,
@@ -115,7 +115,7 @@ export function placeBlueprintMarkers(
  * left/up-prepend behaviour `paintBackgroundCell`'s grow uses) so a blueprint
  * background reaching past the target's current bounds still lands correctly.
  *
- * Every non-`null` cell overwrites unconditionally, with no overlap check —
+ * Every non-`null` cell overwrites unconditionally, with no overlap check
  * background painting has always silently replaced on overlap (design, Step
  * 44c — Placement); a `null` cell in the blueprint's background leaves
  * whatever was already in `target` at that position untouched, so placing a

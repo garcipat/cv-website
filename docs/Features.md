@@ -76,11 +76,12 @@ graph RL
         R008["✅ R-008: Platformer Placeable World Items"]
         R009["✅ R-009: Platformer Renderer Split"]
         R010["✅ R-010: Platformer Mapper & Editor Unification"]
-        R011["R-011: Platformer Player Damage & Bomb Systems"]
+        R011["✅ R-011: Platformer Player Damage & Bomb Systems"]
         R012["R-012: Platformer State Stores & Asset/HUD Extraction"]
         R013["R-013: Platformer Sprite Asset & Atlas Organization"]
         R014["R-014: Platformer Layer-Boundary Lint Guard"]
         R015["✅ R-015: Platformer Tile Module Registry"]
+        R016["R-016: Platformer Abstraction Docs & Docs Restructure"]
     end
 
     F003 --> F002
@@ -243,6 +244,14 @@ graph RL
     R014 --> R001
     R015 --> R001
     R015 --> R004
+    R016 --> R001
+    R016 --> R003
+    R016 --> R004
+    R016 --> R006
+    R016 --> R007
+    R016 --> R008
+    R016 --> R011
+    R016 --> R015
 
     O030 --> R005
     O030 --> S011
@@ -313,12 +322,13 @@ graph RL
     class O016 done
     class O021 done
     class O023 done
-    class R001,R002,R003,R004,R005,R006,R007,R008,R009,R011,R012,R014,R015 themes
+    class R001,R002,R003,R004,R005,R006,R007,R008,R009,R011,R012,R014,R015,R016 themes
     class R001 done
     class R002 done
     class R004 done
     class R008 done
     class R009 done
+    class R011 done
     class R015 done
     class R005 done
     class R006 done

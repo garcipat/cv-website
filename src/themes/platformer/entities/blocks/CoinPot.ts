@@ -26,7 +26,7 @@ const HITBOX_INSET_X = 3 * RENDER_SCALE;
  * Declares only its kind-specific facts — marker, sprite, drop, drop policy,
  * respawn flag and its single-pot draw — and inherits collision, the
  * land-on-top trigger, the shared bounce and one-hit removal from
- * `createPotType` (FR-001/FR-002).
+ * `createPotType`.
  */
 export const coinPot: BlockType = createPotType({
   key: 'coinPot',
@@ -34,7 +34,7 @@ export const coinPot: BlockType = createPotType({
   drop: 'coin',
   // A coin pot pays out once per session: `PlatformerPage.tsx` marks the
   // instance's `rewardGiven` when the coin is handed out, and the factory's
-  // `onHit` gate never drops a second coin (FR-017).
+  // `onHit` gate never drops a second coin.
   dropPolicy: 'once',
   restoredOnRespawn: false,
   hitboxInsetX: HITBOX_INSET_X,

@@ -7,7 +7,7 @@ import { RENDERED_TILE_SIZE } from '../level/Terrain';
 import { aabbOverlap } from './Collision';
 import type { Box } from '../contracts/geometry';
 
-/** Blast radius in tiles — a radius of 2 gives a rounded 5×5 area (FR-018). */
+/** Blast radius in tiles — a radius of 2 gives a rounded 5×5 area. */
 export const BLAST_RADIUS = 2;
 
 /** One tile in a blast's area. */
@@ -23,8 +23,8 @@ export interface BlastTile {
  * centre lies within `BLAST_RADIUS + 0.5` tiles of the blast centre — the
  * circle that touches the square's edge midpoints — which for radius 2 keeps
  * 21 of the 25 cells (the four extreme `(±2, ±2)` corners are dropped).
- * Clipped to the level bounds (FR-018). Pure; no side effects, and no
- * line-of-sight rule — a blast reaches through intervening blocks (FR-024).
+ * Clipped to the level bounds. Pure; no side effects, and no
+ * line-of-sight rule — a blast reaches through intervening blocks.
  */
 export function blastTiles(col: number, row: number, width: number, height: number): BlastTile[] {
   const tiles: BlastTile[] = [];
@@ -48,11 +48,14 @@ function tileKey(col: number, row: number): string {
  * Every live, destructible block whose tile is in the blast. "Destructible"
  * means the kind leaves the world when used up (`removeWhenUsedUp`) — a
  * crate, fragile rock or any pot. A question-mark block never leaves the
- * world, so it is not a target (FR-019/FR-022), and an already-used-up block
+ * world, so it is not a target, and an already-used-up block
  * is inert. Terrain and static objects are not blocks and are never
- * enumerated (FR-022).
+ * enumerated.
  */
-export function blocksInBlast(blocks: readonly BlockState[], tiles: readonly BlastTile[]): BlockState[] {
+export function blocksInBlast(
+  blocks: readonly BlockState[],
+  tiles: readonly BlastTile[],
+): BlockState[] {
   const keys = new Set(tiles.map((tile) => tileKey(tile.col, tile.row)));
   return blocks.filter((block) => {
     if (!BLOCK_TYPES[block.blockKind].removeWhenUsedUp) return false;
@@ -64,7 +67,7 @@ export function blocksInBlast(blocks: readonly BlockState[], tiles: readonly Bla
 }
 
 /**
- * Every alive enemy whose hitbox overlaps any blast tile (FR-020). Overlap is
+ * Every alive enemy whose hitbox overlaps any blast tile. Overlap is
  * an AABB intersection, so an enemy straddling the area's boundary counts if
  * any part of its box overlaps.
  */
@@ -88,8 +91,12 @@ export function enemiesInBlast(
 }
 
 /** Whether the player's hitbox (the caller passes `playerHitbox(player)`)
- *  overlaps any blast tile (FR-021). */
-export function playerInBlast(playerBox: Box, tiles: readonly BlastTile[], tileSize: number): boolean {
+ * overlaps any blast tile. */
+export function playerInBlast(
+  playerBox: Box,
+  tiles: readonly BlastTile[],
+  tileSize: number,
+): boolean {
   return tiles.some((tile) =>
     aabbOverlap(playerBox, {
       x: tile.col * tileSize,

@@ -152,7 +152,10 @@ describe('hitSplatterDroplets', () => {
   });
 
   it('atOrPastDuration-opacityIsZero', () => {
-    const effect = tickHitSplatterEffect(startPlayerHitSplatter('p', 0, 0, 1), HIT_SPLATTER_DURATION_SECONDS);
+    const effect = tickHitSplatterEffect(
+      startPlayerHitSplatter('p', 0, 0, 1),
+      HIT_SPLATTER_DURATION_SECONDS,
+    );
     expect(hitSplatterDroplets(effect)[0].opacity).toBe(0);
     const wayPast = tickHitSplatterEffect(
       startPlayerHitSplatter('p', 0, 0, 1),
@@ -164,7 +167,10 @@ describe('hitSplatterDroplets', () => {
 
 describe('hit splatter expiry boundary', () => {
   it('atExactlyTheDuration-isNotExpired', () => {
-    const effect = tickHitSplatterEffect(startPlayerHitSplatter('p', 0, 0, 1), HIT_SPLATTER_DURATION_SECONDS);
+    const effect = tickHitSplatterEffect(
+      startPlayerHitSplatter('p', 0, 0, 1),
+      HIT_SPLATTER_DURATION_SECONDS,
+    );
     expect(effect.expired(effect)).toBe(false);
   });
 
@@ -182,7 +188,10 @@ describe('drawHitSplatterEffect', () => {
     const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
     const effect = startPlayerHitSplatter('p', 100, 200, 1);
 
-    drawHitSplatterEffect(effect, renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]));
+    drawHitSplatterEffect(
+      effect,
+      renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]),
+    );
 
     expect(ctx.fillRect).toHaveBeenCalledTimes(effect.state.dropletCount);
   });
@@ -191,7 +200,10 @@ describe('drawHitSplatterEffect', () => {
     const ctx = makeMockContext() as unknown as { fillRect: ReturnType<typeof vi.fn> };
     const effect = tickHitSplatterEffect(startPlayerHitSplatter('p', 100, 200, 1), 10);
 
-    drawHitSplatterEffect(effect, renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]));
+    drawHitSplatterEffect(
+      effect,
+      renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]),
+    );
 
     expect(ctx.fillRect).not.toHaveBeenCalled();
   });
@@ -202,7 +214,10 @@ describe('drawHitSplatterEffect', () => {
     Object.defineProperty(ctx, 'fillStyle', { set: setFillStyle, get: () => '' });
     const effect = startEnemyHitSplatter('e', 10, 20, 'slimePurple');
 
-    drawHitSplatterEffect(effect, renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]));
+    drawHitSplatterEffect(
+      effect,
+      renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]),
+    );
 
     expect(setFillStyle).toHaveBeenCalledWith(effect.state.color);
   });

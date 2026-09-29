@@ -1,4 +1,4 @@
-﻿import type { LevelDef } from '../level/LevelData';
+import type { LevelDef } from '../level/LevelData';
 import { tileAt } from '../level/Terrain';
 import { isClimbableTile, isSolidTile } from './registry';
 import type { ChainPieceRect } from './spriteRects';
@@ -7,9 +7,9 @@ import type { TileModule } from './TileModule';
 /**
  * `ropeLadder` — a deployed rope-ladder rung cell. Registry-only (never
  * author-placeable, so it declares no `char`). Climbable; fogged; rendered by
- * R-008's deployable-item pass, so `drawBand` is `'deployable'`. Owns the rope
- * art geometry relocated from `engine/StaticObjectsCatalog.ts` (US4/T041);
- * R-008's `entities/deployableItems/RopeLadder.ts` imports it back (an allowed
+ * 's deployable-item pass, so `drawBand` is `'deployable'`. Owns the rope
+ * art geometry relocated from `engine/StaticObjectsCatalog.ts`;
+ * 's `entities/deployableItems/RopeLadder.ts` imports it back (an allowed
  * `entities/ → tiles/` edge) and keeps the deployment lifecycle.
  */
 
@@ -23,7 +23,7 @@ function standableAt(level: LevelDef, col: number, row: number): boolean {
 }
 
 /** The rope-ladder sheet's pieces. `ROPE_BUNDLE` is the rolled 16x16 parcel;
- *  the other four are 16x8 half-tile pieces the deployed shaft stacks. */
+ * the other four are 16x8 half-tile pieces the deployed shaft stacks. */
 export const ROPE_BUNDLE: ChainPieceRect = { sx: 0, sy: 0, width: 16, height: 16 };
 export const ROPE_TOP_CAP: ChainPieceRect = { sx: 16, sy: 0, width: 16, height: 8 };
 export const ROPE_STEP: ChainPieceRect = { sx: 16, sy: 8, width: 16, height: 8 };

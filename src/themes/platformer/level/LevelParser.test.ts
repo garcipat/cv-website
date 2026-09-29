@@ -148,7 +148,7 @@ describe('legacy patrol boundary character', () => {
   });
 
   it('parseLevel-legacyPChar-liftsAPatrolBoundaryMarkerAndEmptiesTheTerrain', () => {
-    // A patrol boundary is invisible in game, but it is no longer terrain —
+    // A patrol boundary is invisible in game, but it is no longer terrain
     // EnemyAI reads it from the tile meta layer to reverse a patrol.
     expect(parseLevel(['.P.'])).toEqual({
       terrain: [['empty', 'empty', 'empty']],
@@ -526,16 +526,18 @@ describe('parseLevel — torch strength markers', () => {
   });
 
   it('anOutOfRangeStrength-fallsBackToTheDefault', () => {
-    const result = parseLevel(['¥.'], [
-      { col: 0, row: 0, marker: { kind: 'torch', strength: 42 as unknown as TorchStrength } },
-    ]);
+    const result = parseLevel(
+      ['¥.'],
+      [{ col: 0, row: 0, marker: { kind: 'torch', strength: 42 as unknown as TorchStrength } }],
+    );
     expect(result.markers?.[0]?.[0]).toEqual({ kind: 'torch', strength: DEFAULT_TORCH_STRENGTH });
   });
 
   it('aNonNumericStrength-fallsBackToTheDefault', () => {
-    const result = parseLevel(['¥.'], [
-      { col: 0, row: 0, marker: { kind: 'torch', strength: 'x' as unknown as TorchStrength } },
-    ]);
+    const result = parseLevel(
+      ['¥.'],
+      [{ col: 0, row: 0, marker: { kind: 'torch', strength: 'x' as unknown as TorchStrength } }],
+    );
     expect(result.markers?.[0]?.[0]).toEqual({ kind: 'torch', strength: DEFAULT_TORCH_STRENGTH });
   });
 });
@@ -598,7 +600,7 @@ describe('HAZARD_CHARS', () => {
 
   it('uppercaseT-isNoLongerAHazardCharacter', () => {
     // The falling stalactite is a marker on the decorative `⊤` tile now; its
-    // freed `T` is the sign character (FR-025/FR-026).
+    // freed `T` is the sign character.
     expect('T' in HAZARD_CHARS).toBe(false);
     expect('T' in TERRAIN_CHARS).toBe(false);
     expect('T' in ENTITY_CHARS).toBe(false);
@@ -767,9 +769,44 @@ describe('crumblingFloor terrain character', () => {
 describe('TileChar', () => {
   it('includes every TERRAIN_CHARS, ENTITY_CHARS, SIGN_CHAR, and HAZARD_CHARS key', () => {
     const tileChars: readonly TileChar[] = [
-      '.', 'G', 'R', '#', 'B', 'H', 'I', 'S', 'M', 'm', 'q', 'o', '=', '?', 'F', '$', 'u', 'p',
-      'b', 'n', 'N', 'X', 'c', '⊤', '⊥', '¥', '^', 'v', '<', '>', 'A', 'C', '@',
-      '§', 's', 'g', '¦', 'T',
+      '.',
+      'G',
+      'R',
+      '#',
+      'B',
+      'H',
+      'I',
+      'S',
+      'M',
+      'm',
+      'q',
+      'o',
+      '=',
+      '?',
+      'F',
+      '$',
+      'u',
+      'p',
+      'b',
+      'n',
+      'N',
+      'X',
+      'c',
+      '⊤',
+      '⊥',
+      '¥',
+      '^',
+      'v',
+      '<',
+      '>',
+      'A',
+      'C',
+      '@',
+      '§',
+      's',
+      'g',
+      '¦',
+      'T',
     ];
     const allKeys = [
       ...Object.keys(TERRAIN_CHARS),

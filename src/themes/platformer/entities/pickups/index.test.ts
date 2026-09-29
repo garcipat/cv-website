@@ -48,7 +48,7 @@ describe('PICKUP_TYPES', () => {
   });
 
   it('everySpawnedState-kindEqualsItsRegistrySlot-andExposesABooleanCollectedFlag', () => {
-    // SC-002: each state's `kind` equals the registry slot it is stored under,
+    // : each state's `kind` equals the registry slot it is stored under,
     // and carries the shared boolean collect-once flag.
     const states = [
       PICKUP_TYPES.coin.spawn({ id: 'c', x: 0, y: 0 }),
@@ -65,7 +65,7 @@ describe('PICKUP_TYPES', () => {
   });
 });
 
-describe('every kind spawns itself from a source (US2)', () => {
+describe('every kind spawns itself from a source', () => {
   it('coin-spawnsAPositionalCoinThatIgnoresFactAndIconIndex', () => {
     const iconIndex = vi.fn(() => 5);
     const state = PICKUP_TYPES.coin.spawn({ id: 'pot-1', x: 10, y: 20, fact: testFact, iconIndex });
@@ -76,7 +76,13 @@ describe('every kind spawns itself from a source (US2)', () => {
 
   it('fruit-spawnsItsRisingStateWithTheSourceFactAndLazyIconIndex', () => {
     const iconIndex = vi.fn(() => 5);
-    const state = PICKUP_TYPES.fruit.spawn({ id: 'qmark-1', x: 30, y: 40, fact: testFact, iconIndex }) as FruitState;
+    const state = PICKUP_TYPES.fruit.spawn({
+      id: 'qmark-1',
+      x: 30,
+      y: 40,
+      fact: testFact,
+      iconIndex,
+    }) as FruitState;
     expect(state.kind).toBe('fruit');
     expect(state.id).toBe('qmark-1');
     expect(state.x).toBe(30);
@@ -179,12 +185,12 @@ describe('pickup frames match their existing frame functions', () => {
 
   it('bomb-alwaysShowsTheUnlitFrame', () => {
     // Frame 0 of bomb.png — the same unlit bomb the HUD counter uses; a
-    // placed bomb's lit frames 1-5 never appear on a world pickup (O-012).
+    // placed bomb's lit frames 1-5 never appear on a world pickup.
     expect(PICKUP_TYPES.bomb.frameIndex(spawnBombPickup('b', 0, 0), 99, 0)).toBe(0);
   });
 });
 
-describe('bomb pickup carries no CV fact (FR-011)', () => {
+describe('bomb pickup carries no CV fact', () => {
   it('bomb-hasNoFactField', () => {
     expect('fact' in PICKUP_TYPES.bomb).toBe(false);
   });

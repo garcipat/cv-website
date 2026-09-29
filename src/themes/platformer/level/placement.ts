@@ -3,7 +3,7 @@ import { revealedFactCountFor } from './SkillFactPacing';
 import type { CollectedFact } from '../types';
 
 /**
- * The one marker→placement contract (FR-003/FR-004/FR-005, D4). Every
+ * The one marker→placement contract. Every
  * `level/*Mapper.ts` place function routes through `placeAtMarkers` (directly
  * or via `placeWithFactPool`); no mapper keeps its own `markers.map(...)`
  * loop. `placeWithFactPool` delegates to `placeAtMarkers`, so there is exactly
@@ -49,7 +49,7 @@ export function placeAtMarkers<M extends MarkerPosition, P>(
  * `MarkerPosition`. The only two fact-pool placements — `BlockPlacement` and
  * `EnemyPlacement` — carry no `col`/`row` (their consumers read `x`/`y`), and
  * the shared loop must not add fields the runtime placements never had
- * (FR-015). `MarkerPosition` is the *input* marker's shape, not the output's.
+ *. `MarkerPosition` is the *input* marker's shape, not the output's.
  */
 export interface FactPoolPlacement {
   id: string;
@@ -60,7 +60,7 @@ export interface FactPoolPlacement {
 }
 
 /**
- * `placeAtMarkers` plus the one proportional fact-pool slice (FR-004). For
+ * `placeAtMarkers` plus the one proportional fact-pool slice. For
  * marker `i` of `n` with pool length `m`: `start =
  * revealedFactCountFor(i, n, m)`, `end = revealedFactCountFor(i + 1, n, m)`,
  * `slice = pool.slice(start, end)`; then `fact = slice[0]`, `extraFacts =

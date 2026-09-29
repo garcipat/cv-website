@@ -172,11 +172,14 @@ describe('EditorToolbar — export dialog complete JSON', () => {
     const textarea = (await levelEditorPage.exportDialog.findOutput()) as HTMLTextAreaElement;
 
     // The textarea holds the same `layoutFileJson` a save writes, so the two
-    // can never drift apart (FR-033/FR-034).
+    // can never drift apart.
     expect(textarea.value).toBe(
-      layoutFileJson('main', ['G#'], ['dc'], [
-        { col: 0, row: 0, marker: { kind: 'patrolBoundary' } },
-      ]),
+      layoutFileJson(
+        'main',
+        ['G#'],
+        ['dc'],
+        [{ col: 0, row: 0, marker: { kind: 'patrolBoundary' } }],
+      ),
     );
     expect(JSON.parse(textarea.value)).toEqual({
       name: 'main',
@@ -226,7 +229,7 @@ describe('EditorToolbar — tooltips', () => {
   });
 });
 
-describe('EditorToolbar — appearance toggle (O-015 US1)', () => {
+describe('EditorToolbar — appearance toggle', () => {
   it('toolbar-whenLevelCanvas-showsTheAppearanceToggle', () => {
     render(<LevelEditorPage />);
 

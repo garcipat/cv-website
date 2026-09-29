@@ -1,7 +1,7 @@
 import { BACKGROUND_RENDER_SCALE } from './BackgroundLayers';
 
 /**
- * The ambient cloud layer (O-022): a handful of soft clouds that drift
+ * The ambient cloud layer: a handful of soft clouds that drift
  * right-to-left across the open sky, so the platformer's backdrop stays alive
  * while the player stands still. Their own drift is camera-independent, but
  * they also pick up a small camera-linked parallax shift matching the painted
@@ -15,13 +15,11 @@ import { BACKGROUND_RENDER_SCALE } from './BackgroundLayers';
  *
  * The cloud shapes are addressed through explicit source rects rather than a
  * frame grid, because `ambient_clouds.png` is not a uniform grid — the four
- * clouds differ in width. See
- * `specs/O-022-ambient-clouds/research.md` (D3) and
- * `specs/O-022-ambient-clouds/data-model.md`.
+ * clouds differ in width.
  */
 
 /** One authored cloud silhouette within `public/sprites/ambient_clouds.png`
- *  (185x32): the top-left of its opaque bounds plus its native size. */
+ * (185x32): the top-left of its opaque bounds plus its native size. */
 export interface CloudSourceRect {
   readonly sx: number;
   readonly sy: number;
@@ -31,12 +29,12 @@ export interface CloudSourceRect {
 
 /** One drifting cloud instance. */
 export interface AmbientCloud {
-  /** Index into `AMBIENT_CLOUD_SOURCE_RECTS` (FR-005). */
+  /** Index into `AMBIENT_CLOUD_SOURCE_RECTS`. */
   shapeIndex: number;
   /** Vertical slot, `[0, population)`; distinct per cloud, so no two sit on the
-   *  same line (FR-003). */
+   * same line. */
   lane: number;
-  /** Left edge in screen-space rendered px; drifts right -> left (FR-002). */
+  /** Left edge in screen-space rendered px; drifts right -> left. */
   x: number;
   /** Top edge in screen-space rendered px. */
   y: number;
@@ -48,20 +46,20 @@ export interface AmbientCloud {
 export interface CloudField {
   readonly clouds: readonly AmbientCloud[];
   /** Seeded PRNG state, advanced on each respawn (spec Assumption "Variation
-   *  is seeded"). */
+   * is seeded"). */
   readonly rngState: number;
   /** Width the field was built for; drives density and the right-edge respawn x. */
   readonly playAreaWidth: number;
   /** Bottom of the HUD's dark top margin — the open sky's top edge. */
   readonly skyTop: number;
   /** The painted clouds/hills band's top edge — the open sky's bottom edge
-   *  (deliberately named differently from `BackgroundBandGeometry.skyBottom`,
-   *  which is the sky image's own bottom). */
+   * (deliberately named differently from `BackgroundBandGeometry.skyBottom`,
+   * which is the sky image's own bottom). */
   readonly openSkyBottom: number;
 }
 
 /** The four authored cloud shapes. Measured from the sheet's opaque bounds; all
- *  four are bottom-aligned at sheet row 31 (see research D3). */
+ * four are bottom-aligned at sheet row 31. */
 export const AMBIENT_CLOUD_SOURCE_RECTS: readonly CloudSourceRect[] = [
   { sx: 0, sy: 16, width: 33, height: 16 },
   { sx: 41, sy: 12, width: 43, height: 20 },
@@ -69,44 +67,44 @@ export const AMBIENT_CLOUD_SOURCE_RECTS: readonly CloudSourceRect[] = [
   { sx: 143, sy: 0, width: 42, height: 32 },
 ];
 
-/** The shortest native shape height (16) — the FR-013 fit threshold: a sky
- *  band shorter than `MIN_SHAPE_HEIGHT * BACKGROUND_RENDER_SCALE` cannot hold
- *  even the smallest cloud, so the layer is omitted. */
+/** The shortest native shape height (16) — the fit threshold: a sky
+ * band shorter than `MIN_SHAPE_HEIGHT * BACKGROUND_RENDER_SCALE` cannot hold
+ * even the smallest cloud, so the layer is omitted. */
 export const MIN_SHAPE_HEIGHT = Math.min(...AMBIENT_CLOUD_SOURCE_RECTS.map((rect) => rect.height));
 
-/** Rendered px of play-area width per cloud (FR-015). */
+/** Rendered px of play-area width per cloud. */
 export const CLOUD_SPACING_PX = 300;
 
-/** Floor on the population, so a narrow viewport is never empty (FR-015). */
+/** Floor on the population, so a narrow viewport is never empty. */
 export const MIN_CLOUD_COUNT = 3;
 
-/** Slowest drift, in rendered px/s — visibly moves over seconds (FR-002). */
+/** Slowest drift, in rendered px/s — visibly moves over seconds. */
 export const CLOUD_MIN_SPEED_PX_PER_SEC = 3;
 
-/** Fastest drift, in rendered px/s — gives a visible spread of speeds (SC-002). */
+/** Fastest drift, in rendered px/s — gives a visible spread of speeds. */
 export const CLOUD_MAX_SPEED_PX_PER_SEC = 7;
 
-/** Range of the re-entry x offset beyond the right edge (FR-007). */
+/** Range of the re-entry x offset beyond the right edge. */
 export const CLOUD_RESPAWN_JITTER_PX = 160;
 
 /** How much of the camera's horizontal movement the ambient layer follows, on
- *  top of its own drift — the same factor the painted clouds/hills band uses
- *  (`CLOUDS_PARALLAX_FACTOR` in `BackgroundLayers.ts`), so the ambient clouds
- *  read as living at that band's depth rather than pasted on the screen
- *  (FR-002). 0 would be fully viewport-fixed; 1 would match the foreground. */
+ * top of its own drift — the same factor the painted clouds/hills band uses
+ * (`CLOUDS_PARALLAX_FACTOR` in `BackgroundLayers.ts`), so the ambient clouds
+ * read as living at that band's depth rather than pasted on the screen
+ *. 0 would be fully viewport-fixed; 1 would match the foreground. */
 export const AMBIENT_CLOUD_PARALLAX_FACTOR = 0.2;
 
 /** Default PRNG seed — makes a session's variation reproducible (spec
- *  Assumption "Variation is seeded"). */
+ * Assumption "Variation is seeded"). */
 export const AMBIENT_CLOUD_SEED = 0x9e3779b9;
 
 /** The widest native shape width, used to spread initial placement across
- *  `[-MAX_SHAPE_WIDTH, playAreaWidth)` so no cloud starts mid-sky (FR-008). */
+ * `[-MAX_SHAPE_WIDTH, playAreaWidth)` so no cloud starts mid-sky. */
 const MAX_SHAPE_WIDTH = Math.max(...AMBIENT_CLOUD_SOURCE_RECTS.map((rect) => rect.width));
 
 /** The mulberry32 PRNG step: returns the next state and a float in `[0, 1)`.
- *  A four-line, dependency-free generator — enough for decorative variation,
- *  and deterministic so tests can assert an exact sequence (research D4). */
+ * A four-line, dependency-free generator — enough for decorative variation,
+ * and deterministic so tests can assert an exact sequence. */
 function nextRandom(state: number): { readonly value: number; readonly state: number } {
   const nextState = (state + 0x6d2b79f5) >>> 0;
   let t = nextState;
@@ -117,14 +115,14 @@ function nextRandom(state: number): { readonly value: number; readonly state: nu
 }
 
 /** How many clouds a play area of `playAreaWidth` should hold: one per
- *  `CLOUD_SPACING_PX`, floored at `MIN_CLOUD_COUNT` (FR-015, SC-007). */
+ * `CLOUD_SPACING_PX`, floored at `MIN_CLOUD_COUNT`. */
 export function cloudPopulationFor(playAreaWidth: number): number {
   return Math.max(MIN_CLOUD_COUNT, Math.round(playAreaWidth / CLOUD_SPACING_PX));
 }
 
 /** The shapes whose rendered height fits inside a region of `regionHeight` px.
- *  A short sky that cannot hold even the smallest cloud yields an empty list,
- *  which both `createCloudField` and `stepCloudField` treat as "no layer". */
+ * A short sky that cannot hold even the smallest cloud yields an empty list,
+ * which both `createCloudField` and `stepCloudField` treat as "no layer". */
 function shapesFitting(regionHeight: number): readonly CloudSourceRect[] {
   return AMBIENT_CLOUD_SOURCE_RECTS.filter(
     (rect) => rect.height * BACKGROUND_RENDER_SCALE <= regionHeight,
@@ -132,8 +130,8 @@ function shapesFitting(regionHeight: number): readonly CloudSourceRect[] {
 }
 
 /** The top edge for a cloud in `lane`, given the region and the shape's native
- *  height: derived from its lane's bottom, then clamped inside
- *  `[skyTop, openSkyBottom]` so it never spills over another band (FR-010). */
+ * height: derived from its lane's bottom, then clamped inside
+ * `[skyTop, openSkyBottom]` so it never spills over another band. */
 function laneTop(
   skyTop: number,
   openSkyBottom: number,
@@ -153,17 +151,16 @@ function laneTop(
  *
  * - Population is `cloudPopulationFor(playAreaWidth)`.
  * - Each cloud owns its own lane and a distinct initial speed drawn from
- *   `[CLOUD_MIN_SPEED_PX_PER_SEC, CLOUD_MAX_SPEED_PX_PER_SEC]` (FR-003), so at
- *   least three distinct speeds/heights appear at the default population.
+ * `[CLOUD_MIN_SPEED_PX_PER_SEC, CLOUD_MAX_SPEED_PX_PER_SEC]`, so at
+ * least three distinct speeds/heights appear at the default population.
  * - Initial `x` is spread across `[-MAX_SHAPE_WIDTH, playAreaWidth)` so the sky
- *   is populated immediately without any cloud appearing mid-sky (FR-006,
- *   FR-008).
+ * is populated immediately without any cloud appearing mid-sky (* ).
  * - Shapes cycle through the four authored silhouettes, so more than one is
- *   present (FR-005).
+ * present.
  * - Returns an **empty** field when the region is too short for the shortest
- *   shape (FR-013).
+ * shape.
  * - `seed` defaults to `AMBIENT_CLOUD_SEED`; the same seed and inputs yield an
- *   equal field (spec Assumption "Variation is seeded").
+ * equal field (spec Assumption "Variation is seeded").
  */
 export function createCloudField(
   playAreaWidth: number,
@@ -188,7 +185,7 @@ export function createCloudField(
 
     // Spread the base speed by lane, then jitter within that lane's slot — the
     // slots stay strictly ordered, so the speeds are distinct by construction
-    // (guaranteeing SC-002's "at least three distinct speeds").
+    // (guaranteeing 's "at least three distinct speeds").
     const speedDraw = nextRandom(rngState);
     rngState = speedDraw.state;
     const speed =
@@ -216,12 +213,12 @@ export function createCloudField(
  * Advances the field by `dtSeconds`.
  *
  * - Under `reducedMotion`, returns the field unchanged — the clouds stay drawn
- *   but stationary (FR-014).
+ * but stationary.
  * - Otherwise moves every cloud `x -= speed * dtSeconds` (right -> left,
- *   FR-002).
+ * ).
  * - A cloud fully past the left edge respawns at the right edge with a new
- *   speed, a **different** shape and its `y` re-fit to that shape's height
- *   (FR-005/FR-006/FR-007/FR-008).
+ * speed, a **different** shape and its `y` re-fit to that shape's height
+ *.
  * - Pure: returns a new field and never mutates the input.
  */
 export function stepCloudField(
@@ -255,7 +252,7 @@ export function stepCloudField(
       (CLOUD_MAX_SPEED_PX_PER_SEC - CLOUD_MIN_SPEED_PX_PER_SEC) * speedDraw.value;
 
     // A different silhouette from the one that just left, so the procession
-    // does not visibly repeat (FR-005/FR-007).
+    // does not visibly repeat.
     const shapeDraw = nextRandom(rngState);
     rngState = shapeDraw.state;
     const alternatives = fittingShapes.filter(
@@ -283,15 +280,15 @@ export function stepCloudField(
 
 /**
  * Draws the ambient layer at the backdrop's own `BACKGROUND_RENDER_SCALE`
- * (FR-004) with `imageSmoothingEnabled` off and each dest x rounded to a whole
- * pixel (FR-009). The layer carries its own right->left drift, plus a small
+ * with `imageSmoothingEnabled` off and each dest x rounded to a whole
+ * pixel. The layer carries its own right->left drift, plus a small
  * camera-linked parallax shift (`cameraX * AMBIENT_CLOUD_PARALLAX_FACTOR`) that
  * matches the painted clouds/hills band, so it reads as living at that depth
- * (FR-002). It is still drawn behind everything else (FR-011).
+ *. It is still drawn behind everything else.
  *
- * Returns immediately when `image` is null (FR-012) or the field is empty
- * (FR-013), so a failed load or a too-short sky simply omits the layer without
- * breaking the frame. The caller draws everything else after it (FR-011).
+ * Returns immediately when `image` is null or the field is empty
+ *, so a failed load or a too-short sky simply omits the layer without
+ * breaking the frame. The caller draws everything else after it.
  */
 export function drawAmbientClouds(
   ctx: CanvasRenderingContext2D,

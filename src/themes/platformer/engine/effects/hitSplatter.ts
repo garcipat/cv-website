@@ -1,5 +1,5 @@
 /**
- * The hit-splatter family (R-004 US1): a deterministic, non-randomized burst
+ * The hit-splatter family: a deterministic, non-randomized burst
  * of colored droplets played when a hit lands on the player or an enemy.
  */
 import type { EnemyTypeKey } from '../../entities/enemies';
@@ -56,7 +56,7 @@ export interface HitSplatterState {
 }
 
 /** Starts a red hit-splatter burst on the character. `contactSide` is -1, 1,
- *  or 0 when no side is known (a pit fall). */
+ * or 0 when no side is known (a pit fall). */
 export function startPlayerHitSplatter(
   id: string,
   playerCenterX: number,
@@ -76,7 +76,7 @@ export function startPlayerHitSplatter(
 }
 
 /** Starts the blood burst for a spear kill, anchored at the character's feet
- *  and leaning upward/outward. */
+ * and leaning upward/outward. */
 export function startSpearBloodSplatter(
   id: string,
   playerCenterX: number,
@@ -137,11 +137,9 @@ export function tickHitSplatterEffect(
 export type HitSplatterDroplet = Particle;
 
 /** Current per-droplet offsets/opacity for a hit splatter. Deterministic.
- *  Routes the emission loop through `particles.ts`'s `particleList`; the
- *  spread/shuffle/gravity arithmetic stays here byte-for-byte. */
-export function hitSplatterDroplets(
-  effect: TransientEffect<HitSplatterState>,
-): Particle[] {
+ * Routes the emission loop through `particles.ts`'s `particleList`; the
+ * spread/shuffle/gravity arithmetic stays here byte-for-byte. */
+export function hitSplatterDroplets(effect: TransientEffect<HitSplatterState>): Particle[] {
   const s = effect.state;
   const progress = Math.min(1, effect.elapsed / HIT_SPLATTER_DURATION_SECONDS);
   const count = s.dropletCount;
@@ -150,7 +148,8 @@ export function hitSplatterDroplets(
       ? 1
       : Math.max(
           0,
-          1 - (progress - HIT_SPLATTER_FADE_START_FRACTION) / (1 - HIT_SPLATTER_FADE_START_FRACTION),
+          1 -
+            (progress - HIT_SPLATTER_FADE_START_FRACTION) / (1 - HIT_SPLATTER_FADE_START_FRACTION),
         );
   return particleList(
     count,
@@ -174,7 +173,7 @@ export function hitSplatterDroplets(
 const HIT_SPLATTER_DROPLET_SIZE_PX = 4;
 
 /** The splatter family's registered draw — the former scene renderer
- *  `drawHitSplatterEffects` body. Screen-space, fixed per-effect x/y. */
+ * `drawHitSplatterEffects` body. Screen-space, fixed per-effect x/y. */
 export function drawHitSplatterEffect(
   effect: TransientEffect<HitSplatterState>,
   rc: EffectRenderContext,

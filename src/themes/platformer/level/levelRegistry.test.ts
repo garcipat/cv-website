@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  BUILT_IN_LEVELS,
-  findLevel,
-  LEVELS,
-  type LevelEntry,
-} from './levelRegistry';
+import { BUILT_IN_LEVELS, findLevel, LEVELS, type LevelEntry } from './levelRegistry';
 import { parseLevelModules } from './layoutFile';
 import { LEVEL_1_LAYOUT, LEVEL_1_MARKERS, SCRATCH_LAYOUT } from './level';
 
@@ -100,7 +95,7 @@ describe('parseLevelModules', () => {
     expect(entries[0].markers).toBeUndefined();
   });
 
-  describe('malformed files are skipped (FR-027)', () => {
+  describe('malformed files are skipped', () => {
     const malformed: Record<string, unknown> = {
       './levels/not-an-object.json': { default: 'nope' },
       './levels/null-module.json': null,
@@ -177,7 +172,11 @@ describe('parseLevelModules — background field', () => {
 
   it('moduleWithAMalformedBackgroundField-dropsOnlyTheBackgroundFieldNotTheWholeEntry', () => {
     const modules = {
-      './levels/broken-bg.json': { name: 'Broken', layout: ['.S.', 'GGG'], background: 'not-an-array' },
+      './levels/broken-bg.json': {
+        name: 'Broken',
+        layout: ['.S.', 'GGG'],
+        background: 'not-an-array',
+      },
     };
     const [entry] = parseLevelModules(modules);
     expect(entry).toBeDefined();
@@ -185,7 +184,7 @@ describe('parseLevelModules — background field', () => {
   });
 
   it('moduleWithTheOldFlatPlacementListFormat-dropsTheBackgroundFieldRatherThanConvertingIt', () => {
-    // FR-013: a level saved under the pre-O-014 `BackgroundPlacement[]`
+    // : a level saved under the pre- `BackgroundPlacement[]`
     // format (a flat array of {pieceId, col, row} objects, not a string[]
     // layout) fails the shape check and loads with no background field at
     // all — no attempt to convert placements to cells.

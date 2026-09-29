@@ -12,15 +12,15 @@ export type EditorLayer = 'foreground' | 'background';
 export type EditorAppearance = 'light' | 'dark';
 
 /** The palette's marker tools — a marker kind a click writes to the tile meta
- *  layer. The sign (`T`) and decorative (`⊤`) tools are `TileChar`s, not
- *  `MarkerTool`s: the sign is the one variant tool whose marker kind is not
- *  itself a tool name, and the decorative stalactite writes no marker at all.
- *  `connectionPoint` is offered on the blueprint canvas only (FR-007/FR-010). */
+ * layer. The sign (`T`) and decorative (`⊤`) tools are `TileChar`s, not
+ * `MarkerTool`s: the sign is the one variant tool whose marker kind is not
+ * itself a tool name, and the decorative stalactite writes no marker at all.
+ * `connectionPoint` is offered on the blueprint canvas only. */
 export type MarkerTool = 'patrolBoundary' | 'connectionPoint' | 'fallingStalactite';
 
 /** Every palette tool: a terrain/entity/hazard/sign character, or a marker
- *  tool (FR-013). A pure marker tool writes only its own marker; the sign and
- *  falling-stalactite tools write a terrain character plus their own marker. */
+ * tool. A pure marker tool writes only its own marker; the sign and
+ * falling-stalactite tools write a terrain character plus their own marker. */
 export type EditorTool = TileChar | MarkerTool;
 
 /**
@@ -28,7 +28,7 @@ export type EditorTool = TileChar | MarkerTool;
  * boundary (localStorage). Delegates to `LevelParser.normalizeMarkerEntry`,
  * the complete validator (including the `torch` kind), so a persisted torch
  * marker survives a save → reload round-trip instead of dropping the whole
- * grid (FR-014/FR-015). Anything that normalizes to `null` is not a marker
+ * grid. Anything that normalizes to `null` is not a marker
  * kind the game knows, so the entry is dropped — the same "a malformed value
  * costs only that field" policy the terrain/background grids use.
  *
@@ -48,8 +48,8 @@ const isMarkerGrid = (value: unknown): value is MarkerGrid =>
   );
 
 /** The unified result of a level or blueprint save. Structurally identical to
- *  the two per-file result types it replaces (`SaveLevelResult`,
- *  `SaveBlueprintResult`). */
+ * the two per-file result types it replaces (`SaveLevelResult`,
+ * `SaveBlueprintResult`). */
 export interface SaveResult {
   /** True when the dev server wrote the file into the repository itself. */
   written: boolean;
@@ -60,7 +60,7 @@ export interface SaveResult {
 }
 
 /** The grid + background from immediately before the most recently committed
- *  placement — the one-shot Undo slot. */
+ * placement — the one-shot Undo slot. */
 export interface PlacementSnapshot {
   grid: TileChar[][];
   background: BackgroundChar[][];
@@ -80,11 +80,11 @@ export interface SaveResultState {
 export const EDITOR_STORAGE_DEBOUNCE_MS = 400;
 
 /**
- * The Level Editor's state — the single home for every editor value (FR-016).
+ * The Level Editor's state — the single home for every editor value.
  * The persisted signals keep the exact storage keys `editorLevelState.ts` used
- * (FR-022); the grids and background-placement lists write to localStorage on
+ *; the grids and background-placement lists write to localStorage on
  * a debounce while the signal itself stays the immediate source of truth
- * (FR-017, FR-018).
+ *.
  */
 export const editorLevelSignal = createDebouncedLocalStorageSignal<TileChar[][]>(
   'platformer-editor-level',
@@ -109,7 +109,10 @@ export const editorLoadedLevelNameSignal = createLocalStorageSignal<string>(
   'main',
 );
 
-export const editorDirtySignal = createLocalStorageSignal<boolean>('platformer-editor-dirty', false);
+export const editorDirtySignal = createLocalStorageSignal<boolean>(
+  'platformer-editor-dirty',
+  false,
+);
 
 export const editorBackgroundSignal = createDebouncedLocalStorageSignal<BackgroundChar[][]>(
   'platformer-editor-background',
@@ -122,10 +125,11 @@ export const editorActiveLayerSignal = createLocalStorageSignal<EditorLayer>(
   'foreground',
 );
 
-export const editorSelectedBackgroundMaterialSignal = createLocalStorageSignal<BackgroundChar | null>(
-  'platformer-editor-selected-background-piece',
-  null,
-);
+export const editorSelectedBackgroundMaterialSignal =
+  createLocalStorageSignal<BackgroundChar | null>(
+    'platformer-editor-selected-background-piece',
+    null,
+  );
 
 export const editorCanvasModeSignal = createLocalStorageSignal<EditorCanvasMode>(
   'platformer-editor-canvas-mode',
@@ -135,8 +139,8 @@ export const editorCanvasModeSignal = createLocalStorageSignal<EditorCanvasMode>
 /**
  * The editor's own light/dark look, persisted under its own key and validated
  * against the two literals. Defaults to 'light'; an absent or invalid stored
- * value also resolves to 'light' (O-015 FR-003). It is deliberately independent
- * of the site-wide `currentTheme` (FR-004, SC-007).
+ * value also resolves to 'light'. It is deliberately independent
+ * of the site-wide `currentTheme`.
  */
 export const editorAppearanceSignal = createLocalStorageSignal<EditorAppearance>(
   'platformer-editor-appearance',
@@ -150,11 +154,9 @@ export const editorBlueprintSignal = createDebouncedLocalStorageSignal<TileChar[
   EDITOR_STORAGE_DEBOUNCE_MS,
 );
 
-export const editorBlueprintBackgroundSignal = createDebouncedLocalStorageSignal<BackgroundChar[][]>(
-  'platformer-editor-blueprint-background',
-  [],
-  EDITOR_STORAGE_DEBOUNCE_MS,
-);
+export const editorBlueprintBackgroundSignal = createDebouncedLocalStorageSignal<
+  BackgroundChar[][]
+>('platformer-editor-blueprint-background', [], EDITOR_STORAGE_DEBOUNCE_MS);
 
 export const editorBlueprintMarkerSignal = createDebouncedLocalStorageSignal<MarkerGrid>(
   'platformer-editor-blueprint-markers',
@@ -194,20 +196,20 @@ export const isDevEnvironmentSignal: Signal<boolean> = signal(false);
 export const editorBlueprintDirtySignal: Signal<boolean> = signal(false);
 
 /** The one-shot Undo slot; `null` once anything other than the placement it
- *  records has happened. */
+ * records has happened. */
 export const editorLastPlacementSnapshotSignal: Signal<PlacementSnapshot | null> = signal(null);
 
 /** Which save last ran and what it did; cleared by any paint/load. */
 export const editorSaveResultSignal: Signal<SaveResultState | null> = signal(null);
 
 /** Bumped to ask `EditorCanvas` to re-center on the spawn. Starts at 1 so
- *  opening the editor is itself a request. */
+ * opening the editor is itself a request. */
 export const editorCenterRequestIdSignal: Signal<number> = signal(1);
 
 /** The "level still owes itself a centering" debt paid on the first switch
- *  back to Level. Seeded from the mount-time canvas mode: mounting already in
- *  blueprint mode lets that canvas consume the one-shot centering request, so
- *  the level still owes itself one (design note 5). */
+ * back to Level. Seeded from the mount-time canvas mode: mounting already in
+ * blueprint mode lets that canvas consume the one-shot centering request, so
+ * the level still owes itself one (design note 5). */
 export const editorLevelCenterPendingSignal: Signal<boolean> = signal(
   editorCanvasModeSignal.value === 'blueprint',
 );
@@ -219,11 +221,13 @@ export const editorIsBlueprintModeSignal: ReadonlySignal<boolean> = computed(
 );
 
 export const editorGridSignal: ReadonlySignal<TileChar[][]> = computed(() =>
-  editorCanvasModeSignal.value === 'blueprint' ? editorBlueprintSignal.value : editorLevelSignal.value,
+  editorCanvasModeSignal.value === 'blueprint'
+    ? editorBlueprintSignal.value
+    : editorLevelSignal.value,
 );
 
 /** The active canvas's background grid — "placements" no longer exist as a
- *  concept post-O-014, hence the rename from `editorBackgroundPlacementsSignal`. */
+ * concept post-, hence the rename from `editorBackgroundPlacementsSignal`. */
 export const editorBackgroundGridSignal: ReadonlySignal<BackgroundChar[][]> = computed(() =>
   editorCanvasModeSignal.value === 'blueprint'
     ? editorBlueprintBackgroundSignal.value
@@ -231,7 +235,7 @@ export const editorBackgroundGridSignal: ReadonlySignal<BackgroundChar[][]> = co
 );
 
 /** The active canvas's tile meta layer — the marker analogue of
- *  `editorBackgroundGridSignal`. */
+ * `editorBackgroundGridSignal`. */
 export const editorMarkerGridSignal: ReadonlySignal<MarkerGrid> = computed(() =>
   editorCanvasModeSignal.value === 'blueprint'
     ? editorBlueprintMarkerSignal.value

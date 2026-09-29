@@ -1,4 +1,4 @@
-﻿import { RENDERED_TILE_SIZE, TILE_SIZE } from '../level/Terrain';
+import { RENDERED_TILE_SIZE, TILE_SIZE } from '../level/Terrain';
 import { pickVariant } from '../shared/variants';
 import type { StaticObjectEntry } from './spriteRects';
 import type { TileDrawContext, TileModule } from './TileModule';
@@ -6,7 +6,7 @@ import type { TileDrawContext, TileModule } from './TileModule';
 /**
  * `stalagmite` — the floor-standing cave decoration (`⊥`). Non-solid,
  * non-climbable, fogged; drawn in the terrain band. Owns its variant table +
- * draw relocated from `engine/StaticObjectsCatalog.ts` (US4/T035).
+ * draw relocated from `engine/StaticObjectsCatalog.ts`.
  */
 
 /**
@@ -28,8 +28,15 @@ function draw(rc: TileDrawContext): void {
   if (!decorations) return;
   const entry = stalagmiteEntry(col, row);
   ctx.drawImage(
-    decorations, entry.sx, entry.sy, entry.width ?? TILE_SIZE, entry.height ?? TILE_SIZE,
-    destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+    decorations,
+    entry.sx,
+    entry.sy,
+    entry.width ?? TILE_SIZE,
+    entry.height ?? TILE_SIZE,
+    destX,
+    destY,
+    RENDERED_TILE_SIZE,
+    RENDERED_TILE_SIZE,
   );
 }
 

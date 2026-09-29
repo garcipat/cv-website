@@ -23,13 +23,13 @@ import type { LevelDef } from '../level/LevelData';
 import type { PlayerState } from '../entities/Player';
 
 /** The lighting helpers only ever read `x`/`y` from a player, so a minimal
- *  cast keeps this pure module's tests free of the whole player factory. */
+ * cast keeps this pure module's tests free of the whole player factory. */
 function makePlayer(x: number, y: number): PlayerState {
   return { x, y } as unknown as PlayerState;
 }
 
 /** A hand-built light — deliberately neither a torch nor the player, to prove
- *  the probe reads the shared list generically. */
+ * the probe reads the shared list generically. */
 function makeLight(overrides: Partial<LightSource> = {}): LightSource {
   return {
     x: 100,
@@ -71,11 +71,15 @@ describe('nextDarknessLevel', () => {
   });
 
   it('risingTarget-movesHalfwayOverHalfTheFade', () => {
-    expect(nextDarknessLevel(0, MAX_DARKNESS, DARKNESS_FADE_SECONDS / 2)).toBeCloseTo(MAX_DARKNESS / 2);
+    expect(nextDarknessLevel(0, MAX_DARKNESS, DARKNESS_FADE_SECONDS / 2)).toBeCloseTo(
+      MAX_DARKNESS / 2,
+    );
   });
 
   it('fallingTarget-movesHalfwayOverHalfTheFade', () => {
-    expect(nextDarknessLevel(MAX_DARKNESS, 0, DARKNESS_FADE_SECONDS / 2)).toBeCloseTo(MAX_DARKNESS / 2);
+    expect(nextDarknessLevel(MAX_DARKNESS, 0, DARKNESS_FADE_SECONDS / 2)).toBeCloseTo(
+      MAX_DARKNESS / 2,
+    );
   });
 
   it('largeDt-neverOvershootsTheTarget', () => {
@@ -180,7 +184,10 @@ describe('playerOccupiedCell', () => {
     // edge (world y = 4 * tile); the occupied cell must be the air cell they
     // are standing in (row 3), not the floor tile itself (row 4) — otherwise
     // a cave backdrop behind the air would never trigger.
-    const player = makePlayer(0, 4 * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING);
+    const player = makePlayer(
+      0,
+      4 * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING,
+    );
     expect(playerOccupiedCell(player).row).toBe(3);
   });
 });
@@ -224,7 +231,7 @@ describe('localDarknessAt', () => {
 
   it('glowOnlyLight-punchHoleFalse-stillIlluminates', () => {
     // `punchHole` is a draw-pass concern only: a glow-only light still counts
-    // as local light (FR-007; Story 1 scenario 5).
+    // as local light (Story 1 scenario 5).
     const light = makeLight({ punchHole: false });
     const x = light.x + light.radius * 0.5;
 
@@ -233,7 +240,7 @@ describe('localDarknessAt', () => {
   });
 
   it('aThirdArbitraryLight-isCountedWithNoSpecialBranch', () => {
-    // Not a torch, not the player — just data in the list (SC-003).
+    // Not a torch, not the player — just data in the list.
     const third = makeLight({
       x: 400,
       y: 400,

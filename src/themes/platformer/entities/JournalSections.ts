@@ -5,10 +5,10 @@ import type { SectionId, CollectedFact } from '../types';
 /**
  * The CV sections that can back a journal bookmark today. Seven of these
  * (experience/education/courses/certificates/skills/languages/projects) are
- * per FR-009's collectible mapping. `personality` ("About Me") is shown
+ * per 's collectible mapping. `personality` ("About Me") is shown
  * directly from CV data rather than `collectedFacts`, since it has no
  * collectible source. `activities` remains excluded: it isn't mapped to any
- * collectible type in FR-009. Order here is the order bookmarks are
+ * collectible type in . Order here is the order bookmarks are
  * distributed (per `journal-mockup.html`, laid out as a top layout — see
  * `BookmarkTabs.tsx`).
  */
@@ -47,7 +47,7 @@ export const SECTION_BOOKMARK_COLOR: Record<JournalSection, BookmarkColor> = {
 /**
  * Which journal sections have at least one CV item — and therefore get a
  * bookmark — regardless of whether anything in them has been *collected*
- * yet (FR-013: "Empty CV sections produce no collectibles and hide their
+ * yet ( "Empty CV sections produce no collectibles and hide their
  * journal bookmark", evaluated against the CV data itself, not session
  * progress). `personality` is always non-empty: `CVData.personality` is a
  * required (non-optional) object, always present. Returned in
@@ -78,14 +78,14 @@ export function sectionLabel(section: SectionId): string {
 }
 
 /**
- * Total possible facts for a section (the "Skills 3/5" counter, FR-017b) —
+ * Total possible facts for a section (the "Skills 3/5" counter)
  * the section's raw CVData item count. This is a 1:1
  * count for every section except `skills`, where one collectible is placed
  * per skill *category* (not per individual skill, see CollectibleMapper.ts)
  * — `cv.skills.length` already counts categories, so no special-casing is
  * needed. `languages` defaults to 0 (matches `nonEmptySections`' handling of
  * an undefined array). Not meaningful for `personality` (no counter, per
- * FR-017b's exception) — callers exclude it themselves.
+ * 's exception) — callers exclude it themselves.
  */
 export function sectionTotal(cv: CVData, section: SectionId): number {
   if (section === 'languages') return cv.languages?.length ?? 0;
@@ -127,12 +127,12 @@ export function isPaginatedSection(section: SectionId): boolean {
 export type JournalPageContent =
   | { kind: 'personality' }
   /** Every collected fact for an ungrouped section (today, only
-   *  `languages`) shown together on one page — not paginated. */
+   * `languages`) shown together on one page — not paginated. */
   | { kind: 'groupedList'; facts: CollectedFact[] }
   /** One collected fact for a paginated section (`isPaginatedSection`). */
   | { kind: 'fact'; fact: CollectedFact }
   /** A paginated section with nothing collected yet — still gets a page
-   *  (the empty-state placeholder) so its bookmark has somewhere to land. */
+   * (the empty-state placeholder) so its bookmark has somewhere to land. */
   | { kind: 'emptyState' };
 
 /** One physical page of the journal book. */
@@ -172,4 +172,3 @@ export function buildJournalPages(sections: SectionId[], facts: CollectedFact[])
   }
   return pages;
 }
-

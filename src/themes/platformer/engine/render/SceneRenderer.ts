@@ -53,7 +53,11 @@ import {
 import type { CheckpointState } from '../../entities/Checkpoint';
 import { frameSource } from '../../entities/sprites/SpriteSheet';
 import { pulse } from '../../shared/math';
-import { TORCH_SHEET, CRUMBLE_FLOOR_SHEET, CRUMBLE_CRACKS_SHEET } from '../../entities/sprites/sheets';
+import {
+  TORCH_SHEET,
+  CRUMBLE_FLOOR_SHEET,
+  CRUMBLE_CRACKS_SHEET,
+} from '../../entities/sprites/sheets';
 import type { CrumblingFloorTimerState } from '../../tiles/crumblingFloor';
 import type { MushroomSquashState } from '../../tiles/bouncyMushroom';
 import { TORCH_FRAME_WIDTH, TORCH_FRAME_HEIGHT, torchFrameIndex } from '../../tiles/torch';
@@ -75,13 +79,13 @@ import {
 } from '../Lighting';
 
 /** Water tiles live in `world_tileset.png` column 4, row 9: the wave-crest
- *  (foam edge over blue). */
+ * (foam edge over blue). */
 const WATER_TILE_SX = 4 * TILE_SIZE;
 const WATER_CREST_SY = 9 * TILE_SIZE;
 
 /** Solid water blue sampled directly from the crest tile's own body (below
- *  its foam edge, at world_tileset.png's (4,9) tile, a few rows down) — used
- *  to fill any gap the crest line itself doesn't cover (see `drawWaterForeground`). */
+ * its foam edge, at world_tileset.png's (4,9) tile, a few rows down) — used
+ * to fill any gap the crest line itself doesn't cover (see `drawWaterForeground`). */
 const WATER_BODY_COLOR = 'rgb(20, 152, 220)';
 
 /**
@@ -93,7 +97,7 @@ const WATER_BODY_COLOR = 'rgb(20, 152, 220)';
  * readable while still reading as "waves lapping in front of the ground"
  * rather than fully submerging it.
  *
- * Tiles across the full `canvasWidth` — NOT just the level's own width —
+ * Tiles across the full `canvasWidth` — NOT just the level's own width
  * starting from `originX` (always <= 0, since the horizontal camera clamps
  * to 0 rather than scrolling past the level's own edges) so tiles stay
  * aligned to world columns. A canvas wider than the level itself (the
@@ -148,27 +152,27 @@ export function drawWaterForeground(
  * Draws the cave-darkness overlay and the light pools that punch back through
  * it, over the whole play canvas. This is the one pass that maps light world
  * positions to canvas coordinates (same `originX`/`originY` convention as
- * `drawTerrain`/`drawPlayer`), so light pools scroll with the camera (FR-012).
+ * `drawTerrain`/`drawPlayer`), so light pools scroll with the camera.
  *
- * Full-brightness fast path (FR-008 / research D10 / SC-005): when
+ * Full-brightness fast path: when
  * `darknessLevel <= 0` this draws nothing at all. Otherwise:
  *
  * 1. The reusable offscreen `layer` (owned and sized by `PlatformerPage.tsx`)
- *    is cleared and filled with `rgba(0, 0, 0, darknessLevel)`.
+ * is cleared and filled with `rgba(0, 0, 0, darknessLevel)`.
  * 2. **One punch loop** (`destination-out`): for every visible light whose
- *    `punchHole` is true, a soft radial gradient erases a hole at the light's
- *    screen position, radius `light.radius * zoom`.
+ * `punchHole` is true, a soft radial gradient erases a hole at the light's
+ * screen position, radius `light.radius * zoom`.
  * 3. The layer is composited onto `ctx` with `source-over`.
  * 4. **One glow loop** (`lighter`): every visible light gets a smaller warm
- *    gradient (radius `light.radius * zoom * 0.7`, `globalAlpha =
- *    darknessLevel * light.intensity`, stops `light.color` /
- *    `withAlpha(light.color, light.glowMidAlpha)` / `withAlpha(light.color, 0)`),
- *    so the pool reads warm without tinting the surrounding darkness
- *    (FR-005/FR-006).
+ * gradient (radius `light.radius * zoom * 0.7`, `globalAlpha =
+ * darknessLevel * light.intensity`, stops `light.color` /
+ * `withAlpha(light.color, light.glowMidAlpha)` / `withAlpha(light.color, 0)`),
+ * so the pool reads warm without tinting the surrounding darkness
+ *.
  *
  * The two loops replace the old four near-duplicated per-kind blocks, so a
  * torch, the player's carried light, and any future emitter are all just data
- * in `lights` (SC-001/SC-003). `withAlpha` derives the `rgba(r, g, b, α)` stops
+ * in `lights`. `withAlpha` derives the `rgba(r, g, b, α)` stops
  * from the light's opaque `rgb(r, g, b)` base so the exact gradient strings are
  * preserved.
  *
@@ -202,7 +206,7 @@ export function drawDarkness(
   layerCtx.fillRect(0, 0, canvasWidth, canvasHeight);
 
   // Only lights whose glow can touch the viewport do any work — this keeps
-  // the pass O(visible lights) however many the level holds (FR-008).
+  // the pass O(visible lights) however many the level holds.
   const visibleLights = lights.filter((light) => {
     const radius = light.radius * zoom;
     const screenX = light.x * zoom + originX;
@@ -224,7 +228,7 @@ export function drawDarkness(
     const radius = light.radius * zoom;
 
     // A soft radial hole: opaque at the centre, transparent at the edge, so
-    // the world underneath shows through with no hard rim (FR-009).
+    // the world underneath shows through with no hard rim.
     layerCtx.globalCompositeOperation = 'destination-out';
     const hole = layerCtx.createRadialGradient(screenX, screenY, 0, screenX, screenY, radius);
     hole.addColorStop(0, 'rgba(0, 0, 0, 1)');
@@ -268,7 +272,7 @@ export function drawDarkness(
  * base. The substitution keeps the output byte-equal to the literal stops the
  * old per-kind glow blocks used (e.g. `rgb(255, 176, 74)` →
  * `rgba(255, 176, 74, 0.35)`), so the generic glow loop preserves each light's
- * gradient exactly (FR-006).
+ * gradient exactly.
  */
 function withAlpha(color: string, alpha: number): string {
   return color.replace('rgb(', 'rgba(').replace(')', `, ${alpha})`);
@@ -277,28 +281,28 @@ function withAlpha(color: string, alpha: number): string {
 /**
  * Where the eye line sits down the enemy's visible silhouette (its collision
  * box, already inset to the sprite's opaque area) — about a third of the way
- * down, so the marker lands on the face rather than the top edge (FR-018).
+ * down, so the marker lands on the face rather than the top edge.
  */
 const ENEMY_EYE_LINE_FRACTION = 0.35;
 
 /** The render-time red applied to the crouch pose during a crouched hit
- *  reaction (FR-016) — tunable in one place. */
+ * reaction — tunable in one place. */
 export const CROUCH_HIT_TINT = 'rgba(230, 40, 40, 0.6)';
 
 /**
  * Draws one sprite frame through a reusable caller-owned offscreen `layer`,
- * recolouring only the sprite's opaque pixels with `tint` (FR-016). Follows the
+ * recolouring only the sprite's opaque pixels with `tint`. Follows the
  * exact caller-owned-layer convention `drawDarkness` establishes, so it
  * allocates nothing per frame and stays testable with a fake layer, DOM-free.
  *
  * 1. `layer.getContext('2d')`; if `null`, falls back to a plain `ctx.drawImage`
- *    of the frame at the destination.
+ * of the frame at the destination.
  * 2. Clears the layer to `destSize` and draws the frame scaled to `destSize`
- *    with `source-over`.
+ * with `source-over`.
  * 3. Switches to `source-atop` and fills the layer with `tint`, so only the
- *    sprite's already-opaque pixels are recoloured — never a rectangle.
+ * sprite's already-opaque pixels are recoloured — never a rectangle.
  * 4. Composites the layer onto `ctx` at `(destX, destY)` and restores
- *    `source-over` on the layer.
+ * `source-over` on the layer.
  */
 export function drawTintedSprite(
   ctx: CanvasRenderingContext2D,
@@ -332,14 +336,14 @@ export function drawTintedSprite(
 /**
  * Draws each living enemy's glowing-eye marker through the darkness. Runs
  * *after* `drawDarkness`, so the marker stays visible over the overlay
- * (FR-015). Draws nothing at full brightness (FR-016/SC-005), nothing for a
- * defeated enemy (FR-017), and nothing for an enemy whose own position is lit
- * — e.g. inside a torch pool — where it renders normally instead (FR-015).
+ *. Draws nothing at full brightness, nothing for a
+ * defeated enemy, and nothing for an enemy whose own position is lit
+ * — e.g. inside a torch pool — where it renders normally instead.
  *
  * The marker is a pair of small integer-aligned `ENEMY_EYE_COLOR` squares
  * (`ENEMY_EYE_SIZE_PX`), separated by `ENEMY_EYE_GAP_PX` centre-to-centre and
  * symmetric about the enemy's collision-box centre, at an opacity derived from
- * the local darkness at the enemy's own effect anchor (FR-018/FR-019).
+ * the local darkness at the enemy's own effect anchor.
  */
 export function drawEnemyEyes(
   ctx: CanvasRenderingContext2D,
@@ -399,7 +403,7 @@ export function drawEnemyEyes(
  * top-left origin).
  *
  * The body is a band-filtered dispatch: each cell's module owns its appearance,
- * and this pass draws only the modules whose `drawBand` is `'terrain'` (US4/T040;
+ * and this pass draws only the modules whose `drawBand` is `'terrain'` (/;
  * the per-`TileType` branches and the `tileSource` lookup are gone).
  */
 export function drawTerrain(
@@ -430,7 +434,7 @@ export function drawTerrain(
   };
   // The terrain band reads only the mushroom-squash state; the crumbling
   // floor's timers belong to the afterHazards pass below. A hook needing
-  // another kind's state would be a second lifecycle, which R-015 forbids.
+  // another kind's state would be a second lifecycle, which forbids.
   const transient: TileTransientState = { crumblingFloorTimers: [], mushroomSquashes };
 
   for (let row = 0; row < level.height; row++) {
@@ -532,7 +536,7 @@ export function drawCrumblingFloors(
 }
 
 /**
- * Draws the level's purely-decorative autotiled background mass (O-014) —
+ * Draws the level's purely-decorative autotiled background mass
  * one atlas cell per non-empty background cell, same double-loop shape as
  * `drawTerrain`, same `originX`/`originY` scroll convention. Levels with no
  * `background` field draw nothing.
@@ -540,11 +544,11 @@ export function drawCrumblingFloors(
  * For each non-empty cell: computes its same-material neighbour mask, looks
  * up the atlas entry for that material/mask, and draws it via the shared
  * `drawRotatedTile` helper. A cell whose material is a stale/unrecognized id
- * would already have been filtered to `null` at load time (FR-012), so every
+ * would already have been filtered to `null` at load time, so every
  * cell reaching this loop resolves to a real atlas entry. On top of a fully
  * interior cell (mask 15 — the one shape guaranteed to carry no border art a
  * rock could overlap), also draws a deterministic rock decoration from the
- * decorations sheet (FR-008), when one is loaded.
+ * decorations sheet, when one is loaded.
  */
 export function drawBackgroundTiles(
   ctx: CanvasRenderingContext2D,
@@ -587,11 +591,11 @@ export function drawBackgroundTiles(
 }
 
 /**
- * Draws the outside-a-cave fog (O-028): every cell NOT exempt
+ * Draws the outside-a-cave fog: every cell NOT exempt
  * (`isFogExempt`) whose background material belongs to the cave family
  * gets a soft radial-gradient "puff" (`fogPuffAt`) at `fogLevel`'s alpha,
  * hiding everything on that cell — background, blocks and entities alike
- * (FR-001/FR-002 — see `FOG_PUFF_PLATEAU`'s doc comment for a known
+ * (/ — see `FOG_PUFF_PLATEAU`'s doc comment for a known
  * tradeoff on isolated single-cell patches). Solid terrain
  * (`groundGrass`/`groundRock`/`wall`/`bridge`) is exempt today: a cave's
  * walls and floor are just rock, carrying no information a visitor could
@@ -623,7 +627,7 @@ export function drawBackgroundTiles(
  * cells' soft edges blend into each other rather than leaving seams.
  *
  * Callers are expected to keep `fogLevel` and `darknessLevel` mutually
- * exclusive (only one is ever above zero at a time — FR-003); this function
+ * exclusive (only one is ever above zero at a time); this function
  * does not itself check `darknessLevel`.
  *
  * When `playerPosition` is given, a puff within `FOG_PEEK_RADIUS_PX` of it
@@ -634,7 +638,7 @@ export function drawBackgroundTiles(
  * cell rather than stepping in blind. A puff whose peeked alpha reaches
  * zero is skipped entirely.
  *
- * Fast path (SC-005): when `fogLevel <= 0` this draws nothing, so a level
+ * Fast path: when `fogLevel <= 0` this draws nothing, so a level
  * with no cave-family background renders exactly as it did before this
  * feature.
  */
@@ -693,7 +697,7 @@ export function drawFog(
  * one special branch: it draws the crouch pose (DUCK row) through the reusable
  * `drawTintedSprite` red tint when a caller-owned `tintLayer` is given, or
  * plainly when it is not — never the baked `hit` row a standing hit draws
- * (FR-016).
+ *.
  */
 export function drawPlayer(
   ctx: CanvasRenderingContext2D,
@@ -707,7 +711,7 @@ export function drawPlayer(
   // sprite — simpler, and consistent with this renderer having no
   // alpha/tint effects anywhere else.
   visible = true,
-  // Caller-owned 64×64 scratch layer for the crouched-hit red tint (FR-016),
+  // Caller-owned 64×64 scratch layer for the crouched-hit red tint,
   // reused across frames exactly like drawDarkness's lighting layer. Null
   // (the default, e.g. the editor preview) draws the crouch pose plainly.
   tintLayer: HTMLCanvasElement | null = null,
@@ -715,7 +719,7 @@ export function drawPlayer(
   if (!visible) return;
   ctx.imageSmoothingEnabled = false;
 
-  // Crouched hit reaction (FR-016): the red reaction is a render-time tint on
+  // Crouched hit reaction: the red reaction is a render-time tint on
   // the crouch pose, so no red-tinted crouch art exists and the standing hit's
   // baked red frame stays byte-for-byte unchanged (handled below). The tint
   // pulses on the same `hit` row cadence the standing flash uses — red only on
@@ -813,22 +817,22 @@ export function drawPlayer(
 }
 
 /** The held torch is drawn a little translucent so its bright flame doesn't
- *  glare yellow against the dark (FR-025). The offset/scale geometry it shares
- *  with the player's carried light now lives in `entities/Player.ts`
- *  (`heldTorchPlacement`), so the drawn flame and the light cannot drift
- *  (FR-004/SC-007). */
+ * glare yellow against the dark. The offset/scale geometry it shares
+ * with the player's carried light now lives in `entities/Player.ts`
+ * (`heldTorchPlacement`), so the drawn flame and the light cannot drift
+ *. */
 const HELD_TORCH_ALPHA = 0.8;
 
 /**
  * Draws the very small torch the player carries, but only while standing or
- * walking **and** only in the dark (FR-025/FR-026/FR-027). Reuses the wall
- * torches' own flame frames so the style matches (FR-028), mirrored to face
+ * walking **and** only in the dark. Reuses the wall
+ * torches' own flame frames so the style matches, mirrored to face
  * the player's direction. Drawn with the player, before the darkness overlay,
  * so the player's own light reveals it.
  *
  * The placement comes from `entities/Player.ts`'s `heldTorchPlacement(player)`
  * — the same geometry the player's `LightSource` adapter reads — so the flame
- * and its light cannot drift (SC-007). `centerX` is the flame/image centre, so
+ * and its light cannot drift. `centerX` is the flame/image centre, so
  * the image's left edge is `centerX - width / 2` for a right-facing player and
  * the mirror anchor is `centerX + width / 2` for a left-facing one.
  */
@@ -874,8 +878,8 @@ export function drawHeldTorch(
 }
 
 /** Tile coordinates of the signpost sprite within world_tileset.png (col 8,
- *  row 3 -> pixel 128,48) — sits immediately right of the crate tile (col 7,
- *  row 3). */
+ * row 3 -> pixel 128,48) — sits immediately right of the crate tile (col 7,
+ * row 3). */
 const SIGN_TILE_SX = 8 * TILE_SIZE;
 const SIGN_TILE_SY = 3 * TILE_SIZE;
 
@@ -946,8 +950,8 @@ export function drawPickups(
   }
 }
 
-/** Draws every spike hazard. Knows nothing about any specific hazard kind —
- *  each one renders itself (see entities/hazards/). */
+/** Draws every spike hazard. Knows nothing about any specific hazard kind
+ * each one renders itself (see entities/hazards/). */
 export function drawHazards(
   ctx: CanvasRenderingContext2D,
   hazards: readonly HazardPlacement[],
@@ -959,8 +963,8 @@ export function drawHazards(
   }
 }
 
-/** Draws every living enemy. Knows nothing about any specific enemy type —
- *  each one renders itself (see entities/enemies/). */
+/** Draws every living enemy. Knows nothing about any specific enemy type
+ * each one renders itself (see entities/enemies/). */
 export function drawEnemies(
   ctx: CanvasRenderingContext2D,
   enemies: readonly EnemyState[],
@@ -974,7 +978,7 @@ export function drawEnemies(
 }
 
 /** Draws every block. Knows nothing about any specific kind — each one renders
- *  itself (see entities/blocks/). */
+ * itself (see entities/blocks/). */
 export function drawBlocks(
   ctx: CanvasRenderingContext2D,
   blocks: readonly BlockState[],
@@ -992,8 +996,8 @@ const CHECKPOINT_TWINKLE_PERIOD_SECONDS = 1.1;
 /** Arm length of one twinkle plus, in native px (1 -> a 3x3 plus). */
 const CHECKPOINT_TWINKLE_ARM = 1;
 /** Fixed twinkle spots, in screen px relative to the flag art's drawn
- *  top-left, each with its own phase so they don't blink in unison. Kept few
- *  and near the flag so the active marker stays subtle. */
+ * top-left, each with its own phase so they don't blink in unison. Kept few
+ * and near the flag so the active marker stays subtle. */
 const CHECKPOINT_TWINKLE_SPOTS: readonly { dx: number; dy: number; phase: number }[] = [
   { dx: 16, dy: -5, phase: 0 },
   { dx: 30, dy: 9, phase: 0.45 },
@@ -1001,7 +1005,7 @@ const CHECKPOINT_TWINKLE_SPOTS: readonly { dx: number; dy: number; phase: number
 ];
 
 /** Draws one small pixel-art sparkle — an integer-aligned plus of native
- *  pixels — so it stays crisp against the game's pixel art. */
+ * pixels — so it stays crisp against the game's pixel art. */
 function drawPixelSparkle(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -1022,7 +1026,7 @@ function drawPixelSparkle(
 
 /**
  * Draws the subtle pixel-art twinkles marking the active respawn target
- * (FR-021). A rendered pass rather than a sprite frame, so exactly one
+ *. A rendered pass rather than a sprite frame, so exactly one
  * checkpoint — the one whose id matches `activeCheckpointId` — twinkles while
  * every touched flag still reads as raised. Each spot blinks on its own phase
  * from the shared world clock (so it freezes with the rest of the world
@@ -1061,7 +1065,7 @@ export function drawCheckpointTwinkles(
  * dormant, advancing to frame 3 as the shared clock passes
  * `activatedAt`). The flag is bottom-anchored and centred on its tile
  * (its art is taller than a cell). The active target's twinkles are drawn
- * after its flag, so they sit on top (FR-021).
+ * after its flag, so they sit on top.
  */
 export function drawCheckpoints(
   ctx: CanvasRenderingContext2D,

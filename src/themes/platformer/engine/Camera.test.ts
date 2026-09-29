@@ -100,7 +100,7 @@ describe('updateCameraY', () => {
 
   it('deepDescent-cameraGoesNegative-noLongerClampedToZero', () => {
     // playerY 1000 -> center 1032 -> screenCenterY (previousCameraY 0,
-    // originYBase -320) = 1032-320 = 712, past deadZoneBottom (384) —
+    // originYBase -320) = 1032-320 = 712, past deadZoneBottom (384)
     // uncorrected camera: 384-1032-(-320) = -328. Deliberately negative and
     // NOT clamped: a floor at 0 here would reproduce the same bug the
     // removed ceiling had (silently overriding the dead-zone target once the

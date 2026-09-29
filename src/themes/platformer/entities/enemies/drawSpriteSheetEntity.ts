@@ -6,11 +6,11 @@ import type { BaseEnemyState } from './EnemyType';
 import type { DrawContext } from '../../contracts/DrawContext';
 
 /** Opacity every slime's body is drawn at — low enough that a purple slime's
- *  held key (see SlimePurple.ts) visibly shines through it, high enough that
- *  either slime still reads as a solid creature rather than a ghost. Applied
- *  uniformly to green slimes too (which never hold a key) purely for visual
- *  consistency between the two enemy types, not because green has anything
- *  to show through it. */
+ * held key (see SlimePurple.ts) visibly shines through it, high enough that
+ * either slime still reads as a solid creature rather than a ghost. Applied
+ * uniformly to green slimes too (which never hold a key) purely for visual
+ * consistency between the two enemy types, not because green has anything
+ * to show through it. */
 const SLIME_BODY_ALPHA = 0.78;
 
 /**
@@ -21,10 +21,10 @@ const SLIME_BODY_ALPHA = 0.78;
  * left-facing behavior.
  *
  * `fallbackState` is the kind's `defaultAnimState`: a state the kind does not
- * declare in its own table resolves to it (FR-009), so a freshly hit bee
+ * declare in its own table resolves to it, so a freshly hit bee
  * (whose table has no `hit` row) still renders on the draw path before any
  * `advanceEnemyAnimation` runs. `bottomPad` is the kind's rendered bottom
- * inset (FR-019) — the frame is shifted down by it so the visible art's
+ * inset — the frame is shifted down by it so the visible art's
  * bottom rests on the placement row. `bodyAlpha` defaults to the slimes'
  * `SLIME_BODY_ALPHA`; a kind with nothing to show through it passes `1`.
  *

@@ -130,7 +130,12 @@ describe('playerInBlast', () => {
   const tiles = blastTiles(5, 5, 10, 10);
 
   it('aHitboxOverlappingAnyTile-returnsTrue', () => {
-    const box: Box = { x: 5 * RENDERED_TILE_SIZE, y: 5 * RENDERED_TILE_SIZE, width: 20, height: 20 };
+    const box: Box = {
+      x: 5 * RENDERED_TILE_SIZE,
+      y: 5 * RENDERED_TILE_SIZE,
+      width: 20,
+      height: 20,
+    };
     expect(playerInBlast(box, tiles, RENDERED_TILE_SIZE)).toBe(true);
   });
 

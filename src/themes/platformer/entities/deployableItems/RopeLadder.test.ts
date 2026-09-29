@@ -17,11 +17,7 @@ import {
 import type { RopeLadderState } from './RopeLadder';
 import { parseLevel } from '../../level/LevelParser';
 import { RENDERED_TILE_SIZE, tileAt } from '../../level/Terrain';
-import {
-  PLAYER_RENDERED_SIZE,
-  PLAYER_FOOT_PADDING,
-  PLAYER_HIT_REACTION_SECONDS,
-} from '../Player';
+import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING, PLAYER_HIT_REACTION_SECONDS } from '../Player';
 import type { PlayerState } from '../Player';
 
 // A bundle on the top row with two empty rows then solid ground: lands at row 2.
@@ -236,7 +232,9 @@ describe('ropeLadderBundleIsUnderPlayer / onPlayerInteract', () => {
   it('eligibleBundle-returnsAnActivateOutcomeThatBeginsTheUnroll', () => {
     const state = stateFor();
     const player = basePlayer({ grounded: true, x: 0, y: standingYOnRow(0) });
-    expect(ropeLadderDeployableItem.onPlayerInteract(state, { level: DROP, player, keys: 0 })).toEqual({
+    expect(
+      ropeLadderDeployableItem.onPlayerInteract(state, { level: DROP, player, keys: 0 }),
+    ).toEqual({
       kind: 'activate',
       state: beginDeploy(state),
     });
@@ -245,7 +243,9 @@ describe('ropeLadderBundleIsUnderPlayer / onPlayerInteract', () => {
   it('ineligibleBundle-returnsNull', () => {
     const state = stateFor();
     const player = basePlayer({ grounded: false, x: 0, y: standingYOnRow(0) });
-    expect(ropeLadderDeployableItem.onPlayerInteract(state, { level: DROP, player, keys: 0 })).toBeNull();
+    expect(
+      ropeLadderDeployableItem.onPlayerInteract(state, { level: DROP, player, keys: 0 }),
+    ).toBeNull();
   });
 });
 

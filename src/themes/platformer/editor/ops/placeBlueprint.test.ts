@@ -62,12 +62,12 @@ describe('placeBlueprint — fully in bounds', () => {
 describe('placeBlueprint — growing left and up', () => {
   // Fixture B: a 1x1 grid holding 'G', the blueprint ['##'] anchored at
   // (col -1, row -1). Absolute cols -1..0, row -1.
-  //   growGrid(grid, -1, -1) -> growLeft 1, growTop 1, growRight 0, growBottom 0
-  //     -> a 2-wide x 2-high grid, colShift 1, rowShift 1.
-  //   growGrid(that, maxCol + 1 = 0 + 1 = 1, maxRow + 1 = -1 + 1 = 0) -> both in
-  //     bounds -> unchanged, shifts 0. Totals stay (1, 1).
-  //   cell (0,0) -> (0 + -1 + 1, 0 + -1 + 1) = (0,0)
-  //   cell (0,1) -> (0 + -1 + 1, 1 + -1 + 1) = (0,1)
+  // growGrid(grid, -1, -1) -> growLeft 1, growTop 1, growRight 0, growBottom 0
+  // -> a 2-wide x 2-high grid, colShift 1, rowShift 1.
+  // growGrid(that, maxCol + 1 = 0 + 1 = 1, maxRow + 1 = -1 + 1 = 0) -> both in
+  // bounds -> unchanged, shifts 0. Totals stay (1, 1).
+  // cell (0,0) -> (0 + -1 + 1, 0 + -1 + 1) = (0,0)
+  // cell (0,1) -> (0 + -1 + 1, 1 + -1 + 1) = (0,1)
   const cells = blueprintCells(['##']);
 
   it('anchoredPastTheTopLeftCorner-growsAndReportsBothShifts', () => {
@@ -85,12 +85,12 @@ describe('placeBlueprint — growing left and up', () => {
 describe('placeBlueprint — growing right and down', () => {
   // Fixture C: a 1x1 grid holding 'G', the blueprint ['##'] anchored at
   // (col 1, row 1). Absolute row 1, cols 1..2.
-  //   growGrid(grid, minCol 1, minRow 1) -> growRight 1-1+1 = 1,
-  //     growBottom 1-1+1 = 1 -> 2 wide x 2 high, shifts 0.
-  //   growGrid(that, maxCol + 0 = 2, maxRow + 0 = 1) -> width is 2, so
-  //     growRight 2-2+1 = 1 -> 3 wide x 2 high, shifts 0.
-  //   This second grow is the whole point: without it, column 2 is out of
-  //   bounds and the bulk write index-errors.
+  // growGrid(grid, minCol 1, minRow 1) -> growRight 1-1+1 = 1,
+  // growBottom 1-1+1 = 1 -> 2 wide x 2 high, shifts 0.
+  // growGrid(that, maxCol + 0 = 2, maxRow + 0 = 1) -> width is 2, so
+  // growRight 2-2+1 = 1 -> 3 wide x 2 high, shifts 0.
+  // This second grow is the whole point: without it, column 2 is out of
+  // bounds and the bulk write index-errors.
   const cells = blueprintCells(['##']);
 
   it('anchoredPastTheBottomRightCorner-growsFarEnoughForTheWholeRoom', () => {
@@ -107,7 +107,10 @@ describe('placeBlueprint — growing right and down', () => {
 
 describe('placeBlueprint — markers', () => {
   it('connectionPointMarkers-areStampedAtTheAnchor', () => {
-    const markers: MarkerGrid = [[null, null], [null, null]];
+    const markers: MarkerGrid = [
+      [null, null],
+      [null, null],
+    ];
     const result = placeBlueprintMarkers(
       markers,
       [{ row: 0, col: 0, marker: { kind: 'connectionPoint' } }],
@@ -140,9 +143,9 @@ describe('placeBlueprint — markers', () => {
   });
 
   it('blueprintMarkers-liftsALegacyLayoutMarkerAndItsStoredMarkers', () => {
-    expect(
-      blueprintMarkers({ id: 'r', name: 'Room', layout: ['P.'] }),
-    ).toEqual([{ row: 0, col: 0, marker: { kind: 'patrolBoundary' } }]);
+    expect(blueprintMarkers({ id: 'r', name: 'Room', layout: ['P.'] })).toEqual([
+      { row: 0, col: 0, marker: { kind: 'patrolBoundary' } },
+    ]);
 
     expect(
       blueprintMarkers({

@@ -37,7 +37,7 @@ export interface EditorSaveDialogProps {
 
 /**
  * The single save dialog behind both the level and the blueprint save flows
- * (FR-020). The two call sites differ only by `config`, `defaultName` and
+ *. The two call sites differ only by `config`, `defaultName` and
  * `onSave`.
  *
  * The name input is reset from `defaultName` every time the dialog opens. A
@@ -92,7 +92,9 @@ export const EditorSaveDialog = ({
         )}
         <DialogFooter>
           <DialogClose
-            render={<Button type="button" variant="outline" data-testid="editor-save-dialog-cancel" />}
+            render={
+              <Button type="button" variant="outline" data-testid="editor-save-dialog-cancel" />
+            }
           >
             {result === null ? 'Cancel' : 'Done'}
           </DialogClose>

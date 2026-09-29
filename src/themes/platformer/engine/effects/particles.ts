@@ -1,5 +1,5 @@
 /**
- * The shared particle-list producer (R-004 US3/FR-010): the count/emission
+ * The shared particle-list producer: the count/emission
  * loop and `{ dx, dy, opacity }` assembly that `sparkleParticles`,
  * `hitSplatterDroplets`, and `debrisPieces` each used to hand-roll. Each
  * family keeps its own count, layout closure, and fade curve; the arithmetic

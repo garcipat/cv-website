@@ -137,7 +137,12 @@ describe('advanceEnemyAnimation', () => {
   });
 
   it('hitState-usesHitsFrameDurationAndCount', () => {
-    let state: EnemyState = { ...toEnemyState(makePlacement()), animState: 'hit', animFrame: 0, animTimer: 0 };
+    let state: EnemyState = {
+      ...toEnemyState(makePlacement()),
+      animState: 'hit',
+      animFrame: 0,
+      animTimer: 0,
+    };
     state = advanceEnemyAnimation(state, 0.1);
     expect(state.animFrame).toBe(1);
   });
@@ -192,7 +197,6 @@ describe('toEnemyState hitPoints (updated)', () => {
     expect(toEnemyState(placement).hitPoints).toBe(3);
   });
 });
-
 
 describe('enemy hitbox padding (insets the collision box from the sprite corners)', () => {
   it('enemyHitboxSidePadding-slimeGreen-matchesMeasuredNativePaddingTimesRenderScale', () => {
@@ -316,9 +320,9 @@ describe('reviveEnemy', () => {
     const revivedA = reviveEnemy({ ...enemyA, alive: false, hitPoints: 0 });
     const revivedB = reviveEnemy({ ...enemyB, alive: false, hitPoints: 0 });
 
-    expect(revivedA.animFrame !== revivedB.animFrame || revivedA.animTimer !== revivedB.animTimer).toBe(
-      true,
-    );
+    expect(
+      revivedA.animFrame !== revivedB.animFrame || revivedA.animTimer !== revivedB.animTimer,
+    ).toBe(true);
   });
 });
 
@@ -356,7 +360,7 @@ describe('applyEnemyDamage', () => {
   });
 });
 
-describe('enemy hitbox bottom inset (FR-019 / SC-009)', () => {
+describe('enemy hitbox bottom inset', () => {
   it('slimes-declareBottomZero-soTheirBoxIsBitIdenticalToBeforeTheSeam', () => {
     for (const type of ['slimeGreen', 'slimePurple'] as const) {
       expect(ENEMY_TYPES[type].hitboxPaddingNative.bottom).toBe(0);
@@ -402,7 +406,15 @@ describe('enemy hitbox bottom inset (FR-019 / SC-009)', () => {
       translate: () => {},
       scale: () => {},
       globalAlpha: 1,
-      drawImage: (_img: unknown, _sx: number, _sy: number, _sw: number, _sh: number, _dx: number, dy: number) => {
+      drawImage: (
+        _img: unknown,
+        _sx: number,
+        _sy: number,
+        _sw: number,
+        _sh: number,
+        _dx: number,
+        dy: number,
+      ) => {
         drawn.push({ dy });
       },
     } as unknown as CanvasRenderingContext2D;
@@ -423,7 +435,7 @@ describe('enemy hitbox bottom inset (FR-019 / SC-009)', () => {
   });
 });
 
-describe('per-kind animation resolution (FR-007 / FR-009)', () => {
+describe('per-kind animation resolution', () => {
   const customSprite: SpriteDescriptor = {
     sheet: SLIME_GREEN_SHEET,
     renderScale: 1,
@@ -444,7 +456,9 @@ describe('per-kind animation resolution (FR-007 / FR-009)', () => {
   it('enemyFrameIndex-stateMissingFromTheKindsTable-resolvesThroughTheFallbackWithoutThrowing', () => {
     // The bee's table declares no `hit` row; a requested 'hit' must resolve
     // to the resting state's frames rather than throwing or rendering blank.
-    expect(enemyFrameIndex(customSprite, 'hit', 1, 'idle')).toBe(customSprite.animations.idle.frames[1]);
+    expect(enemyFrameIndex(customSprite, 'hit', 1, 'idle')).toBe(
+      customSprite.animations.idle.frames[1],
+    );
   });
 
   it('slimes-keepWalkAndHitTablesUnchanged', () => {
@@ -458,4 +472,3 @@ describe('per-kind animation resolution (FR-007 / FR-009)', () => {
     });
   });
 });
-

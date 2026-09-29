@@ -1,5 +1,5 @@
 /**
- * The debris family (R-004 US1): a shatter burst that splits one or more art
+ * The debris family: a shatter burst that splits one or more art
  * layers into four falling quarters. Shared by the crumbling floor's break and
  * the falling stalactite's landing shatter.
  */
@@ -13,7 +13,7 @@ import type { EffectRenderContext, TransientEffect } from './transientEffect';
 export const DEBRIS_DURATION_SECONDS = 0.5;
 
 /** One art layer of a debris effect: a sprite-sheet crop (native, un-scaled
- *  px) drawn as one quarter of the burst. */
+ * px) drawn as one quarter of the burst. */
 export interface DebrisLayer {
   /** Sprite sheet src, resolved through `DrawContext.sprites`. */
   sheet: string;
@@ -56,14 +56,14 @@ export function tickDebrisEffect(
 }
 
 /** One falling piece's current render offset (rendered px, relative to the
- *  effect's own x/y) and opacity. */
+ * effect's own x/y) and opacity. */
 export type DebrisPiece = Particle;
 
 /** Simple constant gravity, rendered px/s^2. */
 const DEBRIS_GRAVITY_PX_PER_SEC2 = 300;
 
 /** Each piece's initial kick (rendered px/s), in the fixed quarter order
- *  top-left, top-right, bottom-left, bottom-right. */
+ * top-left, top-right, bottom-left, bottom-right. */
 const DEBRIS_PIECE_KICKS: readonly { vx: number; vy: number }[] = [
   { vx: -24, vy: -36 },
   { vx: 24, vy: -36 },
@@ -72,9 +72,9 @@ const DEBRIS_PIECE_KICKS: readonly { vx: number; vy: number }[] = [
 ];
 
 /** Every piece's current offset/opacity — always 4 entries, in the fixed
- *  order `DEBRIS_PIECE_KICKS` declares. Routes the emission loop through
- *  `particles.ts`'s `particleList`; the gravity/kick arithmetic stays here
- *  byte-for-byte. */
+ * order `DEBRIS_PIECE_KICKS` declares. Routes the emission loop through
+ * `particles.ts`'s `particleList`; the gravity/kick arithmetic stays here
+ * byte-for-byte. */
 export function debrisPieces(effect: TransientEffect<DebrisState>): Particle[] {
   const t = effect.elapsed;
   const opacity = Math.max(0, 1 - t / DEBRIS_DURATION_SECONDS);
@@ -89,7 +89,7 @@ export function debrisPieces(effect: TransientEffect<DebrisState>): Particle[] {
 }
 
 /** The crumbling floor's two debris layers (the plain ledge middle frame plus
- *  the heavy crack frame). */
+ * the heavy crack frame). */
 export function crumbleDebrisLayers(): DebrisLayer[] {
   const ledgeMid = frameSource(CRUMBLE_FLOOR_SHEET, 1);
   const heavyCrack = frameSource(CRUMBLE_CRACKS_SHEET, 2);
@@ -112,7 +112,7 @@ export function crumbleDebrisLayers(): DebrisLayer[] {
 }
 
 /** The debris family's registered draw — the former scene renderer
- *  `drawDebrisEffects` body, per effect. */
+ * `drawDebrisEffects` body, per effect. */
 export function drawDebrisEffect(
   effect: TransientEffect<DebrisState>,
   rc: EffectRenderContext,

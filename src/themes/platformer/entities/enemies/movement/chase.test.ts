@@ -26,7 +26,10 @@ function ctxWithPlayer(player: MovementContext['player']): MovementContext {
   return { level: LEVEL, blockedTiles: [], player, elapsed: 0 };
 }
 
-function distanceToPlayer(enemy: EnemyState, player: NonNullable<MovementContext['player']>): number {
+function distanceToPlayer(
+  enemy: EnemyState,
+  player: NonNullable<MovementContext['player']>,
+): number {
   return Math.hypot(
     player.x + player.width / 2 - (enemy.x + RENDERED_TILE_SIZE / 2),
     player.y + player.height / 2 - (enemy.y + RENDERED_TILE_SIZE / 2),

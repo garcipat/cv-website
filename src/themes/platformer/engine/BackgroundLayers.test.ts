@@ -64,7 +64,9 @@ describe('drawBackgroundLayers', () => {
     // SKY_DARK_COLOR constant's usage in BackgroundLayers.ts (same pattern
     // as the sky-fill/grass-fill tests below).
     const fillCalls = (ctx.fillRect as ReturnType<typeof vi.fn>).mock.calls;
-    const marginFillCall = fillCalls.find((call) => call[1] === 0 && call[3] === skyTopMarginHeight);
+    const marginFillCall = fillCalls.find(
+      (call) => call[1] === 0 && call[3] === skyTopMarginHeight,
+    );
     expect(marginFillCall).toEqual([0, 0, 320, skyTopMarginHeight]);
   });
 
@@ -74,7 +76,11 @@ describe('drawBackgroundLayers', () => {
 
     drawBackgroundLayers(ctx, images, 320, 400, 0, 0);
 
-    const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
+    const villageCalls = callsForSourceY(
+      ctx.drawImage.mock.calls,
+      images.layers,
+      VILLAGE_SOURCE_RECT.sy,
+    );
     expect(villageCalls.length).toBeGreaterThan(0);
     const destY = villageCalls[0][ARG.dy] as number;
     const destHeight = villageCalls[0][ARG.dh] as number;
@@ -82,7 +88,11 @@ describe('drawBackgroundLayers', () => {
 
     const ctx2 = fakeCtx();
     drawBackgroundLayers(ctx2, images, 320, 250, 0, 0);
-    const villageCalls2 = callsForSourceY(ctx2.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
+    const villageCalls2 = callsForSourceY(
+      ctx2.drawImage.mock.calls,
+      images.layers,
+      VILLAGE_SOURCE_RECT.sy,
+    );
     const destY2 = villageCalls2[0][ARG.dy] as number;
     const destHeight2 = villageCalls2[0][ARG.dh] as number;
     expect(400 - (destY + destHeight)).toBe(250 - (destY2 + destHeight2));
@@ -94,7 +104,11 @@ describe('drawBackgroundLayers', () => {
 
     drawBackgroundLayers(ctx, images, 320, 300, 0, 0);
 
-    const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
+    const villageCalls = callsForSourceY(
+      ctx.drawImage.mock.calls,
+      images.layers,
+      VILLAGE_SOURCE_RECT.sy,
+    );
     const villageBottom = (villageCalls[0][ARG.dy] as number) + (villageCalls[0][ARG.dh] as number);
 
     // Grass is drawn exactly once (no vertical tiling): every grass call
@@ -139,18 +153,29 @@ describe('drawBackgroundLayers', () => {
 
     drawBackgroundLayers(ctx, images, 320, 500, 0, 0);
 
-    const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
+    const villageCalls = callsForSourceY(
+      ctx.drawImage.mock.calls,
+      images.layers,
+      VILLAGE_SOURCE_RECT.sy,
+    );
     const villageTop = Math.min(...villageCalls.map((call) => call[ARG.dy] as number));
-    const skyBottom = SKY_TOP_MARGIN * BACKGROUND_RENDER_SCALE + SKY_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
+    const skyBottom =
+      SKY_TOP_MARGIN * BACKGROUND_RENDER_SCALE + SKY_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
 
     // Clouds/hills is drawn exactly once (no vertical tiling): every clouds
     // call shares the same dy, positioned above the village layer with the
     // extra CLOUDS_VILLAGE_GAP so it reads as floating above the treeline.
-    const cloudCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, CLOUDS_SOURCE_RECT.sy);
+    const cloudCalls = callsForSourceY(
+      ctx.drawImage.mock.calls,
+      images.layers,
+      CLOUDS_SOURCE_RECT.sy,
+    );
     expect(cloudCalls.length).toBeGreaterThan(0);
     const cloudDys = [...new Set(cloudCalls.map((call) => call[ARG.dy] as number))];
     const cloudsDestHeight = CLOUDS_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
-    expect(cloudDys).toEqual([villageTop - cloudsDestHeight - CLOUDS_VILLAGE_GAP * BACKGROUND_RENDER_SCALE]);
+    expect(cloudDys).toEqual([
+      villageTop - cloudsDestHeight - CLOUDS_VILLAGE_GAP * BACKGROUND_RENDER_SCALE,
+    ]);
     const cloudTop = cloudDys[0];
 
     // The remaining gap between the sky's bottom edge and the clouds' top
@@ -171,10 +196,18 @@ describe('drawBackgroundLayers', () => {
 
     drawBackgroundLayers(ctx, images, 320, 500, 0, 0);
 
-    const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
+    const villageCalls = callsForSourceY(
+      ctx.drawImage.mock.calls,
+      images.layers,
+      VILLAGE_SOURCE_RECT.sy,
+    );
     const villageTop = Math.min(...villageCalls.map((call) => call[ARG.dy] as number));
 
-    const cloudCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, CLOUDS_SOURCE_RECT.sy);
+    const cloudCalls = callsForSourceY(
+      ctx.drawImage.mock.calls,
+      images.layers,
+      CLOUDS_SOURCE_RECT.sy,
+    );
     const cloudDys = [...new Set(cloudCalls.map((call) => call[ARG.dy] as number))];
     const cloudsDestHeight = CLOUDS_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;
     const cloudsBottom = cloudDys[0] + cloudsDestHeight;
@@ -203,7 +236,11 @@ describe('drawBackgroundLayers', () => {
 
     drawBackgroundLayers(ctx, images, 320, 500, 7, 0);
 
-    const cloudCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, CLOUDS_SOURCE_RECT.sy);
+    const cloudCalls = callsForSourceY(
+      ctx.drawImage.mock.calls,
+      images.layers,
+      CLOUDS_SOURCE_RECT.sy,
+    );
     expect(cloudCalls.length).toBeGreaterThan(0);
     for (const call of cloudCalls) {
       expect(Number.isInteger(call[ARG.dx] as number)).toBe(true);
@@ -218,7 +255,9 @@ describe('drawBackgroundLayers', () => {
 
     for (const sy of [SKY_SOURCE_RECT.sy, CLOUDS_SOURCE_RECT.sy, VILLAGE_SOURCE_RECT.sy]) {
       const calls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, sy);
-      const rightmost = Math.max(...calls.map((call) => (call[ARG.dx] as number) + (call[ARG.dw] as number)));
+      const rightmost = Math.max(
+        ...calls.map((call) => (call[ARG.dx] as number) + (call[ARG.dw] as number)),
+      );
       expect(rightmost).toBeGreaterThanOrEqual(500);
     }
   });
@@ -245,12 +284,24 @@ describe('drawBackgroundLayers', () => {
     drawBackgroundLayers(ctxAtOffset, images, 320, 200, 5, 0);
 
     const firstCloudX = (calls: unknown[][]) =>
-      Math.min(...callsForSourceY(calls, images.layers, CLOUDS_SOURCE_RECT.sy).map((call) => call[ARG.dx] as number));
+      Math.min(
+        ...callsForSourceY(calls, images.layers, CLOUDS_SOURCE_RECT.sy).map(
+          (call) => call[ARG.dx] as number,
+        ),
+      );
     const firstGrassX = (calls: unknown[][]) =>
-      Math.min(...calls.filter((call) => call[ARG.image] === images.grass).map((call) => call[ARG.dx] as number));
+      Math.min(
+        ...calls
+          .filter((call) => call[ARG.image] === images.grass)
+          .map((call) => call[ARG.dx] as number),
+      );
 
-    const cloudShift = Math.abs(firstCloudX(ctxAtOffset.drawImage.mock.calls) - firstCloudX(ctxAtZero.drawImage.mock.calls));
-    const grassShift = Math.abs(firstGrassX(ctxAtOffset.drawImage.mock.calls) - firstGrassX(ctxAtZero.drawImage.mock.calls));
+    const cloudShift = Math.abs(
+      firstCloudX(ctxAtOffset.drawImage.mock.calls) - firstCloudX(ctxAtZero.drawImage.mock.calls),
+    );
+    const grassShift = Math.abs(
+      firstGrassX(ctxAtOffset.drawImage.mock.calls) - firstGrassX(ctxAtZero.drawImage.mock.calls),
+    );
 
     expect(cloudShift).toBeLessThan(grassShift);
   });
@@ -263,8 +314,12 @@ describe('drawBackgroundLayers', () => {
     drawBackgroundLayers(ctx0, images, 320, 200, 0, 0);
     drawBackgroundLayers(ctx1, images, 320, 200, 0, RIVER_FRAME_DURATION_SECONDS);
 
-    const riverCalls0 = ctx0.drawImage.mock.calls.filter((call) => call[ARG.image] === images.river);
-    const riverCalls1 = ctx1.drawImage.mock.calls.filter((call) => call[ARG.image] === images.river);
+    const riverCalls0 = ctx0.drawImage.mock.calls.filter(
+      (call) => call[ARG.image] === images.river,
+    );
+    const riverCalls1 = ctx1.drawImage.mock.calls.filter(
+      (call) => call[ARG.image] === images.river,
+    );
     expect(riverCalls0.length).toBeGreaterThan(0);
     expect(riverCalls1[0][ARG.sy]).not.toBe(riverCalls0[0][ARG.sy]);
   });
@@ -275,7 +330,11 @@ describe('drawBackgroundLayers', () => {
 
     drawBackgroundLayers(ctx, images, 320, 400, 250, 0);
 
-    const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
+    const villageCalls = callsForSourceY(
+      ctx.drawImage.mock.calls,
+      images.layers,
+      VILLAGE_SOURCE_RECT.sy,
+    );
     const riverCalls = ctx.drawImage.mock.calls.filter((call) => call[ARG.image] === images.river);
     // The river overlay's own water-line sits 11px (native) lower within its
     // frame than the village band's baked-in river line sits within its own
@@ -299,8 +358,16 @@ describe('backgroundBandGeometry', () => {
     drawBackgroundLayers(ctx, images, 320, 500, 0, 0);
 
     const skyCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, SKY_SOURCE_RECT.sy);
-    const cloudCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, CLOUDS_SOURCE_RECT.sy);
-    const villageCalls = callsForSourceY(ctx.drawImage.mock.calls, images.layers, VILLAGE_SOURCE_RECT.sy);
+    const cloudCalls = callsForSourceY(
+      ctx.drawImage.mock.calls,
+      images.layers,
+      CLOUDS_SOURCE_RECT.sy,
+    );
+    const villageCalls = callsForSourceY(
+      ctx.drawImage.mock.calls,
+      images.layers,
+      VILLAGE_SOURCE_RECT.sy,
+    );
 
     const skyTop = SKY_TOP_MARGIN * BACKGROUND_RENDER_SCALE;
     const skyBottom = skyTop + SKY_SOURCE_RECT.height * BACKGROUND_RENDER_SCALE;

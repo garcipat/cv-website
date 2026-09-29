@@ -18,16 +18,16 @@ export { WALK_FRAME_DURATION } from './enemies/EnemyAnimation';
 export type { Direction as EnemyDirection } from '../contracts/geometry';
 
 /** Actual rendered size for a given type — the sheet's native frame scaled by
- *  RENDER_SCALE and the type's own render scale. SceneRenderer.ts's drawEnemies
- *  and DebugOverlay.ts's render slot both call this, so a bigger purple slime
- *  gets a proportionally bigger draw rect. */
+ * RENDER_SCALE and the type's own render scale. SceneRenderer.ts's drawEnemies
+ * and DebugOverlay.ts's render slot both call this, so a bigger purple slime
+ * gets a proportionally bigger draw rect. */
 export function enemyRenderedSize(type: EnemyTypeKey): number {
   const { sheet, renderScale } = ENEMY_TYPES[type].sprite;
   return sheet.frameWidth * RENDER_SCALE * renderScale;
 }
 
 /** Per-type horizontal centering offset — the rendered sprite is wider than
- *  one tile, so it is centered over its placement tile. */
+ * one tile, so it is centered over its placement tile. */
 export function enemyTileOffsetX(type: EnemyTypeKey): number {
   return (RENDERED_TILE_SIZE - enemyRenderedSize(type)) / 2;
 }
@@ -35,7 +35,7 @@ export function enemyTileOffsetX(type: EnemyTypeKey): number {
 /**
  * Per-type bottom-anchoring offset. The frame is shifted down by the kind's
  * own `hitboxPaddingNative.bottom` inset so the VISIBLE art's bottom edge
- * rests on the placement row (FR-019). A bottom-anchored sheet declares
+ * rests on the placement row. A bottom-anchored sheet declares
  * `bottom: 0`, which reproduces the pre-seam formula exactly.
  */
 export function enemyTileOffsetY(type: EnemyTypeKey): number {
@@ -43,15 +43,15 @@ export function enemyTileOffsetY(type: EnemyTypeKey): number {
 }
 
 /** A world-space anchor point + size scale for a one-shot visual effect at
- *  this enemy's position — see engine/effects/puff.ts's PuffState and
- *  B-003 (docs/bugs/B-003-puff-bound-to-fact-reward/ticket.md). Centred on
- *  the collision hitbox (`typeOf(enemy).box(enemy)`), not the render slot: a
- *  slime's actual opaque silhouette sits bottom-anchored with a big
- *  transparent gap above it — see SlimePurple.ts's HITBOX_PADDING_NATIVE doc
- *  comment and its held-key placement code, which centers against the same
- *  hitbox for the same reason. Scale still comes from the per-type render
- *  size drawEnemies already uses, so a purple slime's puff scales up right
- *  along with its bigger sprite. */
+ * this enemy's position — see engine/effects/puff.ts's PuffState and
+ * (docs/bugs/-puff-bound-to-fact-reward/ticket.md). Centred on
+ * the collision hitbox (`typeOf(enemy).box(enemy)`), not the render slot: a
+ * slime's actual opaque silhouette sits bottom-anchored with a big
+ * transparent gap above it — see SlimePurple.ts's HITBOX_PADDING_NATIVE doc
+ * comment and its held-key placement code, which centers against the same
+ * hitbox for the same reason. Scale still comes from the per-type render
+ * size drawEnemies already uses, so a purple slime's puff scales up right
+ * along with its bigger sprite. */
 export interface EffectAnchor {
   x: number;
   y: number;
@@ -97,9 +97,9 @@ export function enemyHitboxTopPadding(type: EnemyTypeKey): number {
 }
 
 /** Per-type collision-hitbox bottom inset — see enemyHitboxSidePadding.
- *  Pulls the box's bottom edge up to the visible art's bottom (FR-019); a
- *  bottom-anchored sheet declares `0` and leaves the box's bottom edge at the
- *  render slot's bottom, exactly as before this inset existed. */
+ * Pulls the box's bottom edge up to the visible art's bottom; a
+ * bottom-anchored sheet declares `0` and leaves the box's bottom edge at the
+ * render slot's bottom, exactly as before this inset existed. */
 export function enemyHitboxBottomPadding(type: EnemyTypeKey): number {
   const { hitboxPaddingNative, sprite } = ENEMY_TYPES[type];
   return hitboxPaddingNative.bottom * RENDER_SCALE * sprite.renderScale;
@@ -152,7 +152,7 @@ export function reviveEnemy(enemy: EnemyState): EnemyState {
  *
  * Defeat is deliberately NOT decided here: `stepEnemyHitReaction` checks
  * `hitPoints` once the reaction finishes, so the enemy always plays the same
- * brief stun before dying. Used by the bomb blast (O-012), which deals more
+ * brief stun before dying. Used by the bomb blast, which deals more
  * than a stomp's single point rather than killing outright.
  */
 export function applyEnemyDamage(enemy: EnemyState, amount: number): EnemyState {
@@ -164,9 +164,9 @@ export function applyEnemyDamage(enemy: EnemyState, amount: number): EnemyState 
 }
 
 /** Advances the enemy's animation timer/frame by `dt` seconds — same
- *  convention as Player.ts's advancePlayerAnimation. Resolves the animation
- *  through the kind's OWN table, falling back to its `defaultAnimState` when
- *  the current state is missing (FR-009). */
+ * convention as Player.ts's advancePlayerAnimation. Resolves the animation
+ * through the kind's OWN table, falling back to its `defaultAnimState` when
+ * the current state is missing. */
 export function advanceEnemyAnimation(enemy: EnemyState, dt: number): EnemyState {
   const type = typeOf(enemy);
   const { frames, frameDuration } = resolveAnimation(

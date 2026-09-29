@@ -33,11 +33,11 @@ describe('blueprintFileName', () => {
   });
 
   it('punctuationAndRunsOfSeparators-collapseToSingleHyphens', () => {
-    expect(blueprintFileName('Cave!! __ Room??  Two')).toBe('cave-room-two.json');
+    expect(blueprintFileName('Cave!! __ Room?? Two')).toBe('cave-room-two.json');
   });
 
   it('leadingAndTrailingSeparators-areTrimmed', () => {
-    expect(blueprintFileName('  -- cave room -- ')).toBe('cave-room.json');
+    expect(blueprintFileName(' -- cave room -- ')).toBe('cave-room.json');
   });
 
   it('emptyName-fallsBackToBlueprint', () => {

@@ -1,7 +1,7 @@
 /**
- * The fading world-text family (R-004 US1): a world-anchored label that fades
+ * The fading world-text family: a world-anchored label that fades
  * in place. It is the one `'death'`-scoped effect kind — a death/respawn
- * clears it (FR-006).
+ * clears it.
  */
 import { fillTextWithOutline, RESTART_PROMPT_FONT_FAMILY } from '../textDraw';
 import type { EffectRenderContext, TransientEffect } from './transientEffect';
@@ -50,7 +50,7 @@ export function fadeOutTextOpacity(elapsed: number): number {
 }
 
 /** The fade-out-text family's registered draw — the former scene renderer
- *  `drawFadeOutTexts` body. World-space, origin-shifted. */
+ * `drawFadeOutTexts` body. World-space, origin-shifted. */
 export function drawFadeOutText(
   effect: TransientEffect<FadeOutTextState>,
   rc: EffectRenderContext,

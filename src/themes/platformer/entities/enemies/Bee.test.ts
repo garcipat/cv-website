@@ -12,10 +12,10 @@ import type { DrawContext } from '../../contracts/DrawContext';
 import type { LevelDef, TileType } from '../../level/LevelData';
 import type { EnemyPlacement } from '../../level/EnemyMapper';
 import { RENDER_SCALE, RENDERED_TILE_SIZE } from '../../level/Terrain';
-import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
+import { DEFAULT_HIT_KNOCKBACK, DEFAULT_STOMP_BOUNCE_VY } from '../../shared/knockback';
 
 /**
- * The bee's combat contract (FR-010/FR-011/FR-012/FR-013, SC-004/SC-009):
+ * The bee's combat contract:
  * a flying enemy that stomps exactly like a green slime and pays nothing.
  */
 
@@ -34,6 +34,7 @@ function makeContact(side: ContactSide, playerVy = 200): Contact {
     playerVy,
     playerBox: { x: 0, y: 0, width: 64, height: 64 },
     selfBox: { x: 0, y: 0, width: 36, height: 24 },
+    awayDirection: 1,
   };
 }
 
@@ -73,7 +74,7 @@ describe('bee create/revive', () => {
   });
 });
 
-describe('bee box (FR-019 / SC-009)', () => {
+describe('bee box', () => {
   it('box-isTheVisibleSilhouette-withTheBottomInsetApplied', () => {
     const enemy = makeBee();
     const size = BEE_SPRITE.sheet.frameWidth * RENDER_SCALE * BEE_SPRITE.renderScale;
@@ -96,17 +97,24 @@ describe('bee box (FR-019 / SC-009)', () => {
 describe('bee contact', () => {
   it('fallingTopContact-stompsWithTheGreenSlimeBounce', () => {
     const outcome = bee.onPlayerCollide(makeBee(), {} as PlayerState, makeContact('top', 200));
-    expect(outcome.self?.hitPoints).toBe(0);
-    expect(outcome.bounceVelocity).toBe(PHYSICS_CONFIG.stompBounceVelocity);
-    expect(outcome.damagePlayer).toBeUndefined();
+    expect(outcome.selfEffects).toEqual([{ type: 'damage', amount: 1 }, { type: 'reaction' }]);
+    expect(outcome.effects).toEqual([
+      { type: 'velocity', y: DEFAULT_STOMP_BOUNCE_VY, preserveJump: true },
+    ]);
   });
 
   it('sideOrUndersideContact-damagesHalfAHeartAndKnocksAway', () => {
     for (const side of ['side', 'bottom'] as const) {
       const outcome = bee.onPlayerCollide(makeBee(), {} as PlayerState, makeContact(side));
-      expect(outcome.damagePlayer).toBe(1);
-      expect(outcome.knockback).toBe('away');
-      expect(outcome.self).toBeUndefined();
+      expect(outcome.effects).toEqual([
+        { type: 'damage', amount: 1 },
+        {
+          type: 'velocity',
+          x: DEFAULT_HIT_KNOCKBACK.vx,
+          duration: DEFAULT_HIT_KNOCKBACK.duration,
+        },
+      ]);
+      expect(outcome.selfEffects).toBeUndefined();
     }
   });
 
@@ -145,7 +153,7 @@ describe('bee through the real step pipeline', () => {
   });
 });
 
-describe('bee animation is per-kind (FR-008 / FR-009)', () => {
+describe('bee animation is per-kind', () => {
   it('aBeeThatSurvivesAHit-revertsToItsOwnFlyStateAtFrameZeroNotWalk', () => {
     const hit: BeeState = {
       ...makeBee(),
@@ -191,6 +199,8 @@ describe('bee animation is per-kind (FR-008 / FR-009)', () => {
 
     bee.draw(hit, dc);
 
-    expect(drawn).toEqual([frameSource(BEE_SPRITE.sheet, enemyFrameIndex(BEE_SPRITE, 'hit', 0, 'fly'))]);
+    expect(drawn).toEqual([
+      frameSource(BEE_SPRITE.sheet, enemyFrameIndex(BEE_SPRITE, 'hit', 0, 'fly')),
+    ]);
   });
 });

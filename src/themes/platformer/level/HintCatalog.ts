@@ -26,11 +26,11 @@ const SIGN_HINT_IDS = [
   'bomb',
 ] as const satisfies readonly PlatformerHintKey[];
 
-/** The hints a hand-authored sign may carry (FR-007). */
+/** The hints a hand-authored sign may carry. */
 export type SignHintId = (typeof SIGN_HINT_IDS)[number];
 
 /** Every message a bubble may display — the sign hints plus the UI-only
- *  messages (`noKeyForChest`/`noBombs`) (FR-007). */
+ * messages (`noKeyForChest`/`noBombs`). */
 export type BubbleMessageId = PlatformerHintKey;
 
 /**
@@ -40,31 +40,31 @@ export type BubbleMessageId = PlatformerHintKey;
  */
 export const HINT_IDS: readonly SignHintId[] = SIGN_HINT_IDS;
 
-/** The hint a `T` with no `sign` marker resolves to (FR-027), and the hint
- *  the sign tool paints on a fresh cell (FR-030). */
+/** The hint a `T` with no `sign` marker resolves to, and the hint
+ * the sign tool paints on a fresh cell. */
 export const DEFAULT_HINT_ID: SignHintId = HINT_IDS[0];
 
-/** The editor badge's short code for a hint — `'1'`–`'6'` (FR-028). */
+/** The editor badge's short code for a hint — `'1'`–`'6'`. */
 export function hintCode(hintId: SignHintId): string {
   const index = HINT_IDS.indexOf(hintId);
   return String((index === -1 ? 0 : index) + 1);
 }
 
 /** The next hint in `HINT_IDS`, wrapping — the sign tool's re-click cycle
- *  (FR-030). */
+ *. */
 export function nextHintId(hintId: SignHintId): SignHintId {
   const index = HINT_IDS.indexOf(hintId);
   return HINT_IDS[(index + 1) % HINT_IDS.length] ?? DEFAULT_HINT_ID;
 }
 
 /** Forgiving validation of a stored marker's `hintId`: true only for a
- *  registered sign hint (FR-027); rejects the UI-only messages. */
+ * registered sign hint; rejects the UI-only messages. */
 export function isSignHintId(value: unknown): value is SignHintId {
   return typeof value === 'string' && (HINT_IDS as readonly string[]).includes(value);
 }
 
 /**
- * A hand-authored hint sign (spec.md FR-037). Unlike EnemyDef/BlockDef/
+ * A hand-authored hint sign. Unlike EnemyDef/BlockDef/
  * ChestDef, a sign carries no CV mapping at all — no `fact`, no
  * `cvSection`/`cvIndex` — its only content is `hintId`, which
  * `SignMapper.ts`'s `placeSigns` turns into a `SignPlacement` (adds x/y),

@@ -93,7 +93,7 @@ describe('parseBlueprintModules', () => {
   });
 
   it('savedBlueprintFileContents-roundTripBackIntoAnEntryWithTheSameLayout', () => {
-    // SC-012's blueprint counterpart: a file the editor wrote has to be a file
+    // 's blueprint counterpart: a file the editor wrote has to be a file
     // this registry accepts, connection point characters included.
     const contents = JSON.parse(layoutFileJson('Cave Room', ['#+#', '#.#'], []));
     const entries = parseBlueprintModules({ './blueprints/cave-room.json': { default: contents } });

@@ -25,14 +25,11 @@ export const COUNTER_SECTIONS: Record<CounterKey, readonly SectionId[]> = {
 };
 
 /** How many of `facts` feed the given counter. The numerator for every
- *  counter popup and summary row — except the coins row, which overrides it
- *  (see `CollectibleSummaryTotals.coinsCollected`): under proportional
- *  pacing a coin carries no fixed fact, so "skill facts revealed" and "coins
- *  collected" are different numbers. */
-export function countCollectedFor(
-  counterKey: CounterKey,
-  facts: readonly CollectedFact[],
-): number {
+ * counter popup and summary row — except the coins row, which overrides it
+ * (see `CollectibleSummaryTotals.coinsCollected`): under proportional
+ * pacing a coin carries no fixed fact, so "skill facts revealed" and "coins
+ * collected" are different numbers. */
+export function countCollectedFor(counterKey: CounterKey, facts: readonly CollectedFact[]): number {
   const sections = COUNTER_SECTIONS[counterKey];
   return facts.filter((fact) => sections.includes(fact.sectionId)).length;
 }
@@ -93,7 +90,7 @@ export type CollectibleSummaryTotals = LevelTotals & {
 /**
  * Collectible-type summary for the personality/"About Me" page's right
  * column — framed around the game's actual sprite types
- * (coin.png/fruit.png/slime, FR-009) rather than CV section names, since
+ * (coin.png/fruit.png/slime) rather than CV section names, since
  * this reads as a HUD-style overview rather than another bookmark page.
  *
  * "coins" counts Skills; "fruits" counts Certificates+Projects
@@ -125,7 +122,11 @@ export function collectiblesSummary(
   }
 
   if (totals.fruits > 0) {
-    rows.push({ labelKey: 'fruits', collected: countCollectedFor('fruits', facts), total: totals.fruits });
+    rows.push({
+      labelKey: 'fruits',
+      collected: countCollectedFor('fruits', facts),
+      total: totals.fruits,
+    });
   }
 
   if (totals.enemies > 0) {
@@ -145,7 +146,11 @@ export function collectiblesSummary(
   }
 
   if (totals.chests > 0) {
-    rows.push({ labelKey: 'chests', collected: countCollectedFor('chests', facts), total: totals.chests });
+    rows.push({
+      labelKey: 'chests',
+      collected: countCollectedFor('chests', facts),
+      total: totals.chests,
+    });
   }
 
   return rows;

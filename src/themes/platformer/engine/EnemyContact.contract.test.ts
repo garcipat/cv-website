@@ -50,8 +50,8 @@ function makePlayer(x: number, y: number, vy: number): PlayerState {
 }
 
 /** A type-guard, not a cast: it lets TypeScript actually narrow `overrides`
- *  to `Partial<SlimePurpleState>` in the branch below, rather than merely
- *  asserting it. */
+ * to `Partial<SlimePurpleState>` in the branch below, rather than merely
+ * asserting it. */
 function isPurpleOverride(overrides: Partial<EnemyState>): overrides is Partial<SlimePurpleState> {
   return overrides.type === 'slimePurple';
 }
@@ -70,7 +70,12 @@ function isPurpleOverride(overrides: Partial<EnemyState>): overrides is Partial<
  */
 function makeEnemy(overrides: Partial<EnemyState> = {}): EnemyState {
   if (isPurpleOverride(overrides)) {
-    const placement: EnemyPlacement = { id: 'enemy-under-test', type: 'slimePurple', x: 100, y: 100 };
+    const placement: EnemyPlacement = {
+      id: 'enemy-under-test',
+      type: 'slimePurple',
+      x: 100,
+      y: 100,
+    };
     return { ...ENEMY_TYPES.slimePurple.create(placement, 0), ...overrides };
   }
   const placement: EnemyPlacement = { id: 'enemy-under-test', type: 'slimeGreen', x: 100, y: 100 };
@@ -188,8 +193,10 @@ describe('enemy contact characterization', () => {
 
       expect({
         stomped: after.hitPoints < enemy.hitPoints,
-        damaged: resolved.damagePlayer > 0,
-        spikedTopLanding: resolved.knockback === 'awayAndUp',
+        damaged: resolved.hitEffects.some((effect) => effect.type === 'damage'),
+        spikedTopLanding: resolved.hitEffects.some(
+          (effect) => effect.type === 'velocity' && effect.y !== undefined,
+        ),
       }).toEqual(testCase.expected);
     });
   }

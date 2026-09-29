@@ -40,10 +40,15 @@ describe('isBlueprint', () => {
 
   it('backgroundThatIsNotAnArrayOfStrings-isRejected', () => {
     // The old flat BackgroundPlacement[] format (objects, not strings) and the
-    // pre-O-014-revision array-of-arrays BackgroundGrid format both fail the
-    // string[] shape check (FR-013).
+    // pre--revision array-of-arrays BackgroundGrid format both fail the
+    // string[] shape check.
     expect(
-      isBlueprint({ id: 'r', name: 'R', layout: ['#'], background: [{ pieceId: 'dirtBlock3x3', col: 0, row: 0 }] }),
+      isBlueprint({
+        id: 'r',
+        name: 'R',
+        layout: ['#'],
+        background: [{ pieceId: 'dirtBlock3x3', col: 0, row: 0 }],
+      }),
     ).toBe(false);
     expect(isBlueprint({ id: 'r', name: 'R', layout: ['#'], background: [['dirt']] })).toBe(false);
   });
@@ -65,7 +70,12 @@ describe('isBlueprint', () => {
       false,
     );
     expect(
-      isBlueprint({ id: 'r', name: 'R', layout: ['#'], markers: [{ col: 'x', row: 0, marker: { kind: 'sign' } }] }),
+      isBlueprint({
+        id: 'r',
+        name: 'R',
+        layout: ['#'],
+        markers: [{ col: 'x', row: 0, marker: { kind: 'sign' } }],
+      }),
     ).toBe(false);
   });
 

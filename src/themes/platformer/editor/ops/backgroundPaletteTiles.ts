@@ -11,10 +11,10 @@ const SHEET_WIDTH = 73;
 const SHEET_HEIGHT = 354;
 
 /** Fully-isolated (mask 0) sprite — bordered on all four sides — as the
- *  palette preview. A palette swatch has no real neighbours to autotile
- *  against, and the mask-15 "middle" tile has no border at all, so it reads
- *  as an indistinct texture crop at swatch size; the isolated tile's closed
- *  border reads clearly as "this material" instead. */
+ * palette preview. A palette swatch has no real neighbours to autotile
+ * against, and the mask-15 "middle" tile has no border at all, so it reads
+ * as an indistinct texture crop at swatch size; the isolated tile's closed
+ * border reads clearly as "this material" instead. */
 const ISOLATED_MASK = 0;
 
 function spriteFor(material: BackgroundMaterialId): TileSpriteSpec {
@@ -32,23 +32,26 @@ function spriteFor(material: BackgroundMaterialId): TileSpriteSpec {
 
 const MATERIAL_IDS = Object.keys(BACKGROUND_MATERIAL_FAMILY) as BackgroundMaterialId[];
 
-export const BACKGROUND_PALETTE_SPRITES: Record<BackgroundMaterialId, TileSpriteSpec> = Object.fromEntries(
-  MATERIAL_IDS.map((material) => [material, spriteFor(material)]),
-) as Record<BackgroundMaterialId, TileSpriteSpec>;
+export const BACKGROUND_PALETTE_SPRITES: Record<BackgroundMaterialId, TileSpriteSpec> =
+  Object.fromEntries(MATERIAL_IDS.map((material) => [material, spriteFor(material)])) as Record<
+    BackgroundMaterialId,
+    TileSpriteSpec
+  >;
 
 /**
  * The inverse of `BACKGROUND_CHARS` (`LevelParser.ts`) — every material's own
  * paint character, one entry per key of `BACKGROUND_MATERIAL_FAMILY`. The
  * palette groups swatches by material (Surface/Cave family, sprite, label)
- * exactly as before O-014's storage revision, but what a swatch's click
+ * exactly as before 's storage revision, but what a swatch's click
  * actually *selects* is now a `BackgroundChar` (the same "tool" shape
  * `editorSelectedToolSignal`/`selectTool` already have for foreground), not a
  * `BackgroundMaterialId` — this is the one place that translates between the
  * two.
  */
-export const BACKGROUND_MATERIAL_CHAR: Record<BackgroundMaterialId, BackgroundChar> = Object.fromEntries(
-  Object.entries(BACKGROUND_CHARS).map(([char, material]) => [material, char]),
-) as Record<BackgroundMaterialId, BackgroundChar>;
+export const BACKGROUND_MATERIAL_CHAR: Record<BackgroundMaterialId, BackgroundChar> =
+  Object.fromEntries(
+    Object.entries(BACKGROUND_CHARS).map(([char, material]) => [material, char]),
+  ) as Record<BackgroundMaterialId, BackgroundChar>;
 
 export const BACKGROUND_PALETTE_LABELS: Record<BackgroundMaterialId, string> = {
   dirt: 'Dirt',
@@ -60,14 +63,14 @@ export const BACKGROUND_PALETTE_LABELS: Record<BackgroundMaterialId, string> = {
 };
 
 /** One labelled, collapsible group of background materials in the editor's
- *  background palette (FR-011). */
+ * background palette. */
 export interface BackgroundPaletteSection {
   title: string;
   materialIds: BackgroundMaterialId[];
 }
 
 /**
- * The background palette's Surface/Cave split (FR-011). Membership is
+ * The background palette's Surface/Cave split. Membership is
  * derived from each material's own `backgroundMaterialFamily` — never
  * hand-listed — so a new material lands in the right section automatically.
  * A single module-level constant computed once gives every call site the
@@ -76,7 +79,9 @@ export interface BackgroundPaletteSection {
 export const BACKGROUND_PALETTE_SECTIONS: readonly BackgroundPaletteSection[] = [
   {
     title: 'Surface',
-    materialIds: MATERIAL_IDS.filter((material) => backgroundMaterialFamily(material) === 'surface'),
+    materialIds: MATERIAL_IDS.filter(
+      (material) => backgroundMaterialFamily(material) === 'surface',
+    ),
   },
   {
     title: 'Cave',
