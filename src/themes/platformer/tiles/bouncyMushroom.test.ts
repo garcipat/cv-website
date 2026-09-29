@@ -92,9 +92,9 @@ describe('mushroomSquashDip', () => {
   });
 
   it('elapsedAtDuration-returnsZero', () => {
-    expect(
-      mushroomSquashDip({ col: 1, row: 2, elapsed: MUSHROOM_SQUASH_DURATION_SECONDS }),
-    ).toBe(0);
+    expect(mushroomSquashDip({ col: 1, row: 2, elapsed: MUSHROOM_SQUASH_DURATION_SECONDS })).toBe(
+      0,
+    );
   });
 
   it('elapsedPastDuration-returnsZeroNeverNegative', () => {

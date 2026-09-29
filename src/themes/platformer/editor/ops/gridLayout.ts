@@ -4,7 +4,7 @@ import type { LevelDef, MarkerGrid, MarkerPlacement } from '../../level/LevelDat
 import { cropLayoutToBox, type BoundingBox } from './exportLayout';
 
 /**
- * The one grid→layout adapter (FR-002/FR-010, D1). `gridToLayout` serializes
+ * The one grid→layout adapter. `gridToLayout` serializes
  * the **whole** rectangular editor grid into the raw `readonly string[]` shape
  * `parseLevel`/the runtime finders consume — it is the only editor function
  * that derives raw layout rows from a grid, and it does so through the shared
@@ -23,7 +23,7 @@ export function gridToLayout(grid: TileChar[][]): readonly string[] {
 /**
  * The dense marker grid → sparse stored placements (`MarkerPlacement[]`), the
  * shape `parseLevel`/parse-side reads and a level/blueprint file stores
- * (FR-014). One placement per non-`null` cell, in reading order.
+ *. One placement per non-`null` cell, in reading order.
  */
 export function markerGridToPlacements(markers: MarkerGrid): MarkerPlacement[] {
   const placements: MarkerPlacement[] = [];

@@ -1,10 +1,12 @@
 import type { LevelDef } from '../../level/LevelData';
-import { isSolid, tileAt, tileToPixel, RENDERED_TILE_SIZE, RENDER_SCALE } from '../../level/Terrain';
 import {
-  PLAYER_RENDERED_SIZE,
-  PLAYER_FOOT_PADDING,
-  PLAYER_SIDE_PADDING,
-} from '../Player';
+  isSolid,
+  tileAt,
+  tileToPixel,
+  RENDERED_TILE_SIZE,
+  RENDER_SCALE,
+} from '../../level/Terrain';
+import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING, PLAYER_SIDE_PADDING } from '../Player';
 import type { PlayerState } from '../Player';
 import { clamp01 } from '../../shared/math';
 import { findLandingRow } from '../../engine/Standable';
@@ -43,7 +45,7 @@ export interface RopeLadderState extends DeployableItemState {
   landingRow: number;
   phase: RopeLadderPhase;
   /** Seconds elapsed while `deploying`; 0 while `rolled`, capped at
-   *  `UNROLL_SECONDS` once `deployed`. */
+   * `UNROLL_SECONDS` once `deployed`. */
   elapsed: number;
 }
 
@@ -59,7 +61,7 @@ export const STEPS_PER_TILE = 2;
  * `row + 1` while the cell is not solid, returning the last such row, or
  * `row` itself when the cell directly below is solid (or the bundle is on the
  * level's bottom row). `isSolid` includes `bridge`, so a bridge stops the
- * unroll; a bundle on the bottom row is a zero-length landing. Never throws —
+ * unroll; a bundle on the bottom row is a zero-length landing. Never throws
  * `tileAt` resolves out-of-bounds to `'empty'`, but the loop is bounded by
  * `level.height` regardless.
  */
@@ -69,11 +71,7 @@ export function ropeLadderLandingRow(level: LevelDef, col: number, row: number):
 }
 
 /** Seeds one `rolled` state for an authored `@` cell. Pure. */
-export function createRopeLadderState(
-  level: LevelDef,
-  col: number,
-  row: number,
-): RopeLadderState {
+export function createRopeLadderState(level: LevelDef, col: number, row: number): RopeLadderState {
   const { x, y } = tileToPixel(col, row);
   return {
     id: `ladder-bundle-${col}-${row}`,
@@ -110,7 +108,7 @@ export function advanceRopeLadder(state: RopeLadderState, dt: number): RopeLadde
 }
 
 /** Rung cells below the bundle cell (0 for a zero-length landing). The bundle
- *  cell itself is always rung one. */
+ * cell itself is always rung one. */
 export function shaftCellCount(state: RopeLadderState): number {
   return state.landingRow - state.row;
 }
@@ -121,7 +119,7 @@ export function totalStepCount(state: RopeLadderState): number {
 }
 
 /** Steps revealed so far: 0 while `rolled`, all once `deployed`, and a
- *  proportional floor while `deploying`. */
+ * proportional floor while `deploying`. */
 export function revealedStepCount(state: RopeLadderState): number {
   if (state.phase === 'deployed') return totalStepCount(state);
   if (state.phase === 'rolled') return 0;
@@ -157,7 +155,7 @@ export function ropeLadderBundleIsUnderPlayer(
 }
 
 /** The cells one `deployed` bundle writes: `ropeLadder` from its bundle row
- *  down to its landing row inclusive. `null` unless `deployed`. */
+ * down to its landing row inclusive. `null` unless `deployed`. */
 function deployedRopeLadderCells(state: RopeLadderState): TerrainCellWrite[] | null {
   if (state.phase !== 'deployed') return null;
   const cells: TerrainCellWrite[] = [];
@@ -224,8 +222,14 @@ export const ropeLadderDeployableItem: WorldInteractableType<RopeLadderState> = 
       for (const piece of pieces) {
         dc.ctx.drawImage(
           ropeSheet,
-          piece.sx, piece.sy, piece.width, piece.height,
-          destX, drawY, piece.width * RENDER_SCALE, piece.height * RENDER_SCALE,
+          piece.sx,
+          piece.sy,
+          piece.width,
+          piece.height,
+          destX,
+          drawY,
+          piece.width * RENDER_SCALE,
+          piece.height * RENDER_SCALE,
         );
         drawY += piece.height * RENDER_SCALE;
       }
@@ -239,8 +243,14 @@ export const ropeLadderDeployableItem: WorldInteractableType<RopeLadderState> = 
     // in the same place the completed shaft's bottom cap will.
     dc.ctx.drawImage(
       ropeSheet,
-      ROPE_BUNDLE.sx, ROPE_BUNDLE.sy, ROPE_BUNDLE.width, ROPE_BUNDLE.height,
-      destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+      ROPE_BUNDLE.sx,
+      ROPE_BUNDLE.sy,
+      ROPE_BUNDLE.width,
+      ROPE_BUNDLE.height,
+      destX,
+      destY,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
     );
 
     const stepHeight = LADDER_STEP_NATIVE_PX * RENDER_SCALE;
@@ -251,8 +261,14 @@ export const ropeLadderDeployableItem: WorldInteractableType<RopeLadderState> = 
       const piece = remaining === 1 ? ROPE_BOTTOM_CAP : ROPE_STEP;
       dc.ctx.drawImage(
         ropeSheet,
-        piece.sx, piece.sy, piece.width, piece.height,
-        destX, drawY, piece.width * RENDER_SCALE, piece.height * RENDER_SCALE,
+        piece.sx,
+        piece.sy,
+        piece.width,
+        piece.height,
+        destX,
+        drawY,
+        piece.width * RENDER_SCALE,
+        piece.height * RENDER_SCALE,
       );
       drawY += stepHeight;
       remaining -= 1;

@@ -29,7 +29,13 @@ describe('collectiblesSummary', () => {
       },
     ];
 
-    const rows = collectiblesSummary(facts, { coins: 2, fruits: 1, enemies: 0, crates: 0, chests: 0 });
+    const rows = collectiblesSummary(facts, {
+      coins: 2,
+      fruits: 1,
+      enemies: 0,
+      crates: 0,
+      chests: 0,
+    });
 
     expect(rows).toEqual([
       { labelKey: 'coins', collected: 1, total: 2 },
@@ -38,13 +44,15 @@ describe('collectiblesSummary', () => {
   });
 
   it('nothingPlaced-returnsNoRows', () => {
-    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 0, chests: 0 })).toEqual([]);
+    expect(
+      collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 0, chests: 0 }),
+    ).toEqual([]);
   });
 
   it('onlyCoinsPlaced-omitsFruitsEnemiesAndCratesRows', () => {
-    expect(collectiblesSummary([], { coins: 1, fruits: 0, enemies: 0, crates: 0, chests: 0 })).toEqual([
-      { labelKey: 'coins', collected: 0, total: 1 },
-    ]);
+    expect(
+      collectiblesSummary([], { coins: 1, fruits: 0, enemies: 0, crates: 0, chests: 0 }),
+    ).toEqual([{ labelKey: 'coins', collected: 0, total: 1 }]);
   });
 
   it('fruitsRow-countsProjectsFactsToo-notJustCertificates', () => {
@@ -59,9 +67,9 @@ describe('collectiblesSummary', () => {
         sourceType: 'block',
       },
     ];
-    expect(collectiblesSummary(facts, { coins: 0, fruits: 2, enemies: 0, crates: 0, chests: 0 })).toEqual([
-      { labelKey: 'fruits', collected: 1, total: 2 },
-    ]);
+    expect(
+      collectiblesSummary(facts, { coins: 0, fruits: 2, enemies: 0, crates: 0, chests: 0 }),
+    ).toEqual([{ labelKey: 'fruits', collected: 1, total: 2 }]);
   });
 
   it('fruitsRow-doesNotCountLanguagesFacts', () => {
@@ -76,15 +84,15 @@ describe('collectiblesSummary', () => {
         sourceType: 'coin',
       },
     ];
-    expect(collectiblesSummary(facts, { coins: 0, fruits: 1, enemies: 0, crates: 0, chests: 0 })).toEqual([
-      { labelKey: 'fruits', collected: 0, total: 1 },
-    ]);
+    expect(
+      collectiblesSummary(facts, { coins: 0, fruits: 1, enemies: 0, crates: 0, chests: 0 }),
+    ).toEqual([{ labelKey: 'fruits', collected: 0, total: 1 }]);
   });
 
   it('enemiesPlaced-noneDefeated-returnsEnemiesRowWithZeroCollected', () => {
-    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 2, crates: 0, chests: 0 })).toEqual([
-      { labelKey: 'enemies', collected: 0, total: 2 },
-    ]);
+    expect(
+      collectiblesSummary([], { coins: 0, fruits: 0, enemies: 2, crates: 0, chests: 0 }),
+    ).toEqual([{ labelKey: 'enemies', collected: 0, total: 2 }]);
   });
 
   it('enemiesRow-countsCoursesFactsBySectionId-notSourceType', () => {
@@ -108,16 +116,18 @@ describe('collectiblesSummary', () => {
       },
     ];
 
-    expect(collectiblesSummary(facts, { coins: 1, fruits: 0, enemies: 3, crates: 0, chests: 0 })).toEqual([
+    expect(
+      collectiblesSummary(facts, { coins: 1, fruits: 0, enemies: 3, crates: 0, chests: 0 }),
+    ).toEqual([
       { labelKey: 'coins', collected: 1, total: 1 },
       { labelKey: 'enemies', collected: 1, total: 3 },
     ]);
   });
 
   it('cratesPlaced-noneCollected-returnsCratesRowWithZeroCollected', () => {
-    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 2, chests: 0 })).toEqual([
-      { labelKey: 'crates', collected: 0, total: 2 },
-    ]);
+    expect(
+      collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 2, chests: 0 }),
+    ).toEqual([{ labelKey: 'crates', collected: 0, total: 2 }]);
   });
 
   it('cratesRow-countsEducationActivityAndLanguageFactsBySectionId', () => {
@@ -155,16 +165,18 @@ describe('collectiblesSummary', () => {
       },
     ];
 
-    expect(collectiblesSummary(facts, { coins: 0, fruits: 0, enemies: 0, crates: 4, chests: 1 })).toEqual([
+    expect(
+      collectiblesSummary(facts, { coins: 0, fruits: 0, enemies: 0, crates: 4, chests: 1 }),
+    ).toEqual([
       { labelKey: 'crates', collected: 3, total: 4 },
       { labelKey: 'chests', collected: 1, total: 1 },
     ]);
   });
 
   it('chestsPlaced-noneOpened-returnsChestsRowWithZeroCollected', () => {
-    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 0, chests: 3 })).toEqual([
-      { labelKey: 'chests', collected: 0, total: 3 },
-    ]);
+    expect(
+      collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 0, chests: 3 }),
+    ).toEqual([{ labelKey: 'chests', collected: 0, total: 3 }]);
   });
 
   it('chestsRow-countsExperienceFactsBySourceType-chestOnly', () => {
@@ -181,9 +193,9 @@ describe('collectiblesSummary', () => {
         sourceType: 'chest',
       },
     ];
-    expect(collectiblesSummary(facts, { coins: 0, fruits: 0, enemies: 0, crates: 0, chests: 2 })).toEqual([
-      { labelKey: 'chests', collected: 1, total: 2 },
-    ]);
+    expect(
+      collectiblesSummary(facts, { coins: 0, fruits: 0, enemies: 0, crates: 0, chests: 2 }),
+    ).toEqual([{ labelKey: 'chests', collected: 1, total: 2 }]);
   });
 
   it('rowOrder-cratesThenChests-afterEnemies', () => {
@@ -192,7 +204,9 @@ describe('collectiblesSummary', () => {
   });
 
   it('nothingPlacedForAnyRow-omitsAllRows', () => {
-    expect(collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 0, chests: 0 })).toEqual([]);
+    expect(
+      collectiblesSummary([], { coins: 0, fruits: 0, enemies: 0, crates: 0, chests: 0 }),
+    ).toEqual([]);
   });
 
   it('coinsCollectedProvided-overridesTheFactsDerivedCount', () => {
@@ -267,7 +281,7 @@ describe('collectiblesSummary', () => {
 });
 
 /** A minimal fact in the given section — only `sectionId` matters to
- *  countCollectedFor, but CollectedFact requires the rest. */
+ * countCollectedFor, but CollectedFact requires the rest. */
 const factIn = (id: string, sectionId: SectionId): CollectedFact => ({
   id,
   sectionId,
@@ -278,11 +292,7 @@ const factIn = (id: string, sectionId: SectionId): CollectedFact => ({
 
 describe('countCollectedFor', () => {
   it('crates-crateSectionFacts-countsEveryOne', () => {
-    const facts = [
-      factIn('a', 'education'),
-      factIn('b', 'activities'),
-      factIn('c', 'languages'),
-    ];
+    const facts = [factIn('a', 'education'), factIn('b', 'activities'), factIn('c', 'languages')];
 
     expect(countCollectedFor('crates', facts)).toBe(3);
   });

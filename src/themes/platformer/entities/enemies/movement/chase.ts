@@ -15,7 +15,7 @@ export interface ChaseMovementConfig {
 
 /**
  * A proximity-reactive pursuit behavior. It ships tested but is used by **no
- * registered enemy kind** (FR-016) — its value is proving the seam supports a
+ * registered enemy kind** — its value is proving the seam supports a
  * behavior that reads the character's position, without shipping one.
  *
  * Distance is measured between the enemy's tile centre and the player box's

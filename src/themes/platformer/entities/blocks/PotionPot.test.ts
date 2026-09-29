@@ -1,6 +1,6 @@
 import { potionPot } from './PotionPot';
 import { toBlockState } from '../Block';
-import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
+import { POT_BOUNCE_VY } from './pot';
 import { WORLD_TILESET_SHEET } from '../sprites/sheets';
 import { frameSource } from '../sprites/SpriteSheet';
 
@@ -36,7 +36,7 @@ describe('potionPot.onHit', () => {
 
     expect(outcome).toEqual({
       spawnPickup: 'heart',
-      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
+      effects: [{ type: 'velocity', y: POT_BOUNCE_VY, preserveJump: true }],
     });
   });
 
@@ -47,7 +47,7 @@ describe('potionPot.onHit', () => {
 
     expect(outcome).toEqual({
       spawnPickup: 'heart',
-      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
+      effects: [{ type: 'velocity', y: POT_BOUNCE_VY, preserveJump: true }],
     });
   });
 });

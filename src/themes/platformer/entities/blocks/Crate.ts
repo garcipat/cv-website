@@ -12,9 +12,9 @@ const CRATE_FRAME = 55;
 const MAX_HITS = 2;
 
 /** Whether a crate's cracked-overlay sprite (`crack_overlay.png`) should be
- *  composited over its base tile — only between its first hit (cracked) and
- *  second hit (shattered/removed), never on an intact or fully-broken
- *  crate. */
+ * composited over its base tile — only between its first hit (cracked) and
+ * second hit (shattered/removed), never on an intact or fully-broken
+ * crate. */
 export function crateCrackOverlayVisible(hitsTaken: number): boolean {
   return hitsTaken === 1;
 }
@@ -61,11 +61,31 @@ export const crate: BlockType = {
     const dy = block.y + dc.originY + blockBumpOffsetY(block);
 
     dc.ctx.globalAlpha = crateShatterOpacity(block);
-    dc.ctx.drawImage(image, sx, sy, TILE_SIZE, TILE_SIZE, dx, dy, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+    dc.ctx.drawImage(
+      image,
+      sx,
+      sy,
+      TILE_SIZE,
+      TILE_SIZE,
+      dx,
+      dy,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
+    );
 
     const overlayImage = dc.sprites[CRACK_OVERLAY_SHEET.src];
     if (overlayImage && crateCrackOverlayVisible(block.hitsTaken)) {
-      dc.ctx.drawImage(overlayImage, 0, 0, TILE_SIZE, TILE_SIZE, dx, dy, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE);
+      dc.ctx.drawImage(
+        overlayImage,
+        0,
+        0,
+        TILE_SIZE,
+        TILE_SIZE,
+        dx,
+        dy,
+        RENDERED_TILE_SIZE,
+        RENDERED_TILE_SIZE,
+      );
     }
     dc.ctx.globalAlpha = 1;
   },

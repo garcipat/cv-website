@@ -29,7 +29,9 @@ describe('KEY sizing constants', () => {
   });
 
   it('renderedWidth-preservesNativeAspectRatio', () => {
-    expect(KEY_RENDERED_WIDTH).toBe(Math.round((KEY_FRAME_WIDTH / KEY_FRAME_HEIGHT) * KEY_RENDERED_HEIGHT));
+    expect(KEY_RENDERED_WIDTH).toBe(
+      Math.round((KEY_FRAME_WIDTH / KEY_FRAME_HEIGHT) * KEY_RENDERED_HEIGHT),
+    );
   });
 
   it('tileOffsetY-bottomAnchorsKeyWithinItsTile', () => {

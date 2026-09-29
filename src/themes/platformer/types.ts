@@ -52,9 +52,9 @@ export interface SkillCategoryFact {
 }
 
 /** Distinguishes a category-level skill fact from every other single-item
- *  `CVItemData` shape at runtime (needed since `data`'s type alone doesn't
- *  narrow reliably — `SkillCategoryFact` and e.g. `Project` are both plain
- *  objects with no shared discriminant field). */
+ * `CVItemData` shape at runtime (needed since `data`'s type alone doesn't
+ * narrow reliably — `SkillCategoryFact` and e.g. `Project` are both plain
+ * objects with no shared discriminant field). */
 export function isSkillCategoryFact(
   data: CVItemData | SkillCategoryFact,
 ): data is SkillCategoryFact {
@@ -68,7 +68,7 @@ export function isSkillCategoryFact(
 }
 
 /**
- * A single discovered CV fact, per spec.md FR-032. `sourceType` distinguishes
+ * A single discovered CV fact, per . `sourceType` distinguishes
  * how it was revealed (coin/enemy/block/chest).
  */
 export interface CollectedFact {
@@ -93,15 +93,15 @@ export interface CollectedFact {
 export interface EnemyDef {
   id: string;
   /** Key into ENEMY_TYPES — derived from the registry, so registering a new
-   *  kind widens this union for free (research D7). */
+   * kind widens this union for free. */
   type: EnemyTypeKey;
   /** Absent for a "plain" enemy — a level-author-placed marker beyond
-   *  CVData's course count for that color (see `EnemyMapper.ts`'s
-   *  `placeEnemies`). Enemies are not capped at CVData's length: only
-   *  the first N markers of each color (N = that color's course count)
-   *  reveal a fact on defeat; any further marker is still a normal,
-   *  killable enemy, it just carries no CV reward. Mirrors `BlockDef.fact`'s
-   *  optionality for question-mark/fragileRock blocks. */
+   * CVData's course count for that color (see `EnemyMapper.ts`'s
+   * `placeEnemies`). Enemies are not capped at CVData's length: only
+   * the first N markers of each color (N = that color's course count)
+   * reveal a fact on defeat; any further marker is still a normal,
+   * killable enemy, it just carries no CV reward. Mirrors `BlockDef.fact`'s
+   * optionality for question-mark/fragileRock blocks. */
   fact?: CollectedFact;
 }
 
@@ -119,15 +119,15 @@ export interface BlockDef {
   id: string;
   blockKind: BlockKind;
   /** Present only when `blockKind === 'crate'` — every other kind
-   *  (question-mark, fragileRock, coinPot, potionPot) never carries a fact. */
+   * (question-mark, fragileRock, coinPot, potionPot) never carries a fact. */
   fact?: CollectedFact;
 }
 
 /**
  * One mapped, not-yet-placed chest — `ChestMapper.ts`'s `mapCVDataToChests`
- * produces these from CVData (one per Experience entry, spec.md FR-023);
+ * produces these from CVData (one per Experience entry);
  * `placeChests` adds x/y to turn each into a `ChestPlacement`. Mirrors
- * `EnemyDef`'s shape (always carries a `fact`, no visual-state field here —
+ * `EnemyDef`'s shape (always carries a `fact`, no visual-state field here
  * live open/closed state is `entities/Chest.ts`'s `ChestState`, layered on
  * top the same way `BlockState` layers hit-count/animation onto
  * `BlockPlacement`).

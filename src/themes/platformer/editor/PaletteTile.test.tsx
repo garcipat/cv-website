@@ -104,13 +104,13 @@ describe('PaletteTile', () => {
     );
 
     // The overlay layer is `alt=""` (decorative, so AT doesn't announce it
-    // twice), which computes to ARIA role "presentation" rather than "img" —
+    // twice), which computes to ARIA role "presentation" rather than "img"
     // so both layers are queried by tag here rather than by role.
     const layers = container.querySelectorAll('img');
     expect(layers).toHaveLength(2);
-    expect(Array.from(layers).every((img) => img.getAttribute('src') === '/sprites/tile_atlas.png')).toBe(
-      true,
-    );
+    expect(
+      Array.from(layers).every((img) => img.getAttribute('src') === '/sprites/tile_atlas.png'),
+    ).toBe(true);
   });
 
   it('spriteWithOverlay-positionsTheOverlayByItsOwnOffset', () => {
@@ -242,7 +242,14 @@ describe('PaletteTile', () => {
   it('spriteWithTint-rendersATranslucentOverlay', () => {
     const sprite: TileSpriteSpec = { ...SPRITE, tint: 'rgba(220, 38, 38, 0.45)' };
 
-    render(<PaletteTile label="Falling Stalactite" sprite={sprite} selected={false} onClick={() => {}} />);
+    render(
+      <PaletteTile
+        label="Falling Stalactite"
+        sprite={sprite}
+        selected={false}
+        onClick={() => {}}
+      />,
+    );
 
     const tint = screen.getByTestId('palette-tile-tint');
     expect(tint.style.backgroundColor).toBe('rgba(220, 38, 38, 0.45)');
@@ -255,13 +262,20 @@ describe('PaletteTile', () => {
   });
 
   it('spriteWithTint-masksTheWashToTheSpritesOwnOpaquePixels', () => {
-    // Regression (O-027): an unmasked `inset: 0` wash tints the whole icon
+    // Regression: an unmasked `inset: 0` wash tints the whole icon
     // box — including the transparent background around the stone — instead
     // of only the stalactite art. The wash must be masked by the sprite's own
     // sheet/crop so its alpha decides what gets tinted.
     const sprite: TileSpriteSpec = { ...SPRITE, tint: 'rgba(220, 38, 38, 0.45)' };
 
-    render(<PaletteTile label="Falling Stalactite" sprite={sprite} selected={false} onClick={() => {}} />);
+    render(
+      <PaletteTile
+        label="Falling Stalactite"
+        sprite={sprite}
+        selected={false}
+        onClick={() => {}}
+      />,
+    );
 
     const tint = screen.getByTestId('palette-tile-tint');
     expect(tint.style.maskImage).toContain('/sprites/coin.png');
@@ -271,7 +285,14 @@ describe('PaletteTile', () => {
     const sprite = PALETTE_TOOLS.fallingStalactite.sprite;
     expect(sprite?.tint).toBeTruthy();
 
-    render(<PaletteTile label="Falling Stalactite" sprite={sprite} selected={false} onClick={() => {}} />);
+    render(
+      <PaletteTile
+        label="Falling Stalactite"
+        sprite={sprite}
+        selected={false}
+        onClick={() => {}}
+      />,
+    );
 
     expect(screen.getByTestId('palette-tile-tint')).toBeInTheDocument();
   });

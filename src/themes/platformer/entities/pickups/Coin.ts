@@ -12,8 +12,8 @@ export const COIN_RENDERED_SIZE = COIN_FRAME_SIZE * RENDER_SCALE;
 export const COIN_FRAME_COUNT = 12;
 
 /** Seconds each spin frame is held before advancing — a snappier cycle than
- *  the player's idle animation, since a coin's spin is a small ambient loop
- *  rather than a state-driven animation. */
+ * the player's idle animation, since a coin's spin is a small ambient loop
+ * rather than a state-driven animation. */
 export const COIN_FRAME_DURATION = 0.12;
 
 /**
@@ -30,8 +30,8 @@ export function coinFrameIndex(elapsedSeconds: number): number {
 }
 
 /** Vertical bob distance in rendered px, and the full up-down-up cycle's
- *  duration in seconds — a small ambient float layered on top of the spin,
- *  driven by the same shared elapsed clock as coinFrameIndex. */
+ * duration in seconds — a small ambient float layered on top of the spin,
+ * driven by the same shared elapsed clock as coinFrameIndex. */
 export const COIN_BOB_AMPLITUDE = 3;
 export const COIN_BOB_PERIOD_SECONDS = 1.6;
 
@@ -48,7 +48,7 @@ export function coinBobOffset(elapsedSeconds: number): number {
 }
 
 /**
- * The `PickupType` view (and, since R-006, the single home) of the placed
+ * The `PickupType` view (and, since , the single home) of the placed
  * coin. The placed coin is the one pickup whose state is keyed by its own
  * position (`CollectiblePlacement`) — see `level/CollectibleMapper.ts`.
  * Collecting it declares the paced skill-fact consequences; the shared applier

@@ -67,7 +67,7 @@ export interface CollectiblePlacement extends Pickup {
  * A question-mark block's reward is NOT placed here — a hit `Q` spawns its own
  * rising fruit (`entities/pickups/Fruit.ts`'s `spawnFruit`), so the former
  * dormant placed-fruit branch and its `CollectibleMarkerPositions.fruit` field
- * were removed (R-002 FR-022). This path is coin-only.
+ * were removed. This path is coin-only.
  */
 export function placeCollectibles(
   coinMarkers: readonly { col: number; row: number }[],

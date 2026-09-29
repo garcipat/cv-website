@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { paintMarkerCell, eraseMarkerCell, paintSignMarker, paintTorchMarker, resizeMarkerGrid } from './paintMarkerCell';
+import {
+  paintMarkerCell,
+  eraseMarkerCell,
+  paintSignMarker,
+  paintTorchMarker,
+  resizeMarkerGrid,
+} from './paintMarkerCell';
 import type { MarkerGrid } from '../../level/LevelData';
 import { DEFAULT_HINT_ID } from '../../level/HintCatalog';
 

@@ -99,8 +99,8 @@ export interface EditorCanvasPaneProps {
 
 /**
  * Container that wires the editor values into the presentational
- * `EditorCanvas` (FR-015). It owns only the transient interaction state
- * FR-019 carves out — the per-canvas pan offset, the hovered cell and the
+ * `EditorCanvas`. It owns only the transient interaction state
+ * carves out — the per-canvas pan offset, the hovered cell and the
  * loaded sprite images — and delegates every mutation to `editorActions`.
  */
 export const EditorCanvasPane = ({
@@ -131,7 +131,8 @@ export const EditorCanvasPane = ({
     col: number;
     row: number;
   } | null>(null);
-  const activeHover = hoveredCell !== null && hoveredCell.key === hoverResetKey ? hoveredCell : null;
+  const activeHover =
+    hoveredCell !== null && hoveredCell.key === hoverResetKey ? hoveredCell : null;
   const [images, setImages] = useState<EditorImages>(EMPTY_IMAGES);
 
   const activePanOffset = isBlueprintMode ? blueprintPanOffset : panOffset;
@@ -148,7 +149,7 @@ export const EditorCanvasPane = ({
   }, []);
 
   // Reopening/reloading the editor starts every canvas back at 100% zoom
-  // (spec FR-009), mirroring how centerRequestId already re-centers pan. The
+  //, mirroring how centerRequestId already re-centers pan. The
   // direct setState calls are intentional (a request signal driving reset
   // state, not a value derived from props/state) — same justification as
   // ControlsOverlay.tsx's own identical disable.
@@ -175,10 +176,10 @@ export const EditorCanvasPane = ({
   );
 
   /** Moves the active pan by the negative of a grid growth so existing content
-   *  does not visually move (spec SC-006). The shift is in tiles, but the pan
-   *  offset is raw screen pixels and content renders at `world * zoom + pan`,
-   *  so a grown column moves existing content by `RENDERED_TILE_SIZE * zoom`
-   *  screen pixels — the compensation has to carry that same zoom factor. */
+   * does not visually move. The shift is in tiles, but the pan
+   * offset is raw screen pixels and content renders at `world * zoom + pan`,
+   * so a grown column moves existing content by `RENDERED_TILE_SIZE * zoom`
+   * screen pixels — the compensation has to carry that same zoom factor. */
   const compensateForGrowth = useCallback(
     (shift: GrowthShift | null) => {
       if (shift === null || (shift.colShift === 0 && shift.rowShift === 0)) return;
@@ -243,7 +244,11 @@ export const EditorCanvasPane = ({
       if (event.key !== 'z' && event.key !== 'Z') return;
       if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
-      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) {
+      if (
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.isContentEditable
+      ) {
         return;
       }
       event.preventDefault();

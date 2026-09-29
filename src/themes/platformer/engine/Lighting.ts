@@ -36,10 +36,10 @@ export interface Point {
   y: number;
 }
 
-/** Darkness cap — a brightness floor so the scene stays readable (FR-005). */
+/** Darkness cap — a brightness floor so the scene stays readable. */
 export const MAX_DARKNESS = 0.97;
 
-/** Enter/exit fade duration in seconds (FR-003, SC-001). */
+/** Enter/exit fade duration in seconds. */
 export const DARKNESS_FADE_SECONDS = 0.4;
 
 /**
@@ -47,7 +47,7 @@ export const DARKNESS_FADE_SECONDS = 0.4;
  * `rgb(...)` and `rgba(..., alpha)` strings from it) — a cool, muted slate
  * tone, deliberately distinct from darkness's neutral black so a visitor
  * reads "fogged from outside" and "dark because I'm inside" as two different
- * things rather than the same overlay at two strengths (O-028 FR-009).
+ * things rather than the same overlay at two strengths.
  */
 export const FOG_TINT_RGB = '92, 108, 122';
 
@@ -63,7 +63,7 @@ export const FOG_DENSITY = 0.88;
  * A fog puff's radius, in rendered pixels — well over a full tile so
  * neighbouring puffs overlap generously and read as one continuous bank of
  * fog rather than a row of separate dots, and bleed into whatever clear cell
- * sits next to a cave-family one instead of stopping dead at the grid line —
+ * sits next to a cave-family one instead of stopping dead at the grid line
  * nearly two tiles' radius, so the soft falloff reaches over adjacent tiles.
  */
 export const FOG_PUFF_RADIUS_PX = 1.85 * RENDERED_TILE_SIZE;
@@ -81,7 +81,7 @@ export const FOG_PUFF_RADIUS_PX = 1.85 * RENDERED_TILE_SIZE;
  * an ISOLATED single- or two-cell fog patch — one with no neighbouring
  * cave-family cell whose own puff would otherwise overlap and reinforce
  * it — can sit close enough to this puff's soft rim to be faintly
- * legible, rather than fully hidden as FR-002 asks for in the strict
+ * legible, rather than fully hidden as asks for in the strict
  * case. Two stricter alternatives were tried and reverted: extending the
  * plateau (reads as flat paint again) and a separate small solid coverage
  * circle under the haze (reads as an obvious second circle wherever the
@@ -104,17 +104,17 @@ export const FOG_PUFF_PLATEAU = 0.3;
 export const FOG_PUFF_JITTER_PX = 0.12 * RENDERED_TILE_SIZE;
 
 /** Depth of a fog puff's own gentle "breathing" pulse, as a fraction of its
- *  radius — same shape as `TORCH_PULSE_AMPLITUDE` below, kept as its own
- *  constant since fog and torch light are unrelated effects that happen to
- *  share a technique. */
+ * radius — same shape as `TORCH_PULSE_AMPLITUDE` below, kept as its own
+ * constant since fog and torch light are unrelated effects that happen to
+ * share a technique. */
 export const FOG_PULSE_AMPLITUDE = 0.06;
 
 /** Seconds per full fog-puff breath — slow and calm, the same spirit as
- *  `TORCH_PULSE_PERIOD_SECONDS`: barely perceptible, never a flicker. */
+ * `TORCH_PULSE_PERIOD_SECONDS`: barely perceptible, never a flicker. */
 export const FOG_PULSE_PERIOD_SECONDS = 3.4;
 
 /**
- * A deterministic pseudo-random value in `[0, 1)` for `(col, row, salt)` —
+ * A deterministic pseudo-random value in `[0, 1)` for `(col, row, salt)`
  * the same `Math.imul` position-hash `Torch.ts`'s `torchPhase` uses,
  * generalized with a salt so one cell can draw several independent values
  * (a jitter angle, a jitter distance, a pulse phase) without them
@@ -146,9 +146,7 @@ export function fogPuffAt(
   const jitterDistance = cellHash01(col, row, 2) * FOG_PUFF_JITTER_PX;
   const phaseOffset = cellHash01(col, row, 3);
   const pulseScale =
-    1 +
-    FOG_PULSE_AMPLITUDE *
-      pulse(worldElapsed / FOG_PULSE_PERIOD_SECONDS + phaseOffset);
+    1 + FOG_PULSE_AMPLITUDE * pulse(worldElapsed / FOG_PULSE_PERIOD_SECONDS + phaseOffset);
 
   return {
     x: centerX + Math.cos(jitterAngle) * jitterDistance,
@@ -183,21 +181,21 @@ export function fogPeekStrengthAt(x: number, y: number, player: Point): number {
   return smoothstep(t);
 }
 
-/** Below this local darkness, an enemy shows its normal sprite (FR-015). */
+/** Below this local darkness, an enemy shows its normal sprite. */
 export const ENEMY_EYE_DARKNESS_THRESHOLD = 0.25;
 
-/** Width of the fade band above the threshold (FR-016). */
+/** Width of the fade band above the threshold. */
 export const ENEMY_EYE_FADE_RANGE = 0.25;
 
-/** Glowing yellow eye marker colour (FR-015). */
+/** Glowing yellow eye marker colour. */
 export const ENEMY_EYE_COLOR = 'rgb(255, 204, 0)';
 
 /** Eye square size in rendered pixels — 2 native px, so it reads as a pair of
- *  pixel-art eyes rather than a single dot (FR-018). */
+ * pixel-art eyes rather than a single dot. */
 export const ENEMY_EYE_SIZE_PX = 2 * RENDER_SCALE;
 
 /** Centre-to-centre gap between the two eyes, in rendered pixels — 4 native
- *  px, wide enough to read as a face at the slimes' size (FR-018). */
+ * px, wide enough to read as a face at the slimes' size. */
 export const ENEMY_EYE_GAP_PX = 4 * RENDER_SCALE;
 
 function clampDarkness(value: number): number {
@@ -211,7 +209,7 @@ function clampDarkness(value: number): number {
  * `[0, MAX_DARKNESS]`.
  *
  * - `dt <= 0` returns `current` unchanged (a paused/degenerate tick must not
- *   move the darkness).
+ * move the darkness).
  * - `fadeSeconds <= 0` snaps straight to `target`.
  * - The result is always within `[0, MAX_DARKNESS]`.
  */
@@ -231,8 +229,8 @@ export function nextDarknessLevel(
 }
 
 /**
- * Whether `(col, row)`'s background material belongs to the `cave` family —
- * a direct grid lookup (FR-009), replacing the old AABB placement-footprint
+ * Whether `(col, row)`'s background material belongs to the `cave` family
+ * a direct grid lookup, replacing the old AABB placement-footprint
  * scan. An empty cell (`backgroundAt` returns `null`) never darkens.
  */
 export function isCellDarkening(level: LevelDef, col: number, row: number): boolean {
@@ -242,13 +240,13 @@ export function isCellDarkening(level: LevelDef, col: number, row: number): bool
 
 /**
  * The cell the player's feet are within — the cell the player "occupies" for
- * the darkness probe (FR-002). Deterministic and matching the existing
+ * the darkness probe. Deterministic and matching the existing
  * centered-on-a-tile player model.
  *
  * The `- 1` matters: a standing player's feet rest exactly on the top edge of
  * the floor tile, so `floor(feetBottom / tile)` would return the *floor* tile
  * and never probe the cell the player's body is actually in. Subtracting one
- * lands inside the last pixel row of the feet, i.e. the occupied (air) cell —
+ * lands inside the last pixel row of the feet, i.e. the occupied (air) cell
  * the same "tile the feet are within" convention `Physics.ts` uses for its
  * horizontal-collision and climb checks. This is what lets the shipped cave's
  * charcoal backdrop (which covers the gallery's air cells) darken the view as
@@ -268,7 +266,7 @@ export function playerOccupiedCell(player: PlayerState): Cell {
  * falling smoothly to `0` at `light.radius`, and `0` beyond it. Generic over
  * `LightSource` — the falloff itself lives once in `shared/math.ts`
  * (`radialFalloffAt`), so this module re-derives no kind-specific formula
- * (FR-010).
+ *.
  */
 function lightStrengthAt(light: LightSource, x: number, y: number): number {
   return radialFalloffAt(x, y, light.x, light.y, light.radius);
@@ -279,10 +277,10 @@ function lightStrengthAt(light: LightSource, x: number, y: number): number {
  * `clamp(darknessLevel - strongestLight, 0, darknessLevel)`. Uses the
  * **maximum** contribution, not a sum, so overlapping pools never
  * over-brighten; returns `darknessLevel` unchanged when there are no lights.
- * Ignores `punchHole` — a glow-only light still illuminates (FR-007).
+ * Ignores `punchHole` — a glow-only light still illuminates.
  *
  * The list is the single `LightSource[]` the darkness pass and the enemy-eye
- * pass also consume; no torch/player input pair remains (FR-007/FR-009).
+ * pass also consume; no torch/player input pair remains.
  */
 export function localDarknessAt(
   x: number,
@@ -302,7 +300,7 @@ export function localDarknessAt(
  * How opaque an enemy's eye marker is at `localDarkness`: `0` at or below
  * `ENEMY_EYE_DARKNESS_THRESHOLD`, rising smoothly (smoothstep) to `1` at
  * `ENEMY_EYE_DARKNESS_THRESHOLD + ENEMY_EYE_FADE_RANGE`, and clamped to
- * `[0, 1]` (FR-015/FR-016).
+ * `[0, 1]`.
  */
 export function enemyEyeOpacity(localDarkness: number): number {
   if (localDarkness <= ENEMY_EYE_DARKNESS_THRESHOLD) return 0;
@@ -310,10 +308,10 @@ export function enemyEyeOpacity(localDarkness: number): number {
   return smoothstep(clamp01(t));
 }
 
-/** Seconds per full up-down bob of an enemy's eye marker (FR-018). */
+/** Seconds per full up-down bob of an enemy's eye marker. */
 export const ENEMY_EYE_BOB_PERIOD_SECONDS = 1.5;
 
-/** Peak vertical travel of the eye bob, in rendered pixels (FR-018). */
+/** Peak vertical travel of the eye bob, in rendered pixels. */
 export const ENEMY_EYE_BOB_AMPLITUDE_PX = 3;
 
 /**
@@ -321,7 +319,7 @@ export const ENEMY_EYE_BOB_AMPLITUDE_PX = 3;
  * up and down over time, so a hidden enemy's eyes read as alive rather than as
  * two static dots. Driven by the shared world clock, so it freezes with the
  * rest of the world. Always within
- * `[-ENEMY_EYE_BOB_AMPLITUDE_PX, ENEMY_EYE_BOB_AMPLITUDE_PX]` (FR-018).
+ * `[-ENEMY_EYE_BOB_AMPLITUDE_PX, ENEMY_EYE_BOB_AMPLITUDE_PX]`.
  */
 export function enemyEyeBobOffset(worldElapsed: number): number {
   return pulse(worldElapsed / ENEMY_EYE_BOB_PERIOD_SECONDS) * ENEMY_EYE_BOB_AMPLITUDE_PX;

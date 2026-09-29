@@ -1,7 +1,12 @@
 import { createRewardReveal } from './rewards';
 import { collectedFacts, activeEffects } from '../PlatformerState';
 import { COLLECTION_TEXT_SLOT_COUNT, createSlotAllocator } from '../engine/effects';
-import type { CounterPopupState, FlyingTextState, SlotAllocator, TransientEffect } from '../engine/effects';
+import type {
+  CounterPopupState,
+  FlyingTextState,
+  SlotAllocator,
+  TransientEffect,
+} from '../engine/effects';
 import type { CollectedFact } from '../types';
 
 const factIn = (id: string, sectionId: CollectedFact['sectionId']): CollectedFact => ({
@@ -15,11 +20,14 @@ const factIn = (id: string, sectionId: CollectedFact['sectionId']): CollectedFac
 // The unified collection holds every kind; these narrow to the two families
 // this trigger spawns.
 const flyingTexts = (): TransientEffect<FlyingTextState>[] =>
-  activeEffects.value.filter((effect) => effect.kind === 'flyingText') as TransientEffect<FlyingTextState>[];
+  activeEffects.value.filter(
+    (effect) => effect.kind === 'flyingText',
+  ) as TransientEffect<FlyingTextState>[];
 const popupFor = (labelKey: string): TransientEffect<CounterPopupState> | undefined =>
   activeEffects.value.find(
     (effect): effect is TransientEffect<CounterPopupState> =>
-      effect.kind === 'counterPopup' && (effect as TransientEffect<CounterPopupState>).state.labelKey === labelKey,
+      effect.kind === 'counterPopup' &&
+      (effect as TransientEffect<CounterPopupState>).state.labelKey === labelKey,
   );
 
 // The allocator is stateful, so every context gets its own — except where a
@@ -149,7 +157,9 @@ describe('createRewardReveal', () => {
     }
 
     // The (COLLECTION_TEXT_SLOT_COUNT + 1)-th reveal is back on slot 0.
-    expect(flyingTexts()[COLLECTION_TEXT_SLOT_COUNT].state.startY).toBe(flyingTexts()[0].state.startY);
+    expect(flyingTexts()[COLLECTION_TEXT_SLOT_COUNT].state.startY).toBe(
+      flyingTexts()[0].state.startY,
+    );
   });
 
   it('twoRevealsInOneTick-applyTheSameStackOffsetToStartYAndMidY', () => {

@@ -20,11 +20,7 @@ import {
 import type { ChestState } from './Chest';
 import type { ChestPlacement } from '../../level/ChestMapper';
 import { CHEST_CLOSED_SHEET, CHEST_OPEN_SHEET } from '../sprites/sheets';
-import {
-  PLAYER_RENDERED_SIZE,
-  PLAYER_FOOT_PADDING,
-  PLAYER_HIT_REACTION_SECONDS,
-} from '../Player';
+import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING, PLAYER_HIT_REACTION_SECONDS } from '../Player';
 import type { PlayerState } from '../Player';
 import type { DrawContext } from '../../contracts/DrawContext';
 
@@ -87,9 +83,7 @@ describe('toChestState', () => {
 describe('isChestState', () => {
   it('chestKind-returnsTrue-andOtherKindsReturnFalse', () => {
     expect(isChestState(toChestState(placement))).toBe(true);
-    expect(
-      isChestState({ id: 'b', kind: 'bomb', col: 0, row: 0, x: 0, y: 0 }),
-    ).toBe(false);
+    expect(isChestState({ id: 'b', kind: 'bomb', col: 0, row: 0, x: 0, y: 0 })).toBe(false);
   });
 });
 
@@ -121,7 +115,10 @@ describe('allChestsOpen', () => {
   });
 
   it('someClosed-returns-false', () => {
-    const chests = [toChestState(placement), openChest(toChestState({ ...placement, id: 'chest-exp-y' }))];
+    const chests = [
+      toChestState(placement),
+      openChest(toChestState({ ...placement, id: 'chest-exp-y' })),
+    ];
     expect(allChestsOpen(chests)).toBe(false);
   });
 
@@ -139,7 +136,9 @@ describe('chestDeployableItem.onPlayerInteract', () => {
 
   it('playerOverlappingClosedChest-returnsAnActivateOutcomeWithKeyCostAndReveal', () => {
     const player = makePlayer(closedChest.x, closedChest.y);
-    expect(chestDeployableItem.onPlayerInteract(closedChest, { level: null as never, player, keys: 1 })).toEqual({
+    expect(
+      chestDeployableItem.onPlayerInteract(closedChest, { level: null as never, player, keys: 1 }),
+    ).toEqual({
       kind: 'activate',
       state: openChest(closedChest),
       keyCost: 1,
@@ -154,7 +153,9 @@ describe('chestDeployableItem.onPlayerInteract', () => {
 
   it('playerOverlappingClosedChestWithNoKey-returnsTheBlockedHint', () => {
     const player = makePlayer(closedChest.x, closedChest.y);
-    expect(chestDeployableItem.onPlayerInteract(closedChest, { level: null as never, player, keys: 0 })).toEqual({
+    expect(
+      chestDeployableItem.onPlayerInteract(closedChest, { level: null as never, player, keys: 0 }),
+    ).toEqual({
       kind: 'blocked',
       hint: 'noKeyForChest',
     });
@@ -162,14 +163,20 @@ describe('chestDeployableItem.onPlayerInteract', () => {
 
   it('playerFarFromAnyChest-returnsNull', () => {
     const player = makePlayer(closedChest.x + 1000, closedChest.y);
-    expect(chestDeployableItem.onPlayerInteract(closedChest, { level: null as never, player, keys: 1 })).toBeNull();
+    expect(
+      chestDeployableItem.onPlayerInteract(closedChest, { level: null as never, player, keys: 1 }),
+    ).toBeNull();
   });
 
   it('alreadyOpenChest-isIgnored-evenWhileOverlapping', () => {
     const openChestState: ChestState = openChest(closedChest);
     const player = makePlayer(openChestState.x, openChestState.y);
     expect(
-      chestDeployableItem.onPlayerInteract(openChestState, { level: null as never, player, keys: 1 }),
+      chestDeployableItem.onPlayerInteract(openChestState, {
+        level: null as never,
+        player,
+        keys: 1,
+      }),
     ).toBeNull();
   });
 

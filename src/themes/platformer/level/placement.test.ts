@@ -33,20 +33,24 @@ describe('placeAtMarkers', () => {
       id: (m) => `sign-${m.hintId}-${m.col}-${m.row}`,
       build: (m) => ({ hintId: m.hintId }),
     });
-    expect(placements).toEqual([
-      { hintId: 'bomb', id: 'sign-bomb-7-8', ...tileToPixel(7, 8) },
-    ]);
+    expect(placements).toEqual([{ hintId: 'bomb', id: 'sign-bomb-7-8', ...tileToPixel(7, 8) }]);
   });
 
   it('theBuildCallback-receivesTheMarkerIndex', () => {
     const indices: number[] = [];
-    placeAtMarkers([{ col: 0, row: 0 }, { col: 1, row: 0 }], {
-      idPrefix: 'x',
-      build: (_m, index) => {
-        indices.push(index);
-        return {};
+    placeAtMarkers(
+      [
+        { col: 0, row: 0 },
+        { col: 1, row: 0 },
+      ],
+      {
+        idPrefix: 'x',
+        build: (_m, index) => {
+          indices.push(index);
+          return {};
+        },
       },
-    });
+    );
     expect(indices).toEqual([0, 1]);
   });
 });

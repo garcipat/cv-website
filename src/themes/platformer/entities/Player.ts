@@ -26,6 +26,25 @@ export const PLAYER_HEAD_PADDING = 9 * RENDER_SCALE; // 18 rendered px
 export const PLAYER_VISUAL_CENTER_Y_OFFSET =
   PLAYER_HEAD_PADDING + (PLAYER_RENDERED_SIZE - PLAYER_HEAD_PADDING - PLAYER_FOOT_PADDING) / 2;
 
+/** A screen-space anchor on the player's sprite: its visual centre or its feet. */
+export type PlayerEffectAnchor = 'center' | 'feet';
+
+/** The player's screen-space effect anchor, given the camera origin: the visual
+ * centre or the feet line, both at the sprite's horizontal centre. */
+export function playerEffectAnchor(
+  player: PlayerState,
+  originX: number,
+  originY: number,
+  anchor: PlayerEffectAnchor,
+): { x: number; y: number } {
+  const x = player.x + PLAYER_RENDERED_SIZE / 2 + originX;
+  const y =
+    anchor === 'feet'
+      ? player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING + originY
+      : player.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
+  return { x, y };
+}
+
 /**
  * Transparent margin on either side of the knight's silhouette inside each
  * 32px native frame (the placeholder sprite's art is ~13px wide, centered in
@@ -39,7 +58,7 @@ export const PLAYER_SIDE_PADDING = 10 * RENDER_SCALE; // 20 rendered px
 
 /**
  * The crouched collision box's height — exactly one rendered tile (32 px), the
- * pixel-level meaning of the spec's "one tile tall" (FR-002). The feet line
+ * pixel-level meaning of the spec's "one tile tall". The feet line
  * (`y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING`) is unchanged by crouch, so
  * the box shrinks upward from the ground line: a standing box spans
  * `[feetY - 38, feetY)`, a crouched box `[feetY - 32, feetY)`.
@@ -49,7 +68,7 @@ export const PLAYER_CROUCH_BOX_HEIGHT = RENDERED_TILE_SIZE; // 32
 /**
  * Box top offset from the render slot's `y` — the single source of truth shared
  * by `Collision.playerHitbox`, `Physics.stepPlayerPhysics` and
- * `DebugOverlay.drawDebugOverlay` (SC-008). Standing uses the sprite's own
+ * `DebugOverlay.drawDebugOverlay`. Standing uses the sprite's own
  * transparent head padding (18); crouched uses the reduced box height so the
  * box's bottom edge stays on the unchanged feet line (24).
  */
@@ -63,7 +82,7 @@ export function playerHeadPaddingFor(crouching: boolean): number {
  * The player's collision box height — the standing box's full silhouette height
  * (38), or the one-tile crouched height (32). The companion to
  * `playerHeadPaddingFor`; both consumers must read this pair so no check can
- * keep the standing height while crouched (SC-008).
+ * keep the standing height while crouched.
  */
 export function playerBoxHeightFor(crouching: boolean): number {
   return crouching
@@ -74,10 +93,10 @@ export function playerBoxHeightFor(crouching: boolean): number {
 export type PlayerAnimState = 'idle' | 'walk' | 'jump' | 'climb' | 'crouch' | 'hit' | 'death';
 
 /** Which of a touched block's four faces the player's collision resolved
- *  against, from the block's own perspective — `'bottom'` means the
- *  player's head hit its underside while rising, `'top'` means the player
- *  landed on it from above, `'left'`/`'right'` mean the player walked into
- *  that side wall. */
+ * against, from the block's own perspective — `'bottom'` means the
+ * player's head hit its underside while rising, `'top'` means the player
+ * landed on it from above, `'left'`/`'right'` mean the player walked into
+ * that side wall. */
 export type BlockContactSide = 'top' | 'bottom' | 'left' | 'right';
 
 /** One block the player touched this tick, tagged with which side. */
@@ -88,7 +107,7 @@ export interface BlockContact {
 
 /**
  * Player-only state, layered onto `Moving`'s `vx`/`vy` (px/s, positive
- * right/down) and `direction` (the direction the sprite is drawn facing —
+ * right/down) and `direction` (the direction the sprite is drawn facing
  * only horizontal movement changes it), onto `SelfAnimated`'s `animFrame`
  * and `animTimer` (seconds accumulated toward the next animation frame
  * advance), both keyed by `animState`, narrowed below, and onto
@@ -104,59 +123,59 @@ export interface PlayerState extends Moving, SelfAnimated, Damageable {
   /** Whether the player is currently resting on a solid tile. */
   grounded: boolean;
   /** Whether the player is currently climbing a `'ladder'` or `'chain'` tile
-   *  — while true, `Physics.ts`'s stepPlayerPhysics suspends gravity and
-   *  drives vertical movement directly from Up/Down instead. */
+   * — while true, `Physics.ts`'s stepPlayerPhysics suspends gravity and
+   * drives vertical movement directly from Up/Down instead. */
   climbing: boolean;
-  /** Whether the player is currently crouched (FR-001): a one-tile collision
-   *  box and interaction hitbox (FR-002), a slower crawl speed and no jump
-   *  (FR-003/FR-004). Set by `stepPlayerPhysics` each tick from the pure
-   *  `resolveCrouching` decision; a required field, always seeded `false` by
-   *  both player-state factories, so a respawn/reset returns the character
-   *  standing (FR-012). Kept separate from the derived `'crouch'` `animState`
-   *  because a hit reaction sets `animState: 'hit'` while the box must stay
-   *  one tile (FR-011). */
+  /** Whether the player is currently crouched: a one-tile collision
+   * box and interaction hitbox, a slower crawl speed and no jump
+   *. Set by `stepPlayerPhysics` each tick from the pure
+   * `resolveCrouching` decision; a required field, always seeded `false` by
+   * both player-state factories, so a respawn/reset returns the character
+   * standing. Kept separate from the derived `'crouch'` `animState`
+   * because a hit reaction sets `animState: 'hit'` while the box must stay
+   * one tile. */
   crouching: boolean;
   /** Whether the player is currently dropping through a `bridge` tile
-   *  they deliberately fell through (Down held while resting on one) —
-   *  see Physics.ts's ground-collision branch. Cleared once they land on
-   *  real solid ground again. */
+   * they deliberately fell through (Down held while resting on one)
+   * see Physics.ts's ground-collision branch. Cleared once they land on
+   * real solid ground again. */
   isDroppingThroughBridge: boolean;
   /** x/y as of the most recent frame where the hitbox's ENTIRE footprint
-   *  rested on solid ground (Physics.ts's `fullyGrounded`) — deliberately
-   *  stricter than the `grounded` field above, which stays lenient (any one
-   *  spanned column solid counts) so the character doesn't feel like it
-   *  falls the instant it's not 100% supported on a ledge. That leniency
-   *  means `grounded` alone can be true while mostly hanging over a gap;
-   *  using it here would let a pit-fall recovery visibly float the
-   *  character over the pit it just fell into. Frozen the instant the
-   *  footprint stops being fully supported (falls off an edge, jumps).
-   *  Used by Physics.ts's resolvePitFall to reposition the character after a
-   *  pit fall to "the last solid ground position before the fall" rather
-   *  than a spawn/checkpoint. */
+   * rested on solid ground (Physics.ts's `fullyGrounded`) — deliberately
+   * stricter than the `grounded` field above, which stays lenient (any one
+   * spanned column solid counts) so the character doesn't feel like it
+   * falls the instant it's not 100% supported on a ledge. That leniency
+   * means `grounded` alone can be true while mostly hanging over a gap;
+   * using it here would let a pit-fall recovery visibly float the
+   * character over the pit it just fell into. Frozen the instant the
+   * footprint stops being fully supported (falls off an edge, jumps).
+   * Used by Physics.ts's resolvePitFall to reposition the character after a
+   * pit fall to "the last solid ground position before the fall" rather
+   * than a spawn/checkpoint. */
   lastGroundedX: number;
   lastGroundedY: number;
   /** The feet line (`y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING`) at the
-   *  start of the previous physics step — genuine motion history beside
-   *  `lastGroundedX/Y`. Compared against the current feet by the floor
-   *  spear's swept contact-from-above test (`entities/hazards/SpearArt.ts`),
-   *  so a single-tick fast fall still registers while a side graze does not.
-   *  Written by `Physics.ts`'s `stepPlayerPhysics` on every return and by
-   *  `resolvePitFall`, and seeded to the state's own feet by both player-state
-   *  factories (`PlatformerState.ts`'s `playerStateAtTile` and
-   *  `editor/ops/previewPlacements.ts`'s `previewPlayerState`) so a spawn/respawn
-   *  never carries a stale pre-death feet line. */
+   * start of the previous physics step — genuine motion history beside
+   * `lastGroundedX/Y`. Compared against the current feet by the floor
+   * spear's swept contact-from-above test (`entities/hazards/SpearArt.ts`),
+   * so a single-tick fast fall still registers while a side graze does not.
+   * Written by `Physics.ts`'s `stepPlayerPhysics` on every return and by
+   * `resolvePitFall`, and seeded to the state's own feet by both player-state
+   * factories (`PlatformerState.ts`'s `playerStateAtTile` and
+   * `editor/ops/previewPlacements.ts`'s `previewPlayerState`) so a spawn/respawn
+   * never carries a stale pre-death feet line. */
   prevFeetY: number;
   /** Narrowed from `SelfAnimated`'s `string` to the player's finite set of
-   *  animation states. */
+   * animation states. */
   animState: PlayerAnimState;
   /** Seconds remaining of forced knockback velocity — 0 means normal
-   *  input-driven movement. While positive, Physics.ts's `stepPlayerPhysics`
-   *  ignores held movement keys and holds the knockback `vx` instead; much
-   *  shorter than PLAYER_HIT_REACTION_SECONDS so the player regains full
-   *  control well before the refractory window (and its blink) ends. Counts
-   *  DOWN, unlike `hitTimer`, and is ticked down inside `stepPlayerPhysics`
-   *  itself rather than here, since that function is the one that reads
-   *  it. */
+   * input-driven movement. While positive, Physics.ts's `stepPlayerPhysics`
+   * ignores held movement keys and holds the knockback `vx` instead; much
+   * shorter than PLAYER_HIT_REACTION_SECONDS so the player regains full
+   * control well before the refractory window (and its blink) ends. Counts
+   * DOWN, unlike `hitTimer`, and is ticked down inside `stepPlayerPhysics`
+   * itself rather than here, since that function is the one that reads
+   * it. */
   knockbackTimer: number;
   /**
    * Every block the player touched this tick, tagged with which side (see
@@ -224,15 +243,19 @@ const ANIM_CONFIG: Record<
   walk: { frameCount: 8, frameDuration: 0.08, sy: PLAYER_FRAME_SIZE * 2 },
   jump: { frameCount: 7, frameDuration: 0.062, sy: 0 },
   climb: { frameCount: 4, frameDuration: 0.1, sy: 0 },
-  // `knight.png`'s 9th row (0-indexed 8) — the dedicated DUCK row (S-012),
+  // `knight.png`'s 9th row (0-indexed 8) — the dedicated DUCK row,
   // drawn low and horizontal so the crouch reads as a duck/crawl rather than
   // standing (`idle`=0, `walk`=2, `hit`=6, `death`=7; `jump`/`climb` use the
   // separate knight2.png). Four crawl frames loop 0→1→2→3→0 while the player
-  // crawls (FR-008); a stationary crouch holds its current frame. `frameDuration`
+  // crawls; a stationary crouch holds its current frame. `frameDuration`
   // sits between `walk`'s 0.08 and `idle`'s 0.15 so the crawl reads as effortful.
   crouch: { frameCount: 4, frameDuration: 0.12, sy: PLAYER_FRAME_SIZE * 8 },
-  hit: { frameCount: HIT_FRAME_COUNT, frameDuration: HIT_FRAME_DURATION, sy: PLAYER_FRAME_SIZE * 6 },
-  // `knight.png`'s 7th row (its 4th frame a shrunken "collapsed" pose) —
+  hit: {
+    frameCount: HIT_FRAME_COUNT,
+    frameDuration: HIT_FRAME_DURATION,
+    sy: PLAYER_FRAME_SIZE * 6,
+  },
+  // `knight.png`'s 7th row (its 4th frame a shrunken "collapsed" pose)
   // slower than `hit` so the collapse reads as weighty; played once by
   // PlatformerPage.tsx's game loop during the 'dying' phase's lead-in (see
   // GameLifecycle.ts's DEATH_ANIM_SECONDS), then held on its last frame.
@@ -282,7 +305,7 @@ const FALL_ROW_SY = 161;
 
 /**
  * Frame source for the jump/fall animation, keyed by the player's vertical
- * velocity rather than a separate `animState` value (FR-032 keeps
+ * velocity rather than a separate `animState` value ( keeps
  * `animState` limited to `'idle' | 'walk' | 'jump'`): rising (`vy < 0`) uses
  * the 7-frame JUMP row, falling or at the arc's apex (`vy >= 0`) uses the
  * 4-frame FALL row.
@@ -314,13 +337,13 @@ export function climbFrameSource(frame: number): { sx: number; sy: number } {
 }
 
 /** Advances the player's animation timer/frame by `dt` seconds. No-op for
- *  `'hit'` — its frame is derived directly from `hitTimer` at render time
- *  instead (see `hitFrameFromTimer`), not advanced incrementally here. */
+ * `'hit'` — its frame is derived directly from `hitTimer` at render time
+ * instead (see `hitFrameFromTimer`), not advanced incrementally here. */
 export function advancePlayerAnimation(player: PlayerState, dt: number): PlayerState {
   if (player.animState === 'hit') return player;
   if (player.animState === 'climb' && player.vy === 0) return player;
   // Mirrors the `climb` freeze: a stationary crouch holds one tucked frame,
-  // and only alternates its two frames while actually crawling (FR-008).
+  // and only alternates its two frames while actually crawling.
   if (player.animState === 'crouch' && player.vx === 0) return player;
   const { frameCount, frameDuration } = ANIM_CONFIG[player.animState];
   const animTimer = player.animTimer + dt;
@@ -396,8 +419,8 @@ export function advancePlayerHitTimer(player: PlayerState, dt: number): PlayerSt
 }
 
 /** Optional knockback bundled with a hit reaction: the direction/speed the
- *  player is pushed away from whatever hit them, and how long input is
- *  overridden. Omitted for a hit that deals damage without moving the player. */
+ * player is pushed away from whatever hit them, and how long input is
+ * overridden. Omitted for a hit that deals damage without moving the player. */
 export interface HitKnockback {
   /** Direction the player is pushed — and the facing they adopt. */
   direction: -1 | 1;
@@ -415,7 +438,7 @@ export interface HitKnockback {
  * Knockback is a separate, optional effect: pass a `HitKnockback` to also set
  * `vx`/`direction` (facing away from the hit) and `knockbackTimer`; omit it for
  * a hit that deals damage but must not move the player (a floor spike, or any
- * hit taken while crouched — FR-011/SC-009). Keeping the visual here and the
+ * hit taken while crouched — /). Keeping the visual here and the
  * knockback in the optional argument is what makes every damage source look the
  * same while each source decides for itself whether it knocks back.
  *
@@ -467,8 +490,8 @@ export function beginPitFallReaction(player: PlayerState): PlayerState {
 export const PLAYER_HIT_REACTION_SECONDS = 0.8;
 
 /** Seconds between blink phase flips while a pit fall's invulnerability
- *  window is open and `animState` is not `'hit'` (see `beginPitFallReaction`'s
- *  doc comment for why a pit fall never enters `'hit'`). */
+ * window is open and `animState` is not `'hit'` (see `beginPitFallReaction`'s
+ * doc comment for why a pit fall never enters `'hit'`). */
 export const PLAYER_BLINK_INTERVAL_SECONDS = 0.1;
 
 /**
@@ -479,7 +502,7 @@ export const PLAYER_BLINK_INTERVAL_SECONDS = 0.1;
  *
  * The phase is measured from the START of the window (elapsed `hitTimer`
  * parity, flipped so the first interval is hidden): the instant of the hit
- * must always read as the sprite vanishing, for any reaction duration —
+ * must always read as the sprite vanishing, for any reaction duration
  * anchoring from the window's END instead would make that first-frame
  * parity an accident of whether the duration happens to divide evenly by
  * `PLAYER_BLINK_INTERVAL_SECONDS`.
@@ -489,22 +512,22 @@ export function isPlayerBlinkVisible(hitTimer: number): boolean {
 }
 
 /** Radius of the player's own carried light, in rendered pixels — deliberately
- *  much smaller than a wall torch's so torches stay the landmarks (FR-023). */
+ * much smaller than a wall torch's so torches stay the landmarks. */
 export const PLAYER_LIGHT_RADIUS_PX = 1.75 * RENDERED_TILE_SIZE;
 
 /** The player's own carried glow — a touch more orange and less yellow than the
- *  wall torches', and softer overall (FR-023). */
+ * wall torches', and softer overall. */
 export const PLAYER_GLOW_COLOR = 'rgb(255, 145, 45)';
 
-/** How strong the player's warm glow is relative to a torch's (FR-023). */
+/** How strong the player's warm glow is relative to a torch's. */
 export const PLAYER_GLOW_INTENSITY = 0.7;
 
 /**
  * The player's own carried light at `(x, y)` in `[0, 1]`: `1` at the light's
  * centre, falling smoothly to `0` at `PLAYER_LIGHT_RADIUS_PX`. Steady rather
- * than pulsing, so the player's readability never flickers (FR-023/FR-024).
+ * than pulsing, so the player's readability never flickers.
  * Delegates the falloff to `shared/math.ts`'s `radialFalloffAt` so the formula
- * has one implementation (FR-010).
+ * has one implementation.
  */
 export function playerGlowStrengthAt(
   x: number,
@@ -515,10 +538,10 @@ export function playerGlowStrengthAt(
 }
 
 /** The held torch's size multiplier (native px → drawn px) and where it sits
- *  relative to the player's render-slot centre for a right-facing player
- *  (mirrored when facing left). Small and tucked against the character's hand;
- *  tuned by eye. Owned by the player module so the drawn flame and the
- *  player's carried light share one geometry (FR-004/SC-007). */
+ * relative to the player's render-slot centre for a right-facing player
+ * (mirrored when facing left). Small and tucked against the character's hand;
+ * tuned by eye. Owned by the player module so the drawn flame and the
+ * player's carried light share one geometry. */
 export const HELD_TORCH_SCALE = 1.25;
 export const HELD_TORCH_OFFSET_X = 0;
 export const HELD_TORCH_OFFSET_Y = 30;
@@ -526,7 +549,7 @@ export const HELD_TORCH_OFFSET_Y = 30;
 /**
  * Where the player's held torch sits in world space — the shared geometry the
  * held-torch draw and the player's carried light both read, so they cannot
- * drift (FR-004/SC-007). `centerX` is the **flame/image centre** (mirrored with
+ * drift. `centerX` is the **flame/image centre** (mirrored with
  * `player.direction`); callers derive their draw origin from it
  * (`centerX - width / 2` for the right-facing left edge, `centerX + width / 2`
  * as the mirror anchor for a left-facing draw). `topY` is the image's top edge.
@@ -553,7 +576,7 @@ export function heldTorchPlacement(player: PlayerState): {
 }
 
 /**
- * The player's `LightSource` adapter (FR-004) — the player implements the same
+ * The player's `LightSource` adapter — the player implements the same
  * render contract as the torch, centred on the held torch so the glow sits on
  * the flame rather than on the character. Replaces the renderer's old
  * held-torch position helper. Steady (no `worldElapsed`); `intensity: 0.7` and

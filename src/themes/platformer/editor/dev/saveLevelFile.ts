@@ -22,7 +22,7 @@ export const levelFileName = (name: string): string => {
 
 /**
  * Saves the level as a thin parameterisation of the one generic save module
- * (FR-011): the level endpoint and filename plus `layoutFileJson`'s contents.
+ *: the level endpoint and filename plus `layoutFileJson`'s contents.
  */
 export const saveLevel = (
   name: string,

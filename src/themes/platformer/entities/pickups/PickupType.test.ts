@@ -7,7 +7,7 @@ import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from './Key';
 describe('FRUIT_SHEET', () => {
   // fruit.png is physically four 16px columns wide, but only its first THREE
   // hold icons and fruitFrameSource addresses them with a stride of 3. The
-  // sheet's `columns` is that addressing stride, not the image width —
+  // sheet's `columns` is that addressing stride, not the image width
   // declaring 4 would shift every icon past index 2 onto the wrong row.
   it('columns-isTheAddressingStrideNotTheImageWidth', () => {
     expect(FRUIT_SHEET.columns).toBe(FRUIT_ICON_COLUMNS);
@@ -33,7 +33,7 @@ describe('FRUIT_SHEET', () => {
   });
 });
 
-describe('sheet geometry agrees with the pickup modules (R-006)', () => {
+describe('sheet geometry agrees with the pickup modules', () => {
   // sheets.ts declares pickup sheet geometry with local literals (importing
   // the pickup modules' constants back would close a module cycle), so these
   // assertions pin the two sides together.

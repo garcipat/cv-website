@@ -1,5 +1,6 @@
 import { stepPlayerPhysics, checkPitFall, resolvePitFall, playerOnMushroomCap } from './Physics';
 import { PHYSICS_CONFIG } from '../contracts/PhysicsConfig';
+import { DEFAULT_STOMP_BOUNCE_VY } from '../shared/knockback';
 import { MAX_DT } from './GameLoop';
 import { parseLevel } from '../level/LevelParser';
 import type { LevelDef } from '../level/LevelData';
@@ -84,7 +85,7 @@ const BRIDGE_SIDE_WALL_LEVEL = parseLevel(['....B.', '....B.']);
 // to land on the floor below.
 const BRIDGE_DROP_LEVEL = parseLevel(['BB', '..', '..', 'GG']);
 
-// One empty tile, then a 3-tile-wide solid strip (cols 1-3), then empty —
+// One empty tile, then a 3-tile-wide solid strip (cols 1-3), then empty
 // proportioned like currentLevel's real 3-tile floating platform, with room to
 // its left/right so the hitbox can be positioned on either side without
 // hitting world bounds. Isolates the platform-edge case: the full 64px
@@ -95,7 +96,7 @@ const NARROW_PLATFORM_LEVEL = parseLevel(['.GGG.....']);
 // 4 rows tall, 2 cols wide (col 1 is empty filler, giving the hitbox — wider
 // than one tile — room to move horizontally without immediately hitting the
 // world-bounds clamp): row 0 is solid ground reachable by climbing (the tile
-// directly above the ladder's top rung, per FR-006); rows 1-2 are ladder in
+// directly above the ladder's top rung, per ); rows 1-2 are ladder in
 // col 0; row 3 is solid ground the ladder starts from. Mirrors currentLevel's real
 // "ladder leads up to a platform" shape at a testable scale.
 const LADDER_LEVEL = parseLevel(['G.', 'H.', 'H.', 'G.']);
@@ -313,8 +314,7 @@ describe('stepPlayerPhysics horizontal movement', () => {
   });
 
   it('movingRightPastTheLevelEnd-noWallThere-clampsToWorldRightEdge', () => {
-    const maxX =
-      OPEN_LEVEL.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+    const maxX = OPEN_LEVEL.width * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
     const player = basePlayer({ x: maxX - 2, direction: 'right' });
     const next = stepPlayerPhysics(player, OPEN_LEVEL, 1 / 60, { left: false, right: true });
     expect(next.x).toBe(maxX);
@@ -355,7 +355,13 @@ describe('stepPlayerPhysics block solidity', () => {
       y: 1 * RENDERED_TILE_SIZE,
       grounded: true,
     });
-    const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: false, right: true }, blockAtCol2Row2);
+    const next = stepPlayerPhysics(
+      player,
+      BLOCK_LEVEL,
+      1 / 60,
+      { left: false, right: true },
+      blockAtCol2Row2,
+    );
     expect(next.x).toBe(restX);
   });
 
@@ -408,7 +414,13 @@ describe('stepPlayerPhysics block solidity', () => {
       vy: -1000,
       grounded: false,
     });
-    const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { jumpHeld: true }, blockAtCol2Row2);
+    const next = stepPlayerPhysics(
+      player,
+      BLOCK_LEVEL,
+      1 / 60,
+      { jumpHeld: true },
+      blockAtCol2Row2,
+    );
     expect(next.vy).toBe(0);
     expect(next.y).toBe(restY);
   });
@@ -416,8 +428,19 @@ describe('stepPlayerPhysics block solidity', () => {
   it('jumpingUpIntoABlockFromBelow-reportsItsIdWithBottomSide', () => {
     const ceilingBottomY = 3 * RENDERED_TILE_SIZE;
     const restY = ceilingBottomY - PLAYER_HEAD_PADDING;
-    const player = basePlayer({ x: 2 * RENDERED_TILE_SIZE, y: restY + 1, vy: -1000, grounded: false });
-    const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { jumpHeld: true }, blockAtCol2Row2);
+    const player = basePlayer({
+      x: 2 * RENDERED_TILE_SIZE,
+      y: restY + 1,
+      vy: -1000,
+      grounded: false,
+    });
+    const next = stepPlayerPhysics(
+      player,
+      BLOCK_LEVEL,
+      1 / 60,
+      { jumpHeld: true },
+      blockAtCol2Row2,
+    );
     expect(next.blockContacts).toEqual([{ id: blockAtCol2Row2[0].id, side: 'bottom' }]);
   });
 
@@ -453,7 +476,13 @@ describe('stepPlayerPhysics block solidity', () => {
     const wallCol = 2;
     const restX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
     const player = basePlayer({ x: restX - 1, y: 1 * RENDERED_TILE_SIZE, grounded: true });
-    const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: false, right: true }, blockAtCol2Row2);
+    const next = stepPlayerPhysics(
+      player,
+      BLOCK_LEVEL,
+      1 / 60,
+      { left: false, right: true },
+      blockAtCol2Row2,
+    );
     expect(next.blockContacts).toEqual([{ id: blockAtCol2Row2[0].id, side: 'left' }]);
   });
 
@@ -464,12 +493,18 @@ describe('stepPlayerPhysics block solidity', () => {
     const wallCol = 2;
     const restX = (wallCol + 1) * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING;
     const player = basePlayer({ x: restX + 1, y: 1 * RENDERED_TILE_SIZE, grounded: true });
-    const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: true, right: false }, blockAtCol2Row2);
+    const next = stepPlayerPhysics(
+      player,
+      BLOCK_LEVEL,
+      1 / 60,
+      { left: true, right: false },
+      blockAtCol2Row2,
+    );
     expect(next.blockContacts).toEqual([{ id: blockAtCol2Row2[0].id, side: 'right' }]);
   });
 
   describe('a coinPot (declares a hitboxInsetX, unlike questionMark above)', () => {
-    // Same fixture shape as blockAtCol2Row2 above, just a coinPot instead —
+    // Same fixture shape as blockAtCol2Row2 above, just a coinPot instead
     // its sprite doesn't fill its tile edge-to-edge, so it declares
     // BlockType.hitboxInsetX (see CoinPot.ts) letting the player stop
     // HITBOX_INSET_X rendered px closer than a full-tile block like
@@ -484,20 +519,41 @@ describe('stepPlayerPhysics block solidity', () => {
 
     it('walkingRightIntoACoinPot-stopsInsetXCloserThanAFullTileBlock', () => {
       // Same "start 1px before where a full-tile block would stop it, then
-      // overshoot in one frame" convention as walkingRightIntoABlock above —
+      // overshoot in one frame" convention as walkingRightIntoABlock above
       // the coinPot's resolved x must land HITBOX_INSET_X further right.
       const wallCol = 2;
-      const fullTileRestX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
-      const player = basePlayer({ x: fullTileRestX - 1, y: 1 * RENDERED_TILE_SIZE, grounded: true });
-      const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: false, right: true }, coinPotAtCol2Row2);
+      const fullTileRestX =
+        wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+      const player = basePlayer({
+        x: fullTileRestX - 1,
+        y: 1 * RENDERED_TILE_SIZE,
+        grounded: true,
+      });
+      const next = stepPlayerPhysics(
+        player,
+        BLOCK_LEVEL,
+        1 / 60,
+        { left: false, right: true },
+        coinPotAtCol2Row2,
+      );
       expect(next.x).toBe(fullTileRestX + HITBOX_INSET_X);
     });
 
     it('walkingLeftIntoACoinPot-stopsInsetXCloserThanAFullTileBlock', () => {
       const wallCol = 2;
       const fullTileRestX = (wallCol + 1) * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING;
-      const player = basePlayer({ x: fullTileRestX + 1, y: 1 * RENDERED_TILE_SIZE, grounded: true });
-      const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: true, right: false }, coinPotAtCol2Row2);
+      const player = basePlayer({
+        x: fullTileRestX + 1,
+        y: 1 * RENDERED_TILE_SIZE,
+        grounded: true,
+      });
+      const next = stepPlayerPhysics(
+        player,
+        BLOCK_LEVEL,
+        1 / 60,
+        { left: true, right: false },
+        coinPotAtCol2Row2,
+      );
       expect(next.x).toBe(fullTileRestX - HITBOX_INSET_X);
     });
   });
@@ -517,17 +573,38 @@ describe('stepPlayerPhysics block solidity', () => {
 
     it('walkingRightIntoAPotionPot-stopsInsetXCloserThanAFullTileBlock', () => {
       const wallCol = 2;
-      const fullTileRestX = wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
-      const player = basePlayer({ x: fullTileRestX - 1, y: 1 * RENDERED_TILE_SIZE, grounded: true });
-      const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: false, right: true }, potionPotAtCol2Row2);
+      const fullTileRestX =
+        wallCol * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_SIDE_PADDING;
+      const player = basePlayer({
+        x: fullTileRestX - 1,
+        y: 1 * RENDERED_TILE_SIZE,
+        grounded: true,
+      });
+      const next = stepPlayerPhysics(
+        player,
+        BLOCK_LEVEL,
+        1 / 60,
+        { left: false, right: true },
+        potionPotAtCol2Row2,
+      );
       expect(next.x).toBe(fullTileRestX + HITBOX_INSET_X);
     });
 
     it('walkingLeftIntoAPotionPot-stopsInsetXCloserThanAFullTileBlock', () => {
       const wallCol = 2;
       const fullTileRestX = (wallCol + 1) * RENDERED_TILE_SIZE - PLAYER_SIDE_PADDING;
-      const player = basePlayer({ x: fullTileRestX + 1, y: 1 * RENDERED_TILE_SIZE, grounded: true });
-      const next = stepPlayerPhysics(player, BLOCK_LEVEL, 1 / 60, { left: true, right: false }, potionPotAtCol2Row2);
+      const player = basePlayer({
+        x: fullTileRestX + 1,
+        y: 1 * RENDERED_TILE_SIZE,
+        grounded: true,
+      });
+      const next = stepPlayerPhysics(
+        player,
+        BLOCK_LEVEL,
+        1 / 60,
+        { left: true, right: false },
+        potionPotAtCol2Row2,
+      );
       expect(next.x).toBe(fullTileRestX - HITBOX_INSET_X);
     });
   });
@@ -614,9 +691,17 @@ describe('stepPlayerPhysics jump', () => {
   });
 
   it('bounceAscendingTrue-jumpNotHeld-appliesNoCutOnFirstTick', () => {
-    const player = basePlayer({ vy: PHYSICS_CONFIG.stompBounceVelocity, grounded: false, bounceAscending: true });
-    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60, { left: false, right: false, jumpHeld: false });
-    expect(next.vy).toBeCloseTo(PHYSICS_CONFIG.stompBounceVelocity + PHYSICS_CONFIG.gravity / 60);
+    const player = basePlayer({
+      vy: DEFAULT_STOMP_BOUNCE_VY,
+      grounded: false,
+      bounceAscending: true,
+    });
+    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60, {
+      left: false,
+      right: false,
+      jumpHeld: false,
+    });
+    expect(next.vy).toBeCloseTo(DEFAULT_STOMP_BOUNCE_VY + PHYSICS_CONFIG.gravity / 60);
   });
 
   it('bounceAscendingTrue-jumpNotHeld-appliesNoCutAcrossManyConsecutiveTicks', () => {
@@ -626,21 +711,33 @@ describe('stepPlayerPhysics jump', () => {
     // matter how large `stompBounceVelocity` was set. `bounceAscending`
     // must stay effective for the WHOLE ascent, not just the tick the
     // bounce was applied.
-    let player = basePlayer({ vy: PHYSICS_CONFIG.stompBounceVelocity, grounded: false, bounceAscending: true });
+    let player = basePlayer({
+      vy: DEFAULT_STOMP_BOUNCE_VY,
+      grounded: false,
+      bounceAscending: true,
+    });
     const dt = 1 / 60;
     for (let i = 0; i < 10 && player.vy < 0; i++) {
-      player = stepPlayerPhysics(player, PIT_LEVEL, dt, { left: false, right: false, jumpHeld: false });
+      player = stepPlayerPhysics(player, PIT_LEVEL, dt, {
+        left: false,
+        right: false,
+        jumpHeld: false,
+      });
     }
     // After 10 ticks of gravity alone (no cut), vy should have decayed
     // linearly from the full bounce velocity — nowhere near the ~55% cut a
     // per-tick jump-cut would have inflicted almost immediately.
-    const expectedVy = PHYSICS_CONFIG.stompBounceVelocity + PHYSICS_CONFIG.gravity * dt * 10;
+    const expectedVy = DEFAULT_STOMP_BOUNCE_VY + PHYSICS_CONFIG.gravity * dt * 10;
     expect(player.vy).toBeCloseTo(expectedVy);
   });
 
   it('bounceAscendingTrue-onceApexPasses-clearsBackToFalse', () => {
     const player = basePlayer({ vy: -10, grounded: false, bounceAscending: true });
-    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 30, { left: false, right: false, jumpHeld: false });
+    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 30, {
+      left: false,
+      right: false,
+      jumpHeld: false,
+    });
     // -10 + gravity(1200)/30 = 30, i.e. resolvedVy is now positive — the
     // ascent is over, so the flag must clear even though it started true.
     expect(next.vy).toBeGreaterThan(0);
@@ -650,8 +747,16 @@ describe('stepPlayerPhysics jump', () => {
   it('bounceAscendingFalse-jumpNotHeld-stillAppliesNormalCut', () => {
     // A regular jump (not a stomp bounce) must still get the normal
     // variable-height cutoff — `bounceAscending` only protects an actual bounce.
-    const player = basePlayer({ vy: PHYSICS_CONFIG.jumpVelocity, grounded: false, bounceAscending: false });
-    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60, { left: false, right: false, jumpHeld: false });
+    const player = basePlayer({
+      vy: PHYSICS_CONFIG.jumpVelocity,
+      grounded: false,
+      bounceAscending: false,
+    });
+    const next = stepPlayerPhysics(player, PIT_LEVEL, 1 / 60, {
+      left: false,
+      right: false,
+      jumpHeld: false,
+    });
     const beforeCut = PHYSICS_CONFIG.jumpVelocity + PHYSICS_CONFIG.gravity / 60;
     expect(next.vy).toBeCloseTo(beforeCut * PHYSICS_CONFIG.jumpCutMultiplier);
   });
@@ -717,7 +822,7 @@ describe('stepPlayerPhysics one-way bridge platforms', () => {
   it('jumpingUpThroughBridgeFromBelow-doesNotBlockAndKeepsRising', () => {
     const ceilingBottomY = RENDERED_TILE_SIZE; // row 0 is the bridge; row 1 starts here
     const restY = ceilingBottomY - PLAYER_HEAD_PADDING; // where a solid ceiling would clamp to
-    // Same setup as the solid-ceiling collision test, but against a bridge —
+    // Same setup as the solid-ceiling collision test, but against a bridge
     // if bridge incorrectly blocked from below, this would clamp to restY
     // exactly like the CEILING_LEVEL case does.
     const player = basePlayer({ y: restY + 1, vy: -1000, grounded: false });
@@ -764,10 +869,7 @@ describe('stepPlayerPhysics one-way bridge platforms', () => {
   // unrelated collision.
   const BRIDGE_CEILING_SINGLE_COL_LEVEL = parseLevel(['..B...', '......', '......', '......']);
 
-  it.each([
-    ['right', { right: true }, 1] as const,
-    ['left', { left: true }, -1] as const,
-  ])(
+  it.each([['right', { right: true }, 1] as const, ['left', { left: true }, -1] as const])(
     'jumpingUpThroughBridgeWhileHolding%s-keepsAdvancingHorizontallyAtWalkSpeed',
     (_label, dirInput, sign) => {
       // x chosen so the hitbox starts fully inside column 2 (the bridge
@@ -873,7 +975,14 @@ describe('stepPlayerPhysics - crumbling floor', () => {
     // bottom half) and a small dt moves it up a little, but not as far as
     // the midline — must NOT be stopped.
     let player = basePlayer({ y: midlineHeadY + 10 - PLAYER_HEAD_PADDING, vy: -60 });
-    player = stepPlayerPhysics(player, CRUMBLING_FLOOR_CEILING_LEVEL, 1 / 240, { jumpHeld: true }, [], []);
+    player = stepPlayerPhysics(
+      player,
+      CRUMBLING_FLOOR_CEILING_LEVEL,
+      1 / 240,
+      { jumpHeld: true },
+      [],
+      [],
+    );
     expect(player.y + PLAYER_HEAD_PADDING).toBeGreaterThan(midlineHeadY);
     expect(player.vy).not.toBe(0);
     expect(player.vy).toBeLessThan(0); // still rising
@@ -882,7 +991,14 @@ describe('stepPlayerPhysics - crumbling floor', () => {
     // midline — must stop exactly at crumblingSolidY - PLAYER_HEAD_PADDING,
     // with vy zeroed.
     player = { ...player, vy: -500 };
-    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_CEILING_LEVEL, MAX_DT, { jumpHeld: true }, [], []);
+    const next = stepPlayerPhysics(
+      player,
+      CRUMBLING_FLOOR_CEILING_LEVEL,
+      MAX_DT,
+      { jumpHeld: true },
+      [],
+      [],
+    );
     const crumblingSolidY = midlineHeadY;
     expect(next.y).toBeCloseTo(crumblingSolidY - PLAYER_HEAD_PADDING, 5);
     expect(next.vy).toBe(0);
@@ -1065,7 +1181,7 @@ describe('stepPlayerPhysics bridge drop-through', () => {
   });
 
   it('downHeld-whileCrouchedOnBridge-keepsCrouchingAndDoesNotDrop', () => {
-    // S-012: while already crouched, Down keeps meaning crouch. Crawling onto
+    // : while already crouched, Down keeps meaning crouch. Crawling onto
     // a bridge (or holding Down on one) must not pop the character out of the
     // crouch and drop it through.
     const restY = 0 - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
@@ -1130,10 +1246,7 @@ describe('stepPlayerPhysics bridge drop-through', () => {
   // dropping through as a sideways wall.
   const BRIDGE_DROP_WIDE_LEVEL = parseLevel(['..B...', '......', '......', '..G...']);
 
-  it.each([
-    ['right', { right: true }, 1] as const,
-    ['left', { left: true }, -1] as const,
-  ])(
+  it.each([['right', { right: true }, 1] as const, ['left', { left: true }, -1] as const])(
     'droppingThroughBridgeWhileHolding%s-keepsAdvancingHorizontallyAtWalkSpeed',
     (_label, dirInput, sign) => {
       const startX = 48; // fully inside column 2 (the bridge/floor column)
@@ -1333,7 +1446,10 @@ describe('stepPlayerPhysics climbing', () => {
   it('climbing-leftOrRightHeld-stillMovesHorizontallyAtNormalWalkSpeed', () => {
     const player = basePlayer({ x: 0, y: 20, grounded: false, climbing: true });
 
-    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { climbUpHeld: true, right: true });
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, {
+      climbUpHeld: true,
+      right: true,
+    });
 
     expect(next.vx).toBeCloseTo(PHYSICS_CONFIG.walkSpeed);
     expect(next.x).toBeCloseTo(PHYSICS_CONFIG.walkSpeed / 60);
@@ -1376,7 +1492,7 @@ describe('stepPlayerPhysics climbing', () => {
 
   it('standingOnPlatformAboveLaddersTopRung-dropThroughHeld-reEntersClimbDownward', () => {
     // y = -40: feet rest on row 0's solid tile, directly above the ladder's
-    // top rung at row 1 — FR-006's "press Down to re-enter the climb" case.
+    // top rung at row 1 — 's "press Down to re-enter the climb" case.
     const player = basePlayer({ x: 0, y: -40, vy: 0, grounded: true, climbing: false });
 
     const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { dropThroughHeld: true });
@@ -1400,7 +1516,7 @@ describe('stepPlayerPhysics climbing', () => {
     // are the ladder in col 0. Standing on row 3's ground puts the body in the
     // ladder's bottom tile (row 2), so `onLadderNow` is true — but row 3 below
     // the feet is solid ground, not a ladder, so there is nowhere to descend.
-    // Pressing Down must therefore NOT grab the ladder (S-012: this is exactly
+    // Pressing Down must therefore NOT grab the ladder ( this is exactly
     // the "crawl past a ladder" case); it crouches instead.
     const player = basePlayer({
       x: 0,
@@ -1443,7 +1559,10 @@ describe('stepPlayerPhysics climbing', () => {
     // move normally by walkSpeed, NOT get re-snapped to the ladder center.
     const player = basePlayer({ x: -16, y: 20, grounded: false, climbing: true });
 
-    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, { climbUpHeld: true, right: true });
+    const next = stepPlayerPhysics(player, LADDER_LEVEL, 1 / 60, {
+      climbUpHeld: true,
+      right: true,
+    });
 
     expect(next.climbing).toBe(true);
     expect(next.x).toBeCloseTo(-16 + PHYSICS_CONFIG.walkSpeed / 60);
@@ -1546,7 +1665,7 @@ describe('stepPlayerPhysics standing on top of a ladder', () => {
   it('standingOnTheLaddersTopTile-jumpPressed-jumpsOffItLikeAnyOtherGround', () => {
     const player = basePlayer({ x: 0, y: topEdgeY, vy: 0, grounded: true, climbing: false });
 
-    // jumpHeld too, so the variable-jump-height cut doesn't shorten it —
+    // jumpHeld too, so the variable-jump-height cut doesn't shorten it
     // this is about the ladder top counting as jumpable ground, not about
     // the cut.
     const next = stepPlayerPhysics(player, TOP_LADDER_LEVEL, 1 / 60, {
@@ -1558,7 +1677,7 @@ describe('stepPlayerPhysics standing on top of a ladder', () => {
   });
 
   it('ladderTopDirectlyBeneathASolidTile-climbingUp-doesNotStandInsideThatTile', () => {
-    // LADDER_LEVEL's shaft (rows 1-2) dead-ends into solid ground at row 0 —
+    // LADDER_LEVEL's shaft (rows 1-2) dead-ends into solid ground at row 0
     // there's no room to stand on the shaft's top tile, so the old
     // climb-until-the-feet-leave-the-ladder behaviour has to remain.
     //
@@ -1600,7 +1719,7 @@ describe('stepPlayerPhysics standable ladder top tile is one-way like bridge', (
   });
 });
 
-describe('stepPlayerPhysics climbing lands on the ladder\'s own top tile', () => {
+describe("stepPlayerPhysics climbing lands on the ladder's own top tile", () => {
   it('climbingUp-stillWithinTheShaft-notYetAtTheTop-continuesClimbingNormally', () => {
     // Sanity: the new branch must not fire prematurely while there's still
     // a climbable tile above. y=0 puts the feet in row 1 of TOP_LADDER_LEVEL
@@ -1648,7 +1767,7 @@ describe('stepPlayerPhysics climbing re-entry guard after jump-cancel', () => {
 const MUSHROOM_CAP_LEVEL = parseLevel(['..', '..', '§.', 'G.']);
 
 // Same footprint, but the cap's cell is covered by a solid tile at row 0, so
-// it is never standable (FR-006).
+// it is never standable.
 const COVERED_MUSHROOM_CAP_LEVEL = parseLevel(['G.', '§.', 'G.']);
 
 // A two-cell bouncy-mushroom run: cap at row 1, stem at row 2, ground at
@@ -1753,7 +1872,11 @@ describe('stepPlayerPhysics decorative mushroom is never solid', () => {
   });
 
   it('walkingIntoADecorativeMushroom-isNotBlocked', () => {
-    const level: LevelDef = { terrain: [['empty', 'decorativeMushroom', 'empty']], width: 3, height: 1 };
+    const level: LevelDef = {
+      terrain: [['empty', 'decorativeMushroom', 'empty']],
+      width: 3,
+      height: 1,
+    };
     const player = basePlayer({ x: 0, y: 0, vy: 0, grounded: false });
 
     const next = stepPlayerPhysics(player, level, 1 / 60, { right: true });
@@ -1850,7 +1973,7 @@ describe('resolvePitFall prevFeetY motion history', () => {
   });
 });
 
-describe('stepPlayerPhysics crouch (US1)', () => {
+describe('stepPlayerPhysics crouch', () => {
   // A wall only in the STANDING head row (row 0): a standing player's head is
   // in row 0 and is blocked, while a crouched player's head is in row 1 and
   // passes under it. Rows 1-2 are open, row 2 is the floor.
@@ -1980,7 +2103,7 @@ describe('stepPlayerPhysics crouch (US1)', () => {
 });
 
 /** Whether the player's ACTUAL box (crouched or standing) overlaps any solid
- *  terrain tile — a direct, independent check of "the box never clips". */
+ * terrain tile — a direct, independent check of "the box never clips". */
 function boxOverlapsSolid(level: LevelDef, player: PlayerState): boolean {
   const box = playerHitbox(player);
   const leftCol = Math.floor(box.x / RENDERED_TILE_SIZE);
@@ -1995,7 +2118,7 @@ function boxOverlapsSolid(level: LevelDef, player: PlayerState): boolean {
   return false;
 }
 
-describe('stepPlayerPhysics crouch headroom (US2)', () => {
+describe('stepPlayerPhysics crouch headroom', () => {
   // A one-tile corridor: solid ceiling row 0, empty corridor row 1, solid floor
   // row 2. A player on the floor cannot fit its 38px standing box.
   const ONE_TILE_CEILING_LEVEL = parseLevel(['GG', '..', 'GG']);
@@ -2072,7 +2195,7 @@ describe('stepPlayerPhysics crouch headroom (US2)', () => {
   });
 });
 
-describe('stepPlayerPhysics Down priority: ladder and bridge win over crouch (US3)', () => {
+describe('stepPlayerPhysics Down priority: ladder and bridge win over crouch', () => {
   it('stepPlayerPhysics-crouchedOverlappingAClimbableTileDownHeld-climbsWithoutCrouching', () => {
     const player = basePlayer({
       x: 0,
@@ -2101,7 +2224,7 @@ describe('stepPlayerPhysics Down priority: ladder and bridge win over crouch (US
   });
 
   it('stepPlayerPhysics-crawledOntoABridgeDownStillHeld-keepsCrouchingAndDoesNotDrop', () => {
-    // S-012: crouched on plain ground next to the bridge, holding Down and
+    // : crouched on plain ground next to the bridge, holding Down and
     // moving onto the bridge — crouch wins while already crouched, so the
     // character keeps crawling instead of popping up and dropping through.
     const player = basePlayer({
@@ -2135,7 +2258,7 @@ describe('stepPlayerPhysics Down priority: ladder and bridge win over crouch (US
 
 describe('stepPlayerPhysics ground branch — shared isStandableCell delegation', () => {
   // The ground branch delegates to engine/Standable.ts's `isStandableCell`
-  // (O-027 research D3). These pin the behavior the delegation must preserve,
+  //. These pin the behavior the delegation must preserve,
   // including the bridge drop-through exemption that is passed through as
   // `{ excludeBridge: droppingThroughBridge }`.
 
@@ -2191,7 +2314,14 @@ describe('stepPlayerPhysics ground branch — shared isStandableCell delegation'
       { col: 1, row: 3, elapsed: 1.5 },
     ];
     const player = basePlayer({ y: standingYOnRow(3) - 1, vy: 500 });
-    const next = stepPlayerPhysics(player, CRUMBLING_FLOOR_GROUND_LEVEL, 1 / 60, {}, [], brokenStates);
+    const next = stepPlayerPhysics(
+      player,
+      CRUMBLING_FLOOR_GROUND_LEVEL,
+      1 / 60,
+      {},
+      [],
+      brokenStates,
+    );
     expect(next.grounded).toBe(false);
     expect(next.y).toBeGreaterThan(standingYOnRow(3));
   });

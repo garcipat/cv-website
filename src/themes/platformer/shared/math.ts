@@ -1,11 +1,11 @@
 /**
  * The pure scalar/position math primitives duplicated across the platformer
- * theme (R-002 FR-001). A pure leaf: it imports nothing from `engine/`,
- * `entities/`, `level/`, `editor/`, or state, and holds no state of its own —
- * every function is a total, pure function of its arguments (FR-002).
+ * theme. A pure leaf: it imports nothing from `engine/`,
+ * `entities/`, `level/`, `editor/`, or state, and holds no state of its own
+ * every function is a total, pure function of its arguments.
  *
  * Retargeting the former inline re-implementations here must not change any
- * output (FR-003/FR-004/FR-006): each body below is byte-identical to the
+ * output: each body below is byte-identical to the
  * formula it replaces, and callers keep their own normalizations (e.g.
  * `hash2D(…) % n`).
  */
@@ -50,7 +50,7 @@ export function pulse(phase: number): number {
  * for a non-positive radius too. The single falloff implementation the light
  * math delegates to (`localDarknessAt`, `torchGlowStrengthAt`,
  * `playerGlowStrengthAt`), so no copy of the formula survives elsewhere
- * (R-003 FR-010). Pure and total.
+ *. Pure and total.
  */
 export function radialFalloffAt(
   x: number,

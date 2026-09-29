@@ -10,8 +10,12 @@ import type { SpearMask } from './SpearArt';
 import type { Rect } from '../../contracts/geometry';
 
 /** Builds an RGBA buffer whose alpha channel is given row-major (one byte per
- *  pixel); RGB is left at 0, since only alpha is ever read. */
-function rgbaFromAlpha(alphas: readonly number[], width: number, height: number): Uint8ClampedArray {
+ * pixel); RGB is left at 0, since only alpha is ever read. */
+function rgbaFromAlpha(
+  alphas: readonly number[],
+  width: number,
+  height: number,
+): Uint8ClampedArray {
   const data = new Uint8ClampedArray(width * height * 4);
   for (let i = 0; i < width * height; i++) {
     data[i * 4 + 3] = alphas[i];
@@ -76,12 +80,42 @@ describe('tipMaskFromMask', () => {
   it('keepsOnlyTheTopRowsOfEachRunJudgedAgainstItsOwnTop', () => {
     const tips = tipMaskFromMask(mask, 2);
     expect(Array.from(tips.pixels)).toEqual([
-      0, 0, 0, 1, 0, 0, // run B top row 0
-      0, 0, 0, 1, 1, 0, // run B second row
-      1, 0, 0, 0, 0, 0, // run A top row 2
-      1, 1, 0, 0, 0, 0, // run A second row
-      0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0, // run B top row 0
+      0,
+      0,
+      0,
+      1,
+      1,
+      0, // run B second row
+      1,
+      0,
+      0,
+      0,
+      0,
+      0, // run A top row 2
+      1,
+      1,
+      0,
+      0,
+      0,
+      0, // run A second row
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
     ]);
   });
 

@@ -96,7 +96,10 @@ describe('debris expiry boundary', () => {
   });
 
   it('pastTheDuration-isExpired', () => {
-    const effect = tickDebrisEffect(startDebrisEffect('d', 0, 0, []), DEBRIS_DURATION_SECONDS + 0.0001);
+    const effect = tickDebrisEffect(
+      startDebrisEffect('d', 0, 0, []),
+      DEBRIS_DURATION_SECONDS + 0.0001,
+    );
     expect(effect.expired(effect)).toBe(true);
   });
 });

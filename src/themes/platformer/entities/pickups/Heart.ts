@@ -15,8 +15,8 @@ import { HEART_PICKUP_HEAL_AMOUNT, MAX_HALF_HEARTS } from '../Health';
 export const HEART_PICKUP_RENDERED_SIZE = 24;
 
 /** Centers the smaller rendered pickup within its one-tile marker, on both
- *  axes — mirrors Key.ts's KEY_TILE_OFFSET_X/KEY_TILE_OFFSET_Y centering
- *  convention. */
+ * axes — mirrors Key.ts's KEY_TILE_OFFSET_X/KEY_TILE_OFFSET_Y centering
+ * convention. */
 export const HEART_PICKUP_TILE_OFFSET_X = (RENDERED_TILE_SIZE - HEART_PICKUP_RENDERED_SIZE) / 2;
 export const HEART_PICKUP_TILE_OFFSET_Y = (RENDERED_TILE_SIZE - HEART_PICKUP_RENDERED_SIZE) / 2;
 
@@ -32,9 +32,9 @@ export interface HeartPickupState extends Pickup {
 }
 
 /** Spawns a heart pickup at a just-destroyed potion-pot's position (its
- *  `x`/`y` at the moment of destruction), reusing the pot's own id as the
- *  pickup's id — a potion-pot only ever drops once in its lifetime (it is
- *  removed from the world on its one hit), so there's no collision risk. */
+ * `x`/`y` at the moment of destruction), reusing the pot's own id as the
+ * pickup's id — a potion-pot only ever drops once in its lifetime (it is
+ * removed from the world on its one hit), so there's no collision risk. */
 export function spawnHeartPickup(id: string, x: number, y: number): HeartPickupState {
   return { id, kind: 'heart', x, y, collected: false };
 }

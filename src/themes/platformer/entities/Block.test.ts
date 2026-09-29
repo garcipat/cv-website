@@ -79,9 +79,12 @@ describe('hitboxInsetXForBlock', () => {
   it('crate-returnsZero', () => expect(hitboxInsetXForBlock('crate')).toBe(0));
   it('questionMark-returnsZero', () => expect(hitboxInsetXForBlock('questionMark')).toBe(0));
   it('fragileRock-returnsZero', () => expect(hitboxInsetXForBlock('fragileRock')).toBe(0));
-  it('coinPot-returnsANonZeroInset', () => expect(hitboxInsetXForBlock('coinPot')).toBeGreaterThan(0));
-  it('potionPot-returnsANonZeroInset', () => expect(hitboxInsetXForBlock('potionPot')).toBeGreaterThan(0));
-  it('bombPot-returnsANonZeroInset', () => expect(hitboxInsetXForBlock('bombPot')).toBeGreaterThan(0));
+  it('coinPot-returnsANonZeroInset', () =>
+    expect(hitboxInsetXForBlock('coinPot')).toBeGreaterThan(0));
+  it('potionPot-returnsANonZeroInset', () =>
+    expect(hitboxInsetXForBlock('potionPot')).toBeGreaterThan(0));
+  it('bombPot-returnsANonZeroInset', () =>
+    expect(hitboxInsetXForBlock('bombPot')).toBeGreaterThan(0));
 });
 
 describe('toBlockState', () => {
@@ -128,19 +131,35 @@ describe('isBlockUsedUp', () => {
 
 describe('isBlockRemoved', () => {
   it('questionMarkAtMaxHitsIdleAnimState-neverRemoved', () => {
-    const used = { ...toBlockState(placement('questionMark')), hitsTaken: 1, animState: 'idle' as const };
+    const used = {
+      ...toBlockState(placement('questionMark')),
+      hitsTaken: 1,
+      animState: 'idle' as const,
+    };
     expect(isBlockRemoved(used)).toBe(false);
   });
   it('fragileRockAtMaxHitsButStillBumping-notYetRemoved', () => {
-    const bumping = { ...toBlockState(placement('fragileRock')), hitsTaken: 1, animState: 'bump' as const };
+    const bumping = {
+      ...toBlockState(placement('fragileRock')),
+      hitsTaken: 1,
+      animState: 'bump' as const,
+    };
     expect(isBlockRemoved(bumping)).toBe(false);
   });
   it('fragileRockAtMaxHitsAnimStateIdle-isRemoved', () => {
-    const done = { ...toBlockState(placement('fragileRock')), hitsTaken: 1, animState: 'idle' as const };
+    const done = {
+      ...toBlockState(placement('fragileRock')),
+      hitsTaken: 1,
+      animState: 'idle' as const,
+    };
     expect(isBlockRemoved(done)).toBe(true);
   });
   it('crateAtMaxHitsStillShattering-notYetRemoved', () => {
-    const shattering = { ...toBlockState(placement('crate')), hitsTaken: 2, animState: 'shatter' as const };
+    const shattering = {
+      ...toBlockState(placement('crate')),
+      hitsTaken: 2,
+      animState: 'shatter' as const,
+    };
     expect(isBlockRemoved(shattering)).toBe(false);
   });
   it('crateAtMaxHitsShatterFinished-isRemoved', () => {
@@ -148,7 +167,11 @@ describe('isBlockRemoved', () => {
     expect(isBlockRemoved(done)).toBe(true);
   });
   it('crateBelowMaxHits-neverRemovedRegardlessOfAnimState', () => {
-    const cracked = { ...toBlockState(placement('crate')), hitsTaken: 1, animState: 'idle' as const };
+    const cracked = {
+      ...toBlockState(placement('crate')),
+      hitsTaken: 1,
+      animState: 'idle' as const,
+    };
     expect(isBlockRemoved(cracked)).toBe(false);
   });
 });
@@ -161,7 +184,11 @@ describe('applyBlockHit', () => {
     expect(hit.animTimer).toBe(0);
   });
   it('alreadyUsedUpBlock-isANoOp', () => {
-    const usedUp = { ...toBlockState(placement('fragileRock')), hitsTaken: 1, animState: 'idle' as const };
+    const usedUp = {
+      ...toBlockState(placement('fragileRock')),
+      hitsTaken: 1,
+      animState: 'idle' as const,
+    };
     expect(applyBlockHit(usedUp)).toBe(usedUp);
   });
 });

@@ -44,7 +44,9 @@ describe('mapCVDataToSkillFactPool', () => {
 
   it('categoryWithSections-includesSectionSkillsInFactSkillList', () => {
     const pool = mapCVDataToSkillFactPool(cv);
-    const frontend = pool.find((f) => isSkillCategoryFact(f.data) && f.data.category === 'Frontend');
+    const frontend = pool.find(
+      (f) => isSkillCategoryFact(f.data) && f.data.category === 'Frontend',
+    );
     expect(frontend).toBeDefined();
     if (!frontend || !isSkillCategoryFact(frontend.data)) throw new Error('unreachable');
     const names = frontend.data.skills.map((s) => s.name);
@@ -65,7 +67,7 @@ describe('placeCollectibles', () => {
   it('coinMarkers-returnsOnePlacementPerMarkerInReadingOrder', () => {
     // Purely positional now — no CVData involved (see
     // mapCVDataToSkillFactPool's doc comment for why), and a placed
-    // collectible is always a coin (R-002 FR-022).
+    // collectible is always a coin.
     const coinMarkers = [
       { col: 5, row: 2 },
       { col: 6, row: 2 },

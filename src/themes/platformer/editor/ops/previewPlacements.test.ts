@@ -81,10 +81,19 @@ describe('previewPlacements', () => {
     expect(scene.blocks.every((b) => b.hitsTaken === 0)).toBe(true);
 
     expect(scene.chests).toHaveLength(1);
-    expect(scene.chests[0]).toMatchObject({ kind: 'chest', state: 'closed', ...tileToPixel(11, 0) });
+    expect(scene.chests[0]).toMatchObject({
+      kind: 'chest',
+      state: 'closed',
+      ...tileToPixel(11, 0),
+    });
 
     expect(scene.checkpoints).toHaveLength(1);
-    expect(scene.checkpoints[0]).toMatchObject({ col: 12, row: 0, activated: false, activatedAt: null });
+    expect(scene.checkpoints[0]).toMatchObject({
+      col: 12,
+      row: 0,
+      activated: false,
+      activatedAt: null,
+    });
 
     expect(scene.signs).toHaveLength(1);
     expect(scene.signs[0]).toEqual({
@@ -112,10 +121,9 @@ describe('previewPlacements', () => {
     expect(scene.hazards).toEqual(placeHazards(findHazardTiles(layout, markers)));
     const chestMarkers = findChestTiles(layout);
     expect(scene.chests).toEqual(
-      placeChests(
-        padChestDefs(mapCVDataToChests(CV), chestMarkers),
-        chestMarkers,
-      ).map(toChestState),
+      placeChests(padChestDefs(mapCVDataToChests(CV), chestMarkers), chestMarkers).map(
+        toChestState,
+      ),
     );
   });
 
@@ -140,7 +148,9 @@ describe('previewPlacements', () => {
 
   it('aTWithNoSignMarker-fallsBackToTheDefaultHint', () => {
     const scene = previewPlacements([['T']], NO_MARKERS, CV);
-    expect(scene.signs).toEqual([{ id: `sign-${DEFAULT_HINT_ID}-0-0`, hintId: DEFAULT_HINT_ID, x: 0, y: 0 }]);
+    expect(scene.signs).toEqual([
+      { id: `sign-${DEFAULT_HINT_ID}-0-0`, hintId: DEFAULT_HINT_ID, x: 0, y: 0 },
+    ]);
   });
 
   it('noSignCharacters-returnsEmptyArray', () => {

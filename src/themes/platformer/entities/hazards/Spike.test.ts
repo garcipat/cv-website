@@ -39,13 +39,23 @@ describe('spike', () => {
   });
 
   it('down-hitboxIsTheTopBandOnly', () => {
-    expect(spike.box(hazardAt('down'))).toEqual({ x: 16, y: 32, width: RENDERED_TILE_SIZE, height: BAND });
+    expect(spike.box(hazardAt('down'))).toEqual({
+      x: 16,
+      y: 32,
+      width: RENDERED_TILE_SIZE,
+      height: BAND,
+    });
   });
 
   it('right-hitboxIsTheLeftBandOnly', () => {
     // Mounted on a wall to the left, sticking out only partway — the
     // visible spikes are the LEFT band of the tile, nearest that wall.
-    expect(spike.box(hazardAt('right'))).toEqual({ x: 16, y: 32, width: BAND, height: RENDERED_TILE_SIZE });
+    expect(spike.box(hazardAt('right'))).toEqual({
+      x: 16,
+      y: 32,
+      width: BAND,
+      height: RENDERED_TILE_SIZE,
+    });
   });
 
   it('left-hitboxIsTheRightBandOnly', () => {

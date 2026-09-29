@@ -11,6 +11,10 @@ import {
 } from './entities/Player';
 import type { EnemyState } from './entities/Enemy';
 import type { SlimePurpleState } from './entities/enemies/SlimePurple';
+import { SLIME_PURPLE_SPIKE_REBOUND_VY } from './entities/enemies/SlimePurple';
+import { POT_BOUNCE_VY } from './entities/blocks/pot';
+import { MUSHROOM_BOUNCE_VY } from './tiles/bouncyMushroom';
+import { DEFAULT_HIT_KNOCKBACK, DEFAULT_STOMP_BOUNCE_VY } from './shared/knockback';
 import { ENEMY_RENDERED_SIZE, toEnemyState } from './entities/Enemy';
 import { typeOf } from './entities/enemies';
 import {
@@ -60,10 +64,7 @@ import {
 } from './PlatformerState';
 import { toBlockState } from './entities/Block';
 import type { BlockState } from './entities/Block';
-import {
-  HIT_SPLATTER_DURATION_SECONDS,
-  startPuffEffect,
-} from './engine/effects';
+import { HIT_SPLATTER_DURATION_SECONDS, startPuffEffect } from './engine/effects';
 import type {
   CounterPopupState,
   DebrisState,
@@ -81,7 +82,12 @@ import { createPlacedBomb, BOMB_FUSE_SECONDS } from './entities/deployableItems/
 import type { PlacedBombState } from './entities/deployableItems/Bomb';
 import { toCheckpointState } from './entities/Checkpoint';
 import { initialCameraX } from './engine/Camera';
-import { toChestState, isChestOpen, CHEST_CLOSED_WIDTH, CHEST_CLOSED_HEIGHT } from './entities/chests';
+import {
+  toChestState,
+  isChestOpen,
+  CHEST_CLOSED_WIDTH,
+  CHEST_CLOSED_HEIGHT,
+} from './entities/chests';
 import { PICKUP_TYPES } from './entities/pickups';
 import type { KeyPickupState } from './entities/pickups/Key';
 import {
@@ -107,7 +113,10 @@ import { isInvulnerable } from './contracts/capabilities';
 import { PLAYER_HIT_REACTION_SECONDS } from './entities/Player';
 import { SPIKE_COOLDOWN_DURATION_SECONDS } from './entities/enemies/SlimePurple';
 import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
-import { FLOOR_SPIKE_DELAY_SECONDS, FLOOR_SPIKE_WARNING_SECONDS } from './entities/hazards/FloorSpike';
+import {
+  FLOOR_SPIKE_DELAY_SECONDS,
+  FLOOR_SPIKE_WARNING_SECONDS,
+} from './entities/hazards/FloorSpike';
 import { tileToPixel, RENDERED_TILE_SIZE, isClimbable, tileAt } from './level/Terrain';
 import { SCRATCH_LAYOUT } from './level/level';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
@@ -134,7 +143,7 @@ import {
 } from './entities/sprites/sheets';
 import { cloudPopulationFor, AMBIENT_CLOUD_PARALLAX_FACTOR } from './engine/AmbientClouds';
 
-/** The unified collection narrowed to one effect kind (R-004). */
+/** The unified collection narrowed to one effect kind. */
 const effectsOfKind = <S,>(kind: EffectKind): readonly TransientEffect<S>[] =>
   activeEffects.value.filter((effect) => effect.kind === kind) as readonly TransientEffect<S>[];
 
@@ -149,13 +158,13 @@ const popupFor = (labelKey: CounterPopupLabelKey): TransientEffect<CounterPopupS
 const counterPopups = (): readonly TransientEffect<CounterPopupState>[] =>
   effectsOfKind<CounterPopupState>('counterPopup');
 
-/** The single live speech bubble (R-005), kind-filtered from the collection. */
+/** The single live speech bubble, kind-filtered from the collection. */
 const speechBubble = (): TransientEffect<SpeechBubbleState> | undefined =>
   effectsOfKind<SpeechBubbleState>('speechBubble')[0];
 
 /**
  * Test-local adapter over the one `deployableItems` collection so the
- * placed-bomb scenarios keep reading/writing a bomb array (R-008 merged the
+ * placed-bomb scenarios keep reading/writing a bomb array ( merged the
  * old `placedBombs` store into `deployableItems`). The bomb subset keeps its
  * array-order position after any ladders/chests already seeded.
  */
@@ -172,7 +181,7 @@ const placedBombs: { value: PlacedBombState[] } = {
 };
 
 /** Closes every live chest through the one `deployableItems` collection (the
- *  derived `chestStates` projection is read-only). */
+ * derived `chestStates` projection is read-only). */
 function resetChestsClosed(): void {
   deployableItems.value = deployableItems.value.map((item) =>
     item.kind === 'chest' ? { ...item, state: 'closed' as const } : item,
@@ -186,7 +195,7 @@ function openChestById(chestId: string): void {
   );
 }
 
-/** Every `drawImage` call whose source is the ambient cloud sheet (O-022). */
+/** Every `drawImage` call whose source is the ambient cloud sheet. */
 const ambientCloudDraws = (ctx: { drawImage: ReturnType<typeof vi.fn> }) =>
   ctx.drawImage.mock.calls.filter(
     (call: unknown[]) => (call[0] as HTMLImageElement | null)?.src === AMBIENT_CLOUDS_SHEET.src,
@@ -237,8 +246,8 @@ const initialBackground = currentBackgroundLayout.value;
 const initialMarkers = currentMarkers.value;
 
 /** The first tile of `type` in reading order that also satisfies `also`, so
- *  level-driven tests name the terrain they need instead of pinning the
- *  coordinates it happens to sit at today. */
+ * level-driven tests name the terrain they need instead of pinning the
+ * coordinates it happens to sit at today. */
 const firstTileOfType = (
   type: TileType,
   also: (level: LevelDef, col: number, row: number) => boolean = () => true,
@@ -268,45 +277,53 @@ function useLayout(layout: string[]): void {
 }
 
 /** A fixture with exactly as many coins as the skill-fact pool is long, each
- *  spaced a tile apart so the player overlaps exactly one at a time, so the
- *  very first coin reveals exactly one fact (see SkillFactPacing.ts). */
+ * spaced a tile apart so the player overlaps exactly one at a time, so the
+ * very first coin reveals exactly one fact (see SkillFactPacing.ts). */
 const oneCoinPerSkillFact = (): string[] => {
   const n = skillFactPool.value.length;
   return ['S' + 'o.'.repeat(n), 'G'.repeat(1 + 2 * n)];
 };
 
 /** A fixture with exactly one green marker per CVData course, each spaced a
- *  tile apart so the player can only stomp one at a time — so each green
- *  slime owns exactly one course fact instead of a multi-fact slice. */
+ * tile apart so the player can only stomp one at a time — so each green
+ * slime owns exactly one course fact instead of a multi-fact slice. */
 const oneGreenPerCourse = (): string[] => {
   const n = mapCVDataToEnemies(currentCV.value).length;
   return ['S' + 'M.'.repeat(n), 'G'.repeat(1 + 2 * n)];
 };
 
 /** A fixture with exactly one crate marker per crate fact, each spaced a tile
- *  apart and with open air below it, so every crate owns exactly one fact
- *  and can be bumped from below without hitting a neighbour or the ground. */
+ * apart and with open air below it, so every crate owns exactly one fact
+ * and can be bumped from below without hitting a neighbour or the ground. */
 const oneCratePerFact = (): string[] => {
   const n = mapCVDataToBlocks(currentCV.value).filter((d) => d.blockKind === 'crate').length;
   const width = 1 + 2 * n;
   const blank = '.'.repeat(width);
-  return ['S' + '.'.repeat(width - 1), blank, '.' + '=.'.repeat(n), blank, blank, blank, 'G'.repeat(width)];
+  return [
+    'S' + '.'.repeat(width - 1),
+    blank,
+    '.' + '=.'.repeat(n),
+    blank,
+    blank,
+    blank,
+    'G'.repeat(width),
+  ];
 };
 
 /** How far right of a real crate the synthetic coin-pot blocks in the
- *  coin-pot landing tests below are placed — same reasoning as
- *  PLAIN_ENEMY_OFFSET_X above (offsetting keeps the synthetic block clear of
- *  the real crate it borrows its row from, and of any real coin-pot already
- *  placed nearby by the level layout). */
+ * coin-pot landing tests below are placed — same reasoning as
+ * PLAIN_ENEMY_OFFSET_X above (offsetting keeps the synthetic block clear of
+ * the real crate it borrows its row from, and of any real coin-pot already
+ * placed nearby by the level layout). */
 const COIN_POT_TEST_OFFSET_X = 5 * RENDERED_TILE_SIZE;
 
 /** Builds a synthetic coin-pot `BlockState` positioned a fixed offset right
- *  of a real crate's own row (borrowing its y so the block sits somewhere
- *  the level already has open space), and injects it into `blockStates`
- *  directly rather than sourcing it from `blockPlacements` — this keeps
- *  these tests independent of exactly where the level layout's real `u`
- *  markers sit. Callers must look the block up by the returned `id`, not by
- *  `blockKind`, since the real level now has its own coin-pots too. */
+ * of a real crate's own row (borrowing its y so the block sits somewhere
+ * the level already has open space), and injects it into `blockStates`
+ * directly rather than sourcing it from `blockPlacements` — this keeps
+ * these tests independent of exactly where the level layout's real `u`
+ * markers sit. Callers must look the block up by the returned `id`, not by
+ * `blockKind`, since the real level now has its own coin-pots too. */
 function placeTestCoinPot(id: string): BlockState {
   const crate = blockPlacements.value.find((b) => b.blockKind === 'crate')!;
   const pot = toBlockState({
@@ -320,8 +337,8 @@ function placeTestCoinPot(id: string): BlockState {
 }
 
 /** Same convention as COIN_POT_TEST_OFFSET_X/placeTestCoinPot above, but for
- *  a synthetic potion-pot — a different offset keeps it clear of both the
- *  real crate and any synthetic coin-pot placed nearby by another test. */
+ * a synthetic potion-pot — a different offset keeps it clear of both the
+ * real crate and any synthetic coin-pot placed nearby by another test. */
 const POTION_POT_TEST_OFFSET_X = 6 * RENDERED_TILE_SIZE;
 
 function placeTestPotionPot(id: string): BlockState {
@@ -337,8 +354,8 @@ function placeTestPotionPot(id: string): BlockState {
 }
 
 /** Same convention as COIN_POT_TEST_OFFSET_X/placeTestPotionPot above, but
- *  for a synthetic bomb-pot — a different offset keeps it clear of both the
- *  real crate and the other synthetic pots. */
+ * for a synthetic bomb-pot — a different offset keeps it clear of both the
+ * real crate and the other synthetic pots. */
 const BOMB_POT_TEST_OFFSET_X = 7 * RENDERED_TILE_SIZE;
 
 function placeTestBombPot(id: string): BlockState {
@@ -354,20 +371,20 @@ function placeTestBombPot(id: string): BlockState {
 }
 
 /** The player.y to set so a falling player's feet resolve to rest exactly on
- *  top of the given block's tile — mirrors `stompLandingY` above, but for
- *  landing on a solid block tile (`Physics.ts`'s ground-collision branch)
- *  rather than an enemy's hitbox. A few px above the resting position with a
- *  positive `vy` so the very first tick's collision resolves the landing. */
+ * top of the given block's tile — mirrors `stompLandingY` above, but for
+ * landing on a solid block tile (`Physics.ts`'s ground-collision branch)
+ * rather than an enemy's hitbox. A few px above the resting position with a
+ * positive `vy` so the very first tick's collision resolves the landing. */
 function blockLandingY(block: BlockState, approachPx = 4): number {
   return block.y - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING - approachPx;
 }
 
 /** The empty spear tip mask — what the module-level store must be reset to
- *  between tests so a mask injected by one test never leaks into the next. */
+ * between tests so a mask injected by one test never leaks into the next. */
 const EMPTY_SPEAR_MASK: SpearMask = { width: 4, height: 4, pixels: new Uint8Array(16) };
 
 /** A 4x4 mask with one lethal tip pixel at (1, 1) — world (spear.x + 1,
- *  spear.y + 1) for whatever spear placement a test uses. */
+ * spear.y + 1) for whatever spear placement a test uses. */
 function oneTipSpearMask(): SpearMask {
   const pixels = new Uint8Array(16);
   pixels[1 * 4 + 1] = 1;
@@ -375,8 +392,8 @@ function oneTipSpearMask(): SpearMask {
 }
 
 /** A 32x32 mask with one lethal tip pixel at (22, 8) — world (spear.x + 22,
- *  spear.y + 8): a shorter side-spear tip eight rows below the tile's own top,
- *  inside the hitbox of a player standing at `spear.x`. */
+ * spear.y + 8): a shorter side-spear tip eight rows below the tile's own top,
+ * inside the hitbox of a player standing at `spear.x`. */
 function lowTipSpearMask(): SpearMask {
   const width = 32;
   const height = 32;
@@ -417,7 +434,7 @@ describe('PlatformerPage', () => {
     // from one test must not leak into the next test's assumption that
     // every chest starts closed.
     resetChestsClosed();
-    // Module-level one-shot latch (see PlatformerState.ts's doc comment) —
+    // Module-level one-shot latch (see PlatformerState.ts's doc comment)
     // must be reset too, or a test that triggers the ending screen would
     // leave later tests unable to ever see it triggered again.
     endingScreenShown.value = false;
@@ -425,7 +442,7 @@ describe('PlatformerPage', () => {
     // review Important 4) — same reasoning as endingScreenShown above, so a
     // mounted-ThankYouScreen assumption doesn't leak between tests.
     endingScreenOpen.value = false;
-    // Module-level one-shot latch (see PlatformerState.ts's doc comment) —
+    // Module-level one-shot latch (see PlatformerState.ts's doc comment)
     // must be reset like endingScreenShown/endingScreenOpen above, or a
     // dismissal from one test would leak into the next test's assumption
     // that the overlay is still showable.
@@ -464,7 +481,7 @@ describe('PlatformerPage', () => {
     // like the other module-level state above, or a mask injected by one test
     // would make a later test's spear lethal (or inert) unexpectedly.
     setSpearTipMask(EMPTY_SPEAR_MASK);
-    // Module-level falling-stalactite signals (O-027) — reset like the other
+    // Module-level falling-stalactite signals — reset like the other
     // session arrays above, or a shattered/armed stalactite (and its debris)
     // left by one test would leak into the next test's assumption that every
     // hazard starts hanging.
@@ -483,8 +500,16 @@ describe('PlatformerPage', () => {
   });
 
   it('render-default-showsFixedShortCanvasHeight', () => {
-    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
-    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1024,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      writable: true,
+      configurable: true,
+      value: 900,
+    });
 
     render(<PlatformerPage />);
 
@@ -497,13 +522,25 @@ describe('PlatformerPage', () => {
   });
 
   it('windowResize-afterMount-widthTracksWindowHeightStaysFixed', () => {
-    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
-    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1024,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      writable: true,
+      configurable: true,
+      value: 900,
+    });
 
     render(<PlatformerPage />);
 
     Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 800 });
-    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 850 });
+    Object.defineProperty(window, 'innerHeight', {
+      writable: true,
+      configurable: true,
+      value: 850,
+    });
     fireEvent(window, new Event('resize'));
 
     const canvas = platformerPage.canvas;
@@ -514,12 +551,24 @@ describe('PlatformerPage', () => {
   });
 
   it('windowResize-windowWiderThanFixedCanvas-widthCapsToTheIntendedFrame', () => {
-    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
-    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1024,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      writable: true,
+      configurable: true,
+      value: 900,
+    });
 
     render(<PlatformerPage />);
 
-    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 2560 });
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 2560,
+    });
     fireEvent(window, new Event('resize'));
 
     const canvas = platformerPage.canvas;
@@ -530,8 +579,16 @@ describe('PlatformerPage', () => {
   });
 
   it('windowResize-windowShorterThanFixedCanvas-heightCapsToWindowHeight', () => {
-    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
-    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1024,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      writable: true,
+      configurable: true,
+      value: 768,
+    });
 
     render(<PlatformerPage />);
 
@@ -539,7 +596,11 @@ describe('PlatformerPage', () => {
     // to the window's own height as a safety net so the canvas never
     // overflows it.
     Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 300 });
-    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 200 });
+    Object.defineProperty(window, 'innerHeight', {
+      writable: true,
+      configurable: true,
+      value: 200,
+    });
     fireEvent(window, new Event('resize'));
 
     const canvas = platformerPage.canvas;
@@ -574,15 +635,24 @@ describe('PlatformerPage', () => {
       // block-sized 32x32 render size.
       expect(
         ctx.drawImage.mock.calls.some(
-          (call: unknown[]) => call[1] === 112 && call[2] === 48 && call[7] === 32 && call[8] === 32,
+          (call: unknown[]) =>
+            call[1] === 112 && call[2] === 48 && call[7] === 32 && call[8] === 32,
         ),
       ).toBe(true);
     });
   });
 
   it('render-tallViewport-anchorsLevelBottomToCanvasBottom', async () => {
-    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
-    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1024,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      writable: true,
+      configurable: true,
+      value: 900,
+    });
     vi.stubGlobal('Image', MockTilesetImage);
 
     // A fixture level tall enough that the spawn-framing camera offset is
@@ -659,8 +729,16 @@ describe('PlatformerPage', () => {
   });
 
   it('ambientClouds-playing-phase-drawsTheLayerAndKeepsItDriftingWhileStandingStill', async () => {
-    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
-    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1024,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      writable: true,
+      configurable: true,
+      value: 900,
+    });
     vi.stubGlobal('Image', MockTilesetImage);
 
     let frameCallback: FrameRequestCallback | null = null;
@@ -700,14 +778,26 @@ describe('PlatformerPage', () => {
     // A resize rebuilds the field at the new play-area width, so the per-render
     // draw count follows cloudPopulationFor.
     ctx.drawImage.mockClear();
-    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 2560 });
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 2560,
+    });
     fireEvent(window, new Event('resize'));
     expect(ambientCloudDraws(ctx).length).toBe(cloudPopulationFor(1280));
   });
 
   it('ambientClouds-renderOrder-drawsAfterBackdropBeforeBackgroundTilesWithCloudsParallaxOffset', async () => {
-    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
-    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1024,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      writable: true,
+      configurable: true,
+      value: 900,
+    });
     vi.stubGlobal('Image', MockTilesetImage);
     vi.stubGlobal('requestAnimationFrame', () => 1);
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
@@ -753,7 +843,7 @@ describe('PlatformerPage', () => {
     // Camera-linked parallax: on top of their own drift, the ambient clouds
     // shift left by cameraX * AMBIENT_CLOUD_PARALLAX_FACTOR — the painted
     // clouds/hills band's own factor — so they read at that band's depth
-    // (FR-002). The field is rebuilt identically on resize, so the only change
+    //. The field is rebuilt identically on resize, so the only change
     // between the two renders is the camera term.
     const ambientDx = () => ambientCloudDraws(ctx).map((call) => call[5] as number);
     const beforeCameraScroll = ambientDx();
@@ -1140,8 +1230,16 @@ describe('PlatformerPage', () => {
   });
 
   it('playerWalksPastDeadZone-gameLoopTicks-cameraScrollsRight', () => {
-    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
-    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1024,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      writable: true,
+      configurable: true,
+      value: 768,
+    });
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
       frameCallback = cb;
@@ -1237,11 +1335,15 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(ctx.fillText).toHaveBeenCalledWith(`1 / ${enemyTotal}`, expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith(
+      `1 / ${enemyTotal}`,
+      expect.any(Number),
+      expect.any(Number),
+    );
   });
 
   it('resetGame-afterDefeatingAnEnemy-collectedFactStaysBanked', async () => {
-    // Facts persist across a respawn (FR-020c) even though the enemy itself
+    // Facts persist across a respawn even though the enemy itself
     // respawns alive. The counter popup is transient and will long since
     // have faded by the time a reset happens, so this asserts the underlying
     // data directly instead of the popup's visible count.
@@ -1273,7 +1375,9 @@ describe('PlatformerPage', () => {
       t += 16;
       frameCallback!(t);
     }
-    const defeatedEnemyFactCount = collectedFacts.value.filter((f) => f.sourceType === 'enemy').length;
+    const defeatedEnemyFactCount = collectedFacts.value.filter(
+      (f) => f.sourceType === 'enemy',
+    ).length;
     expect(defeatedEnemyFactCount).toBe(1);
 
     playerState.value = { ...playerState.value, hitPoints: 0 };
@@ -1308,7 +1412,7 @@ describe('PlatformerPage', () => {
 
   it('render-collectedKeysZero-doesNotDrawKeyCounter', async () => {
     // The HUD key counter is only ever drawn by the `keySpriteRef.current &&
-    // collectedKeys.value > 0` gate in PlatformerPage.tsx's render function —
+    // collectedKeys.value > 0` gate in PlatformerPage.tsx's render function
     // the generic drawHudCounter itself doesn't gate on count (the CALLER
     // decides whether to call it). At 0 keys (this suite's default — see
     // beforeEach), no plain digit-string fillText call (the key counter's own
@@ -1367,7 +1471,9 @@ describe('PlatformerPage', () => {
 
     activeEffects.value = [startPuffEffect('test-puff', 500, 500)];
     frameCallback!(16);
-    expect(effectsOfKind<PuffState>('puff').find((p) => p.id === 'test-puff')?.elapsed).toBeGreaterThan(0);
+    expect(
+      effectsOfKind<PuffState>('puff').find((p) => p.id === 'test-puff')?.elapsed,
+    ).toBeGreaterThan(0);
 
     // SPARKLE_DURATION_SECONDS is 0.4s — well under 1000ms of ticks.
     let t = 16;
@@ -1430,7 +1536,9 @@ describe('PlatformerPage', () => {
     // The flying-text effect's id is `${coinId}-${factIndex}`, not the coin's
     // own id (a single coin can reveal more than one fact under the
     // proportional-fill pacing — see PlatformerPage.tsx's revealedFactCountFor).
-    const effect = effectsOfKind<FlyingTextState>('flyingText').find((e) => e.id.startsWith(`${target.id}-`));
+    const effect = effectsOfKind<FlyingTextState>('flyingText').find((e) =>
+      e.id.startsWith(`${target.id}-`),
+    );
     expect(effect?.state.icon).toBe('💡');
     expect(effect?.state.text).not.toContain('💡');
   });
@@ -1454,8 +1562,16 @@ describe('PlatformerPage', () => {
     });
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
 
-    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
-    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 900 });
+    Object.defineProperty(window, 'innerWidth', {
+      writable: true,
+      configurable: true,
+      value: 1024,
+    });
+    Object.defineProperty(window, 'innerHeight', {
+      writable: true,
+      configurable: true,
+      value: 900,
+    });
 
     useLayout(oneCoinPerSkillFact());
     render(<PlatformerPage />);
@@ -1464,20 +1580,18 @@ describe('PlatformerPage', () => {
     // Canvas height caps at PLAY_CANVAS_ROWS(24) * RENDERED_TILE_SIZE(32) =
     // 768, so a 900px-tall viewport centers it with a 66px top offset.
     const canvas = platformerPage.canvas;
-    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue(
-      new DOMRect(0, 66, 1024, 768),
-    );
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 66, 1024, 768));
     const journalButton = platformerPage.journalOpenButton.closest('button')!;
-    vi.spyOn(journalButton, 'getBoundingClientRect').mockReturnValue(
-      new DOMRect(16, 82, 40, 40),
-    );
+    vi.spyOn(journalButton, 'getBoundingClientRect').mockReturnValue(new DOMRect(16, 82, 40, 40));
 
     const target = collectiblePlacements.value.find((p) => p.kind === 'coin')!;
     playerState.value = { ...playerState.value, x: target.x, y: target.y };
 
     frameCallback!(16);
 
-    const effect = effectsOfKind<FlyingTextState>('flyingText').find((e) => e.id.startsWith(`${target.id}-`));
+    const effect = effectsOfKind<FlyingTextState>('flyingText').find((e) =>
+      e.id.startsWith(`${target.id}-`),
+    );
     // Canvas-local journal button center: (16 - 0) + 40/2, (82 - 66) + 40/2.
     expect(effect?.state.targetX).toBe(36);
     expect(effect?.state.targetY).toBe(36);
@@ -1537,7 +1651,7 @@ describe('PlatformerPage', () => {
     frameCallback!(16);
     expect(collectedFacts.value).toHaveLength(1);
 
-    // Simulate a respawn (per FR-020c, collected state survives it) and
+    // Simulate a respawn (per , collected state survives it) and
     // touch the same spot again.
     playerState.value = { ...playerState.value, hitPoints: 0 };
     frameCallback!(32); // enters 'dying'
@@ -1592,7 +1706,7 @@ describe('PlatformerPage', () => {
     expect(collectedFacts.value.some((f) => f.id === target.fact?.id)).toBe(true);
     // A fresh fact-bearing defeat still queues a puff — puff (defeat
     // feedback) and the fact/flying-text reward are fully decoupled layers,
-    // same as crate destruction (B-003).
+    // same as crate destruction.
     expect(effectsOfKind<PuffState>('puff').some((p) => p.id === target.id)).toBe(true);
   });
 
@@ -1627,7 +1741,10 @@ describe('PlatformerPage', () => {
       frameCallback!(t);
     }
 
-    expect(popupFor('enemies')?.state).toMatchObject({ collected: 1, total: levelTotals.value.enemies });
+    expect(popupFor('enemies')?.state).toMatchObject({
+      collected: 1,
+      total: levelTotals.value.enemies,
+    });
   });
 
   it('enemyAlreadyDefeatedFromAPriorLife-defeatingItAgain-awardsNoNewFact', () => {
@@ -1668,7 +1785,7 @@ describe('PlatformerPage', () => {
 
   it('enemyAlreadyDefeatedFromAPriorLife-defeatingItAgain-stillQueuesAPuff', () => {
     // Puff (defeat feedback) and the fact/flying-text reward are fully
-    // decoupled layers (B-003) — a defeat that awards nothing because it
+    // decoupled layers — a defeat that awards nothing because it
     // already paid out in a prior life is still a world event that
     // deserves a puff.
     let frameCallback: FrameRequestCallback | null = null;
@@ -1715,7 +1832,9 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
-    enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
+    enemyStates.value = enemyStates.value.map((e) =>
+      e.id === target.id ? { ...e, hitPoints: 1 } : e,
+    );
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -1757,7 +1876,9 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
-    enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
+    enemyStates.value = enemyStates.value.map((e) =>
+      e.id === target.id ? { ...e, hitPoints: 1 } : e,
+    );
     playerState.value = { ...playerState.value, x: target.x, y: stompLandingY(target), vy: 300 };
 
     let t = 16;
@@ -1770,7 +1891,9 @@ describe('PlatformerPage', () => {
     expect(effectsOfKind<PuffState>('puff').some((p) => p.id === target.id)).toBe(true);
     // A purple slime is bigger than the baseline green slime — its puff scale
     // must be visibly bigger than 1 (see enemyEffectAnchor).
-    expect(effectsOfKind<PuffState>('puff').find((p) => p.id === target.id)?.state.scale).toBeGreaterThan(1);
+    expect(
+      effectsOfKind<PuffState>('puff').find((p) => p.id === target.id)?.state.scale,
+    ).toBeGreaterThan(1);
   });
 
   it('purpleSlimeRespawnedAfterDeath-defeatedAgain-doesNotDropASecondKey', () => {
@@ -1791,7 +1914,9 @@ describe('PlatformerPage', () => {
     frameCallback!(0);
 
     const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
-    enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
+    enemyStates.value = enemyStates.value.map((e) =>
+      e.id === target.id ? { ...e, hitPoints: 1 } : e,
+    );
     playerState.value = {
       ...playerState.value,
       x: target.x,
@@ -1807,7 +1932,7 @@ describe('PlatformerPage', () => {
     }
     expect(keyPickupStates.value.filter((k) => k.id === target.id)).toHaveLength(1);
 
-    // Simulate a respawn (per FR-020c, collected/dropped state survives it —
+    // Simulate a respawn (per , collected/dropped state survives it
     // same convention as the collectible respawn test above) and re-defeat
     // the same purple slime once revived.
     playerState.value = { ...playerState.value, hitPoints: 0 };
@@ -1820,7 +1945,9 @@ describe('PlatformerPage', () => {
     fireEvent.keyDown(window, { code: 'Enter' });
 
     const revived = enemyStates.value.find((e) => e.id === target.id)!;
-    enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 1 } : e));
+    enemyStates.value = enemyStates.value.map((e) =>
+      e.id === target.id ? { ...e, hitPoints: 1 } : e,
+    );
     playerState.value = {
       ...playerState.value,
       x: revived.x,
@@ -1902,7 +2029,7 @@ describe('PlatformerPage', () => {
     expect(enemyStates.value.find((e) => e.id === target.id)?.rewardGiven).toBe(true);
     const factsAfterFirstDefeat = collectedFacts.value.length;
 
-    // Simulate a death/respawn (per FR-020c: rewardGiven survives it, but
+    // Simulate a death/respawn (per : rewardGiven survives it, but
     // deathEffectGiven must reset — see Task 5), same pattern as the existing
     // 'purpleSlimeRevivedAndDefeatedAgain...' key-pickup test in this file.
     // Note: `alive: false` must be set explicitly alongside `hitPoints: 0`
@@ -2100,7 +2227,10 @@ describe('PlatformerPage', () => {
       }
     }
 
-    expect(popupFor('crates')?.state).toMatchObject({ collected: 1, total: levelTotals.value.crates });
+    expect(popupFor('crates')?.state).toMatchObject({
+      collected: 1,
+      total: levelTotals.value.crates,
+    });
   });
 
   describe('coinPot — landing destroys it and drops a coin', () => {
@@ -2126,13 +2256,13 @@ describe('PlatformerPage', () => {
       // here, not a few frames later: the very next tick's gravity
       // integration would already have nudged the bounce velocity away from
       // its just-applied exact value. `hitsTaken` similarly must be read
-      // before the coin-pot's bump animation finishes (100ms —
+      // before the coin-pot's bump animation finishes (100ms
       // BLOCK_BUMP_DURATION_SECONDS in BlockAI.ts) and it's filtered out of
       // `blockStates` entirely (Block.ts's isBlockRemoved).
       frameCallback!(16);
 
       expect(blockStates.value.find((b) => b.id === pot.id)?.hitsTaken).toBe(1);
-      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.potBounceVelocity);
+      expect(playerState.value.vy).toBe(POT_BOUNCE_VY);
       expect(playerState.value.bounceAscending).toBe(true);
     });
 
@@ -2232,7 +2362,7 @@ describe('PlatformerPage', () => {
     });
 
     it('hittingAQuestionMarkFromBelow-spawnsItsRisingFruitThroughTheGenericPath', () => {
-      // US2: a block's declared `spawnPickup` drives ONE generic spawn path
+      // : a block's declared `spawnPickup` drives ONE generic spawn path
       // (`PICKUP_TYPES[kind].spawn` -> `pickupStores[kind].append`); the page
       // names no pickup kind, so the fruit's id/position come from the kind's
       // own module.
@@ -2300,7 +2430,7 @@ describe('PlatformerPage', () => {
       frameCallback!(16);
 
       expect(blockStates.value.find((b) => b.id === pot.id)?.hitsTaken).toBe(1);
-      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.potBounceVelocity);
+      expect(playerState.value.vy).toBe(POT_BOUNCE_VY);
       expect(playerState.value.bounceAscending).toBe(true);
     });
 
@@ -2399,7 +2529,7 @@ describe('PlatformerPage', () => {
 
       const brokeCoinPot = blockStates.value.find((b) => b.id === coinPot.id);
       expect(brokeCoinPot?.hitsTaken).toBe(1);
-      // The 'once' policy recorded that this pot has paid out (FR-017).
+      // The 'once' policy recorded that this pot has paid out.
       expect(brokeCoinPot?.rewardGiven).toBe(true);
       expect(spawnedCoinPlacements.value.map((c) => c.id)).toContain(coinPot.id);
 
@@ -2420,7 +2550,7 @@ describe('PlatformerPage', () => {
     const SIDE_LAYOUT = ['S...', '.§..', 'GGGG'];
 
     /** The player.y that puts a falling player's feet just above the top of
-     *  `row` — mirrors blockLandingY, but for a terrain row. */
+     * `row` — mirrors blockLandingY, but for a terrain row. */
     const capLandingY = (row: number, approachPx = 4): number =>
       row * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING - approachPx;
 
@@ -2452,7 +2582,7 @@ describe('PlatformerPage', () => {
 
       frameCallback()(16);
 
-      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(playerState.value.vy).toBe(MUSHROOM_BOUNCE_VY);
       expect(playerState.value.bounceAscending).toBe(true);
       expect(mushroomSquashStates.value).toEqual([{ col: 1, row: 1, elapsed: expect.any(Number) }]);
     });
@@ -2464,13 +2594,13 @@ describe('PlatformerPage', () => {
 
       playerState.value = { ...playerState.value, x: 0, y: capLandingY(1), vy: 300 };
       frameCallback()(16);
-      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(playerState.value.vy).toBe(MUSHROOM_BOUNCE_VY);
 
       // Fall onto the same cap again.
       playerState.value = { ...playerState.value, x: 0, y: capLandingY(1), vy: 300 };
       frameCallback()(32);
 
-      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(playerState.value.vy).toBe(MUSHROOM_BOUNCE_VY);
       expect(mushroomSquashStates.value).toHaveLength(1);
       expect(mushroomSquashStates.value[0]).toMatchObject({ col: 1, row: 1 });
     });
@@ -2482,11 +2612,16 @@ describe('PlatformerPage', () => {
       frameCallback()(0);
 
       // Feet on the ground row 3, body inside the stem cell at (0,2).
-      playerState.value = { ...playerState.value, x: -20, y: 3 * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING, vy: 0 };
+      playerState.value = {
+        ...playerState.value,
+        x: -20,
+        y: 3 * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING,
+        vy: 0,
+      };
 
       frameCallback()(16);
 
-      expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(playerState.value.vy).not.toBe(MUSHROOM_BOUNCE_VY);
       expect(mushroomSquashStates.value).toEqual([]);
     });
 
@@ -2497,12 +2632,17 @@ describe('PlatformerPage', () => {
       frameCallback()(0);
 
       // Standing on the ground row 2, centre column 2 (beside the cap).
-      playerState.value = { ...playerState.value, x: RENDERED_TILE_SIZE, y: 2 * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING, vy: 0 };
+      playerState.value = {
+        ...playerState.value,
+        x: RENDERED_TILE_SIZE,
+        y: 2 * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING,
+        vy: 0,
+      };
       window.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowLeft' }));
 
       frameCallback()(16);
 
-      expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(playerState.value.vy).not.toBe(MUSHROOM_BOUNCE_VY);
       expect(mushroomSquashStates.value).toEqual([]);
     });
 
@@ -2517,7 +2657,7 @@ describe('PlatformerPage', () => {
 
       frameCallback()(16);
 
-      expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(playerState.value.vy).not.toBe(MUSHROOM_BOUNCE_VY);
       expect(mushroomSquashStates.value).toEqual([]);
     });
 
@@ -2535,8 +2675,8 @@ describe('PlatformerPage', () => {
 
       frameCallback()(16);
 
-      expect(PHYSICS_CONFIG.mushroomBounceVelocity).toBeLessThan(PHYSICS_CONFIG.potBounceVelocity);
-      expect(playerState.value.vy).toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(MUSHROOM_BOUNCE_VY).toBeLessThan(POT_BOUNCE_VY);
+      expect(playerState.value.vy).toBe(MUSHROOM_BOUNCE_VY);
     });
 
     it('resetGame-called-whileASquashIsActive-clearsIt', () => {
@@ -2578,7 +2718,7 @@ describe('PlatformerPage', () => {
 
       frameCallback!(16);
 
-      expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(playerState.value.vy).not.toBe(MUSHROOM_BOUNCE_VY);
       expect(playerState.value.bounceAscending).toBe(false);
       expect(mushroomSquashStates.value).toEqual([]);
     });
@@ -2605,7 +2745,7 @@ describe('PlatformerPage', () => {
 
       frameCallback!(16);
 
-      expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.mushroomBounceVelocity);
+      expect(playerState.value.vy).not.toBe(MUSHROOM_BOUNCE_VY);
       expect(mushroomSquashStates.value).toEqual([]);
     });
   });
@@ -2629,7 +2769,9 @@ describe('PlatformerPage', () => {
       playerState.value = { ...playerState.value, hitPoints: MAX_HALF_HEARTS - 2 };
       const heartX = playerState.value.x;
       const heartY = playerState.value.y;
-      heartPickupStates.value = [{ id: 'heart-test-1', kind: 'heart', x: heartX, y: heartY, collected: false }];
+      heartPickupStates.value = [
+        { id: 'heart-test-1', kind: 'heart', x: heartX, y: heartY, collected: false },
+      ];
 
       frameCallback!(16);
 
@@ -2657,7 +2799,9 @@ describe('PlatformerPage', () => {
       playerState.value = { ...playerState.value, hitPoints: MAX_HALF_HEARTS };
       const heartX = playerState.value.x;
       const heartY = playerState.value.y;
-      heartPickupStates.value = [{ id: 'heart-test-2', kind: 'heart', x: heartX, y: heartY, collected: false }];
+      heartPickupStates.value = [
+        { id: 'heart-test-2', kind: 'heart', x: heartX, y: heartY, collected: false },
+      ];
 
       frameCallback!(16);
 
@@ -2690,13 +2834,13 @@ describe('PlatformerPage', () => {
 
     // Exactly one tick — the landing tick itself, same convention as
     // landingOnACoinPot-destroysItAndBouncesThePlayer above (a bounce, if
-    // wrongly applied, would only be exactly PHYSICS_CONFIG.potBounceVelocity
+    // wrongly applied, would only be exactly POT_BOUNCE_VY
     // on this very tick — a few frames later gravity would already have
     // changed vy regardless of whether a bounce fired).
     frameCallback!(16);
 
     expect(blockStates.value.find((b) => b.id === crate.id)?.hitsTaken).toBe(0);
-    expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.potBounceVelocity);
+    expect(playerState.value.vy).not.toBe(POT_BOUNCE_VY);
     expect(playerState.value.bounceAscending).toBe(false);
   });
 
@@ -2749,8 +2893,8 @@ describe('PlatformerPage', () => {
   });
 
   it('playerWalksIntoKeyPickup-tick-startsAFlyingTextEffectTowardTheKeyCounter', () => {
-    // Spec.md's User Story 4 and roadmap.md's step 30 both promise that
-    // collecting a key "animates toward the key counter in the HUD" —
+    // Spec.md's and roadmap.md's step 30 both promise that
+    // collecting a key "animates toward the key counter in the HUD"
     // reusing the same startFlyingText/activeEffects mechanism every other
     // pickup path in this file already uses, just targeting the HUD key
     // counter's fixed screen position instead of the journal icon.
@@ -2786,7 +2930,9 @@ describe('PlatformerPage', () => {
       total: chestPlacements.value.length,
       textGap: CHEST_COUNTER_TEXT_GAP,
     });
-    expect(effect?.state.targetX).toBe(hudCounterX(ctx, measurementChestDescriptor, CHEST_COUNTER_X));
+    expect(effect?.state.targetX).toBe(
+      hudCounterX(ctx, measurementChestDescriptor, CHEST_COUNTER_X),
+    );
     expect(effect?.state.targetY).toBe(KEY_COUNTER_Y);
   });
 
@@ -2816,9 +2962,9 @@ describe('PlatformerPage', () => {
     // multiplier — 0.45 — has already chewed the bounce impulse down to
     // roughly 45% of its magnitude, which is what happens on this exact
     // frame if the jump key isn't held) — assert it's still close to its
-    // full magnitude, whatever PHYSICS_CONFIG.stompBounceVelocity currently is.
+    // full magnitude, whatever DEFAULT_STOMP_BOUNCE_VY currently is.
     expect(playerState.value.vy).toBeLessThan(0);
-    expect(playerState.value.vy).toBeLessThan(PHYSICS_CONFIG.stompBounceVelocity * 0.9);
+    expect(playerState.value.vy).toBeLessThan(DEFAULT_STOMP_BOUNCE_VY * 0.9);
 
     // The jump-cut multiplier must not re-apply EVERY tick the jump key
     // isn't held, only once — a single-tick-only suppression already passes
@@ -2831,7 +2977,7 @@ describe('PlatformerPage', () => {
       t += 16;
       frameCallback!(t);
     }
-    expect(playerState.value.vy).toBeLessThan(PHYSICS_CONFIG.stompBounceVelocity * 0.5);
+    expect(playerState.value.vy).toBeLessThan(DEFAULT_STOMP_BOUNCE_VY * 0.5);
   });
 
   it('alreadyDefeated-stompedAgainAfterRespawn-doesNotDuplicateFact', () => {
@@ -2871,7 +3017,7 @@ describe('PlatformerPage', () => {
 
     expect(collectedFacts.value.filter((f) => f.id === factId)).toHaveLength(1);
 
-    // Simulate a death + respawn (per FR-020c, collected facts survive it,
+    // Simulate a death + respawn (per , collected facts survive it,
     // but resetGame() revives all enemies from scratch, alive again) — same
     // sequence as alreadyCollected-touchedAgainAfterRespawn-doesNotDuplicateFact
     // above, but for an enemy stomp instead of a collectible touch.
@@ -3180,7 +3326,7 @@ describe('PlatformerPage', () => {
     fireEvent.keyDown(window, { code: 'KeyJ' });
 
     // Journal.tsx plays its book-opening animation before the close button
-    // renders, and its reverse-close animation before actually closing —
+    // renders, and its reverse-close animation before actually closing
     // both are one setTimeout per frame (re-scheduled by an effect each
     // time the frame advances), so the clock must be advanced one interval
     // at a time rather than in one bulk jump.
@@ -3367,8 +3513,8 @@ describe('PlatformerPage', () => {
     render(<PlatformerPage />);
     frameCallback!(0);
 
-    // Collect a real fact (per FR-020c, collected state survives a death) so
-    // there's something in the journal to persist across the restart below —
+    // Collect a real fact (per , collected state survives a death) so
+    // there's something in the journal to persist across the restart below
     // collectedFacts starts empty; only real coin/fruit collection populates
     // it.
     const target = collectiblePlacements.value[0];
@@ -3398,7 +3544,7 @@ describe('PlatformerPage', () => {
     lifecycleState.value = { ...lifecycleState.value, phase: 'playing' };
     fireEvent.keyDown(window, { code: 'KeyJ' });
 
-    // The journal plays its book-opening animation before showing content —
+    // The journal plays its book-opening animation before showing content
     // advance past it before asserting on fact items. Journal.tsx schedules
     // one setTimeout per frame (re-created by an
     // effect each time the frame advances), so the clock must be advanced
@@ -3418,9 +3564,7 @@ describe('PlatformerPage', () => {
     const defaultSectionFacts = factsBeforeDeath.filter(
       (fact) => fact.sectionId === factsBeforeDeath[0].sectionId,
     );
-    fireEvent.click(
-      screen.getByTestId(`bookmark-tab-${factsBeforeDeath[0].sectionId}`),
-    );
+    fireEvent.click(screen.getByTestId(`bookmark-tab-${factsBeforeDeath[0].sectionId}`));
     expect(platformerPage.journal.emptyState).not.toBeInTheDocument();
     expect(platformerPage.journal.factItems).toHaveLength(defaultSectionFacts.length);
 
@@ -3741,7 +3885,7 @@ describe('PlatformerPage', () => {
     // regression this feature hit during manual testing: without
     // `bounceAscending: true` protecting it (same mechanism the stomp
     // bounce uses), stepPlayerPhysics's variable-jump-height cut sheared
-    // -150 down to ~-59 on this very tick (since the jump key isn't held) —
+    // -150 down to ~-59 on this very tick (since the jump key isn't held)
     // still negative, but far too weak to read as "bounced off the
     // spikes". -100 sits well above that sheared value and well below 0.
     expect(playerState.value.vy).toBeLessThan(-100);
@@ -3770,7 +3914,7 @@ describe('PlatformerPage', () => {
 
     frameCallback!(16);
 
-    expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.awayAndUpKnockbackVy);
+    expect(playerState.value.vy).not.toBe(SLIME_PURPLE_SPIKE_REBOUND_VY);
   });
 
   it('playerInvincible-touchesAnotherEnemy-noSecondHitRegistered', () => {
@@ -3821,7 +3965,7 @@ describe('PlatformerPage', () => {
     // Pushed away from the hazard's tile, same knockback amount as a side
     // enemy touch — this is what keeps a standing-still player from getting
     // hit again the instant the refractory window lapses.
-    expect(Math.abs(playerState.value.vx)).toBe(PHYSICS_CONFIG.sideHitKnockbackVx);
+    expect(Math.abs(playerState.value.vx)).toBe(DEFAULT_HIT_KNOCKBACK.vx);
     expect(isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)).toBe(true);
   });
 
@@ -3855,9 +3999,9 @@ describe('PlatformerPage', () => {
     expect(playerState.value.hitPoints).toBe(startingHealth);
   });
 
-  describe('crouched hit reaction (FR-011 / SC-009)', () => {
+  describe('crouched hit reaction', () => {
     /** Renders the page with a controllable loop and returns its frame
-     *  callback (already primed at t=0). */
+     * callback (already primed at t=0). */
     function mountWithFrameCallback(): (t: number) => void {
       let frameCallback: FrameRequestCallback | null = null;
       vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -3916,7 +4060,7 @@ describe('PlatformerPage', () => {
       expect(playerState.value.animState).toBe('hit');
       // No upward pop: the fall keeps vy positive and never applies the
       // awayAndUp impulse.
-      expect(playerState.value.vy).not.toBe(PHYSICS_CONFIG.awayAndUpKnockbackVy);
+      expect(playerState.value.vy).not.toBe(SLIME_PURPLE_SPIKE_REBOUND_VY);
       expect(playerState.value.vy).toBeGreaterThan(0);
       expect(playerState.value.bounceAscending).toBe(false);
     });
@@ -4022,9 +4166,9 @@ describe('PlatformerPage', () => {
     });
   });
 
-  describe('crouch integration (S-012)', () => {
+  describe('crouch integration', () => {
     /** Renders the page with a controllable loop and returns its frame
-     *  callback (already primed at t=0). */
+     * callback (already primed at t=0). */
     function mountWithFrameCallback(): (t: number) => void {
       let frameCallback: FrameRequestCallback | null = null;
       vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -4112,10 +4256,10 @@ describe('PlatformerPage', () => {
     });
   });
 
-  describe('floor spear hazard — descending tip landing is fatal (US1)', () => {
+  describe('floor spear hazard — descending tip landing is fatal', () => {
     /** Renders the game with a spear one tile right of the spawn, injects a
-     *  one-tip mask, and drops the player onto that tip from above with the
-     *  given health/hit-timer overrides. Returns the spear placement. */
+     * one-tip mask, and drops the player onto that tip from above with the
+     * given health/hit-timer overrides. Returns the spear placement. */
     function dropOntoSpear(
       frameCallback: (t: number) => void,
       overrides: { hitPoints?: number; hitTimer?: number; fastFall?: boolean } = {},
@@ -4191,7 +4335,7 @@ describe('PlatformerPage', () => {
     });
 
     it('aDescentOntoASideTipAfterClearingTheTileTop-tick-killsInstantly', () => {
-      // Same shorter side tip as the US2 regression, but the feet were above
+      // Same shorter side tip as the regression, but the feet were above
       // the tile's top (prevFeetY < hazard.y) at the start of the step — a
       // genuine fall onto the spear, so it kills.
       setSpearTipMask(lowTipSpearMask());
@@ -4255,7 +4399,7 @@ describe('PlatformerPage', () => {
     });
   });
 
-  describe('floor spear hazard — everything else is safe (US2)', () => {
+  describe('floor spear hazard — everything else is safe', () => {
     function renderSpearLevel(layout: string[] = ['S¦', 'GG']): (t: number) => void {
       currentLayout.value = layout;
       let frameCallback: FrameRequestCallback | null = null;
@@ -4270,7 +4414,7 @@ describe('PlatformerPage', () => {
     }
 
     /** The resting y for a character standing on the solid row below the
-     *  spear (row 1), feet on that row's top edge. */
+     * spear (row 1), feet on that row's top edge. */
     const GROUNDED_ON_ROW_BELOW_Y = RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
 
     it('walkingHorizontallyThroughASpearTile-causesNoDamageAndNoDeflection', () => {
@@ -4441,9 +4585,9 @@ describe('PlatformerPage', () => {
     });
   });
 
-  describe('floor spear hazard — inert world object (FR-010/FR-011, SC-006)', () => {
+  describe('floor spear hazard — inert world object', () => {
     /** Renders the page with a controllable game loop, mirroring the bombs
-     *  describe's own helper. */
+     * describe's own helper. */
     function mountWithLoop(): (steps?: number, dt?: number) => void {
       let frameCallback: FrameRequestCallback | null = null;
       vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -4491,13 +4635,7 @@ describe('PlatformerPage', () => {
       placedBombs.value = [
         ...placedBombs.value,
         {
-          ...createPlacedBomb(
-            'spear-blast-bomb',
-            currentLevel.value,
-            blockStates.value,
-            3,
-            0,
-          ),
+          ...createPlacedBomb('spear-blast-bomb', currentLevel.value, blockStates.value, 3, 0),
           fuseElapsed: BOMB_FUSE_SECONDS - 0.001,
           landed: true,
         },
@@ -4594,7 +4732,7 @@ describe('PlatformerPage', () => {
     playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0 };
 
     // One tick to register contact, then immediately move off before the
-    // 0.5s delay+warning window elapses (SC-001).
+    // 0.5s delay+warning window elapses.
     frameCallback!(16);
     playerState.value = { ...playerState.value, x: hazard.x + 200, vx: 0 };
     frameCallback!(16);
@@ -4629,7 +4767,7 @@ describe('PlatformerPage', () => {
     }
 
     expect(playerState.value.hitPoints).toBe(startingHealth - SIDE_HIT_DAMAGE);
-    // FR-006: no knockback, unlike the static spike — but it still shows the
+    // : no knockback, unlike the static spike — but it still shows the
     // red hit reaction every other damage source does.
     expect(playerState.value.vx).toBe(0);
     expect(playerState.value.animState).toBe('hit');
@@ -5018,7 +5156,7 @@ describe('PlatformerPage', () => {
 
   it('keyWPressed-whileStandingOnClosedChest-opensItAndRevealsExperienceFact', () => {
     // KeyW is an accepted alternate for ArrowUp's interact action, same
-    // convention as A/D being alternates for Left/Right (see FR-007), so
+    // convention as A/D being alternates for Left/Right, so
     // opening a chest must work with it too.
     let frameCallback: FrameRequestCallback | null = null;
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -5334,7 +5472,13 @@ describe('PlatformerPage', () => {
     // collectedFacts and the base-coin flags are cleared on remount, not
     // which fact was "collected", so a minimal standalone one suffices.
     collectedFacts.value = [
-      { id: 'test-fact', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Test', skills: [] }, sourceType: 'coin' },
+      {
+        id: 'test-fact',
+        sectionId: 'skills',
+        sectionLabel: 'Skills',
+        data: { category: 'Test', skills: [] },
+        sourceType: 'coin',
+      },
     ];
     baseCoinPlacements.value = baseCoinPlacements.value.map((p, index) =>
       index === 0 ? { ...p, collected: true } : p,
@@ -5350,7 +5494,7 @@ describe('PlatformerPage', () => {
   });
 
   it('unmountAndRemount-afterControlsOverlayDismissed-showsOverlayAgain', () => {
-    // The controls overlay is a one-shot-per-session latch (FR-036) that the
+    // The controls overlay is a one-shot-per-session latch that the
     // Reset Game button deliberately leaves alone, since Reset Game is still
     // the same session. A theme switch is a genuinely new session, so the
     // overlay should be showable again after switching back.
@@ -5383,7 +5527,7 @@ describe('PlatformerPage', () => {
 
       render(<PlatformerPage />);
 
-      // Position the character mid-shaft on one of the level's ladders —
+      // Position the character mid-shaft on one of the level's ladders
       // looked up rather than hardcoded, so redrawing the level never breaks
       // this test. Mid-shaft means there is a rung above to climb onto.
       const rung = firstTileOfType('ladder', (level, col, row) =>
@@ -5403,8 +5547,8 @@ describe('PlatformerPage', () => {
 
   describe('PlatformerPage — hint signs', () => {
     /** The level places one sign per hint, so these tests name the sign they
-     *  drive rather than taking whichever happens to come first in reading
-     *  order — that order shifts whenever the level is redrawn. */
+     * drive rather than taking whichever happens to come first in reading
+     * order — that order shifts whenever the level is redrawn. */
     const bridgeSign = () => {
       const sign = signPlacements.value.find((s) => s.hintId === 'bridgeDropThrough');
       if (!sign) throw new Error('level has no bridgeDropThrough sign');
@@ -5704,7 +5848,9 @@ describe('PlatformerPage', () => {
 
       frameCallback!(16);
 
-      expect(effectsOfKind<HitSplatterState>('hitSplatter').some((s) => s.state.color === '#a30f1f')).toBe(true);
+      expect(
+        effectsOfKind<HitSplatterState>('hitSplatter').some((s) => s.state.color === '#a30f1f'),
+      ).toBe(true);
     });
 
     it('spikeHitKillsThePlayer-startsNoSplatter', () => {
@@ -5725,7 +5871,14 @@ describe('PlatformerPage', () => {
 
       const hazard = hazardPlacements.value[0];
       // Last half heart — this hazard's one hit brings health to exactly 0.
-      playerState.value = { ...playerState.value, x: hazard.x, y: hazard.y, vx: 0, vy: 0, hitPoints: 1 };
+      playerState.value = {
+        ...playerState.value,
+        x: hazard.x,
+        y: hazard.y,
+        vx: 0,
+        vy: 0,
+        hitPoints: 1,
+      };
 
       frameCallback!(16);
 
@@ -5737,7 +5890,7 @@ describe('PlatformerPage', () => {
     it('playerFallsIntoPit-startsNoSplatter', () => {
       // Nothing visibly struck the character — a pit fall is damage with no
       // attacker, so unlike an enemy/hazard touch it gets no debris burst,
-      // only the blink (S-011).
+      // only the blink.
       let frameCallback: FrameRequestCallback | null = null;
       vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
         frameCallback = cb;
@@ -5766,7 +5919,9 @@ describe('PlatformerPage', () => {
       frameCallback!(0);
 
       const target = enemyStates.value.find((e) => e.type === 'slimePurple')!;
-      enemyStates.value = enemyStates.value.map((e) => (e.id === target.id ? { ...e, hitPoints: 3 } : e));
+      enemyStates.value = enemyStates.value.map((e) =>
+        e.id === target.id ? { ...e, hitPoints: 3 } : e,
+      );
       playerState.value = { ...playerState.value, x: target.x, y: stompLandingY(target), vy: 300 };
 
       let t = 16;
@@ -5776,7 +5931,9 @@ describe('PlatformerPage', () => {
         frameCallback!(t);
       }
 
-      expect(effectsOfKind<HitSplatterState>('hitSplatter').some((s) => s.state.color === '#8e3dd9')).toBe(true);
+      expect(
+        effectsOfKind<HitSplatterState>('hitSplatter').some((s) => s.state.color === '#8e3dd9'),
+      ).toBe(true);
       expect(effectsOfKind<PuffState>('puff').some((p) => p.id === target.id)).toBe(false);
     });
 
@@ -5801,7 +5958,9 @@ describe('PlatformerPage', () => {
         frameCallback!(t);
       }
 
-      expect(effectsOfKind<HitSplatterState>('hitSplatter').some((s) => s.state.color === '#3ddc55')).toBe(true);
+      expect(
+        effectsOfKind<HitSplatterState>('hitSplatter').some((s) => s.state.color === '#3ddc55'),
+      ).toBe(true);
       expect(effectsOfKind<PuffState>('puff').some((p) => p.id === target.id)).toBe(true);
     });
 
@@ -5880,9 +6039,9 @@ describe('PlatformerPage', () => {
       const ctx = platformerPage.context;
       frameCallback!(16);
 
-      expect(ctx.fillRect.mock.calls.some((call: number[]) => call[2] === LOW_HEALTH_GLOW_WIDTH_PX)).toBe(
-        false,
-      );
+      expect(
+        ctx.fillRect.mock.calls.some((call: number[]) => call[2] === LOW_HEALTH_GLOW_WIDTH_PX),
+      ).toBe(false);
     });
 
     it('criticalHealthButJournalOpen-doesNotDrawLowHealthGlowBorder', () => {
@@ -5901,9 +6060,9 @@ describe('PlatformerPage', () => {
       ctx.fillRect.mockClear();
       frameCallback!(32);
 
-      expect(ctx.fillRect.mock.calls.some((call: number[]) => call[2] === LOW_HEALTH_GLOW_WIDTH_PX)).toBe(
-        false,
-      );
+      expect(
+        ctx.fillRect.mock.calls.some((call: number[]) => call[2] === LOW_HEALTH_GLOW_WIDTH_PX),
+      ).toBe(false);
     });
   });
 
@@ -5921,9 +6080,9 @@ describe('PlatformerPage', () => {
       };
     }
 
-    /** Authors a checkpoint layout and reseeds the checkpoint state signal —
-     *  the signal is seeded once at module load, so a new layout needs an
-     *  explicit reseed (the same thing resetGameProgress does). */
+    /** Authors a checkpoint layout and reseeds the checkpoint state signal
+     * the signal is seeded once at module load, so a new layout needs an
+     * explicit reseed (the same thing resetGameProgress does). */
     function useCheckpointLayout(layout: readonly string[]) {
       currentLayout.value = layout;
       checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
@@ -5932,7 +6091,7 @@ describe('PlatformerPage', () => {
     }
 
     /** Presses the interact key (Up) so the next frame's checkpoint
-     *  resolution sees it — activation requires an explicit press. */
+     * resolution sees it — activation requires an explicit press. */
     function pressInteract(): void {
       fireEvent.keyDown(window, { code: 'ArrowUp' });
     }
@@ -5963,14 +6122,23 @@ describe('PlatformerPage', () => {
       nextFrame()(32);
       expect(checkpointStates.value.find((c) => c.id === 'checkpoint-0-0')?.activated).toBe(true);
       expect(activeCheckpointId.value).toBe('checkpoint-0-0');
-      expect(effectsOfKind<PuffState>('puff').filter((p) => p.id === 'checkpoint-0-0')).toHaveLength(1);
-      expect(effectsOfKind<FadeOutTextState>('fadeOutText').find((t) => t.id === 'checkpoint-0-0')?.state.text).toBe('Checkpoint');
+      expect(
+        effectsOfKind<PuffState>('puff').filter((p) => p.id === 'checkpoint-0-0'),
+      ).toHaveLength(1);
+      expect(
+        effectsOfKind<FadeOutTextState>('fadeOutText').find((t) => t.id === 'checkpoint-0-0')?.state
+          .text,
+      ).toBe('Checkpoint');
 
       // Standing on it and pressing Up again replays nothing.
       pressInteract();
       nextFrame()(48);
-      expect(effectsOfKind<PuffState>('puff').filter((p) => p.id === 'checkpoint-0-0')).toHaveLength(1);
-      expect(effectsOfKind<FadeOutTextState>('fadeOutText').filter((t) => t.id === 'checkpoint-0-0')).toHaveLength(1);
+      expect(
+        effectsOfKind<PuffState>('puff').filter((p) => p.id === 'checkpoint-0-0'),
+      ).toHaveLength(1);
+      expect(
+        effectsOfKind<FadeOutTextState>('fadeOutText').filter((t) => t.id === 'checkpoint-0-0'),
+      ).toHaveLength(1);
     });
 
     it('theActivationLabelIsRemovedOnceItsFadeFinishes', () => {
@@ -5981,7 +6149,9 @@ describe('PlatformerPage', () => {
       playerState.value = playerStateAtTile(0, 0);
       pressInteract();
       nextFrame()(16);
-      expect(effectsOfKind<FadeOutTextState>('fadeOutText').some((t) => t.id === 'checkpoint-0-0')).toBe(true);
+      expect(
+        effectsOfKind<FadeOutTextState>('fadeOutText').some((t) => t.id === 'checkpoint-0-0'),
+      ).toBe(true);
 
       let t = 16;
       for (let i = 0; i < 60; i++) {
@@ -5989,7 +6159,9 @@ describe('PlatformerPage', () => {
         nextFrame()(t);
       }
 
-      expect(effectsOfKind<FadeOutTextState>('fadeOutText').some((t) => t.id === 'checkpoint-0-0')).toBe(false);
+      expect(
+        effectsOfKind<FadeOutTextState>('fadeOutText').some((t) => t.id === 'checkpoint-0-0'),
+      ).toBe(false);
     });
 
     it('aMidAirCheckpointWithNoSolidGroundBelow-isInert', () => {
@@ -6006,8 +6178,16 @@ describe('PlatformerPage', () => {
     });
 
     it('deathWithAnActiveCheckpoint-respawnsOnItWithFullHealthAndTheCameraThere', () => {
-      Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
-      Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 1024,
+      });
+      Object.defineProperty(window, 'innerHeight', {
+        writable: true,
+        configurable: true,
+        value: 768,
+      });
       const nextFrame = captureLoop();
       useCheckpointLayout(['C.S', 'GGG']);
       render(<PlatformerPage />);
@@ -6105,7 +6285,7 @@ describe('PlatformerPage', () => {
       expect(activeCheckpointId.value).toBe('checkpoint-0-0');
 
       // Fall into a pit far from the checkpoint, with a distinct last-safe
-      // ground recorded — SC-008: the pit-fall anchor must win, not the
+      // ground recorded — : the pit-fall anchor must win, not the
       // checkpoint.
       playerState.value = {
         ...playerState.value,
@@ -6144,12 +6324,16 @@ describe('PlatformerPage', () => {
       expect(activeCheckpointId.value).toBe('checkpoint-2-0');
 
       // Pressing Up on the first again moves the glow with no replay.
-      const puffsBefore = effectsOfKind<PuffState>('puff').filter((p) => p.id === 'checkpoint-0-0').length;
+      const puffsBefore = effectsOfKind<PuffState>('puff').filter(
+        (p) => p.id === 'checkpoint-0-0',
+      ).length;
       playerState.value = playerStateAtTile(0, 0);
       pressInteract();
       nextFrame()(48);
       expect(activeCheckpointId.value).toBe('checkpoint-0-0');
-      expect(effectsOfKind<PuffState>('puff').filter((p) => p.id === 'checkpoint-0-0')).toHaveLength(puffsBefore);
+      expect(
+        effectsOfKind<PuffState>('puff').filter((p) => p.id === 'checkpoint-0-0'),
+      ).toHaveLength(puffsBefore);
     });
   });
 
@@ -6207,16 +6391,16 @@ describe('PlatformerPage', () => {
 
       // A solid tile at column 2 would stop the hitbox's right edge at
       // torchX; walking straight through puts the hitbox's LEFT edge past the
-      // cell's own right edge (FR-008/SC-005).
+      // cell's own right edge.
       expect(playerState.value.x + PLAYER_SIDE_PADDING).toBeGreaterThan(
         torchX + RENDERED_TILE_SIZE,
       );
     });
   });
 
-  describe('bombs (O-012)', () => {
+  describe('bombs', () => {
     /** Renders the page with a controllable game loop and returns an
-     *  `advance(steps, dtMs)` that drives the loop's frame callback. */
+     * `advance(steps, dtMs)` that drives the loop's frame callback. */
     function mountWithLoop(): (steps?: number, dt?: number) => void {
       let frameCallback: FrameRequestCallback | null = null;
       vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -6251,7 +6435,7 @@ describe('PlatformerPage', () => {
     }
 
     /** Places a bomb at `(col, row)` with its fuse one tick from expiring, so
-     *  the next tick detonates it. */
+     * the next tick detonates it. */
     function placeBombAboutToDetonate(col: number, row: number, id: string): void {
       placedBombs.value = [
         ...placedBombs.value,
@@ -6263,7 +6447,7 @@ describe('PlatformerPage', () => {
       ];
     }
 
-    describe('US1 — the blue pot yields a bomb', () => {
+    describe('— the blue pot yields a bomb', () => {
       it('breakingABombPot-spawnsOneBombPickupAtThePotsTile', () => {
         const advance = mountWithLoop();
         const pot = placeTestBombPot('bombpot-test-drop');
@@ -6279,14 +6463,20 @@ describe('PlatformerPage', () => {
       it('walkingOverABombPickup-incrementsCarriedBombsByExactlyOneAndFlagsItCollected', () => {
         const advance = mountWithLoop();
         const player = playerState.value;
-        bombPickupStates.value = [{ id: 'b1', kind: 'bomb', x: player.x, y: player.y, collected: false }];
+        bombPickupStates.value = [
+          { id: 'b1', kind: 'bomb', x: player.x, y: player.y, collected: false },
+        ];
 
         advance(1);
 
         expect(carriedBombs.value).toBe(1);
         // Retained and flagged, not removed.
         expect(bombPickupStates.value).toHaveLength(1);
-        expect(bombPickupStates.value[0]).toMatchObject({ id: 'b1', kind: 'bomb', collected: true });
+        expect(bombPickupStates.value[0]).toMatchObject({
+          id: 'b1',
+          kind: 'bomb',
+          collected: true,
+        });
       });
 
       it('collectingABomb-addsNoCollectiblePlacementAndLeavesTheCountersUnchanged', () => {
@@ -6294,7 +6484,9 @@ describe('PlatformerPage', () => {
         const player = playerState.value;
         const coinsBefore = levelTotals.value.coins;
         const factsBefore = collectedFacts.value.length;
-        bombPickupStates.value = [{ id: 'b1', kind: 'bomb', x: player.x, y: player.y, collected: false }];
+        bombPickupStates.value = [
+          { id: 'b1', kind: 'bomb', x: player.x, y: player.y, collected: false },
+        ];
 
         advance(1);
 
@@ -6305,7 +6497,7 @@ describe('PlatformerPage', () => {
       });
     });
 
-    describe('US2 — place a bomb and get clear', () => {
+    describe('— place a bomb and get clear', () => {
       it('pressingB-withABomb-placesOneBombAndDecrementsTheCount', () => {
         currentLayout.value = ['S....', 'GGGGG'];
         const advance = mountWithLoop();
@@ -6337,7 +6529,7 @@ describe('PlatformerPage', () => {
         // The blast knocks the character away and enters the shared `hit`
         // sprite flash — the same knockback + red flash a side hit uses.
         expect(playerState.value.animState).toBe('hit');
-        expect(Math.abs(playerState.value.vx)).toBe(PHYSICS_CONFIG.sideHitKnockbackVx);
+        expect(Math.abs(playerState.value.vx)).toBe(DEFAULT_HIT_KNOCKBACK.vx);
       });
 
       it('aCharacterInTheBlastWhileInvincible-takesNoDamage', () => {
@@ -6455,7 +6647,7 @@ describe('PlatformerPage', () => {
       });
     });
 
-    describe('US3 — the blast clears the way', () => {
+    describe('— the blast clears the way', () => {
       it('aCrateInTheBlast-isDestroyed', () => {
         currentLayout.value = ['S....', 'GGGGG'];
         const advance = mountWithLoop();
@@ -6539,17 +6731,23 @@ describe('PlatformerPage', () => {
         advance(1);
 
         expect(placedBombs.value.some((b) => b.id === 'blast-bomb-b')).toBe(true);
-        expect(effectsOfKind<ExplosionState>('explosion').some((e) => e.id === 'blast-bomb-a')).toBe(true);
-        expect(effectsOfKind<ExplosionState>('explosion').some((e) => e.id === 'blast-bomb-b')).toBe(false);
+        expect(
+          effectsOfKind<ExplosionState>('explosion').some((e) => e.id === 'blast-bomb-a'),
+        ).toBe(true);
+        expect(
+          effectsOfKind<ExplosionState>('explosion').some((e) => e.id === 'blast-bomb-b'),
+        ).toBe(false);
       });
     });
 
-    describe('US4 — the inventory has limits', () => {
+    describe('— the inventory has limits', () => {
       it('atTheCap-touchingABombPickupLeavesItInTheWorld', () => {
         const advance = mountWithLoop();
         carriedBombs.value = MAX_BOMBS;
         const player = playerState.value;
-        bombPickupStates.value = [{ id: 'cap-bomb', kind: 'bomb', x: player.x, y: player.y, collected: false }];
+        bombPickupStates.value = [
+          { id: 'cap-bomb', kind: 'bomb', x: player.x, y: player.y, collected: false },
+        ];
 
         advance(1);
 
@@ -6613,7 +6811,7 @@ describe('PlatformerPage', () => {
       });
     });
 
-    describe('US5 — death, respawn and refill', () => {
+    describe('— death, respawn and refill', () => {
       it('resetGame-clearsPlacedBombsAndTheCarriedCount', () => {
         mountWithLoop();
         carriedBombs.value = 3;
@@ -6664,7 +6862,7 @@ describe('PlatformerPage', () => {
     });
   });
 
-  describe('bee (O-024)', () => {
+  describe('bee', () => {
     it('theShippedBee-overAPit-fliesAcrossWithoutReversing', () => {
       let frameCallback: FrameRequestCallback | null = null;
       vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -6791,7 +6989,7 @@ describe('PlatformerPage', () => {
     });
   });
 
-  describe('falling stalactite (O-027)', () => {
+  describe('falling stalactite', () => {
     // Hazard at (1,2), ground at row 4 — its detection zone is columns 0-2,
     // row 3, so a player standing on the floor directly beneath it is inside.
     // The `⊤` tile plus a `fallingStalactite` marker (the tile meta layer).
@@ -6815,8 +7013,8 @@ describe('PlatformerPage', () => {
     }
 
     /** Keeps the character standing still, centred under `hazard`, on the
-     *  ground row — preserving `hitTimer` (so re-positioning never clears the
-     *  shared invincibility window). */
+     * ground row — preserving `hitTimer` (so re-positioning never clears the
+     * shared invincibility window). */
     function standUnder(hazardX: number): void {
       const x = hazardX - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2;
       const y = GROUND_ROW * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
@@ -6828,8 +7026,10 @@ describe('PlatformerPage', () => {
       const frame = mountPage();
       const hazard = hazardPlacements.value[0];
       const startingHealth = playerState.value.hitPoints;
-      const startX = hazard.x - RENDERED_TILE_SIZE - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2;
-      const standingY = GROUND_ROW * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
+      const startX =
+        hazard.x - RENDERED_TILE_SIZE - (PLAYER_RENDERED_SIZE - RENDERED_TILE_SIZE) / 2;
+      const standingY =
+        GROUND_ROW * RENDERED_TILE_SIZE - PLAYER_RENDERED_SIZE + PLAYER_FOOT_PADDING;
 
       let t = 16;
       for (let i = 0; i < 45; i++) {
@@ -6892,7 +7092,9 @@ describe('PlatformerPage', () => {
         t += 16;
         standUnder(hazard.x);
         frame(t);
-        const count = effectsOfKind<DebrisState>('debris').filter((e) => e.id.startsWith('stalactite-')).length;
+        const count = effectsOfKind<DebrisState>('debris').filter((e) =>
+          e.id.startsWith('stalactite-'),
+        ).length;
         if (count > 0) {
           spawned = count;
           break;
@@ -6904,7 +7106,9 @@ describe('PlatformerPage', () => {
       t += 16;
       standUnder(hazard.x);
       frame(t);
-      expect(effectsOfKind<DebrisState>('debris').filter((e) => e.id.startsWith('stalactite-')).length).toBe(1);
+      expect(
+        effectsOfKind<DebrisState>('debris').filter((e) => e.id.startsWith('stalactite-')).length,
+      ).toBe(1);
     });
 
     it('neverAffectsAnEnemy', () => {
@@ -6912,7 +7116,11 @@ describe('PlatformerPage', () => {
       currentLayout.value = ['S...', '....', '.⊤..', '.M..', 'GGGG'];
       const frame = mountPage();
       const hazard = hazardPlacements.value[0];
-      const enemiesBefore = enemyStates.value.map((e) => ({ id: e.id, alive: e.alive, hitPoints: e.hitPoints }));
+      const enemiesBefore = enemyStates.value.map((e) => ({
+        id: e.id,
+        alive: e.alive,
+        hitPoints: e.hitPoints,
+      }));
       // Stand on the flanking column (col 0), clear of the enemy, so the
       // zone still arms without the player/enemy touching.
       playerState.value = {
@@ -6930,7 +7138,11 @@ describe('PlatformerPage', () => {
         frame(t);
       }
 
-      const enemiesAfter = enemyStates.value.map((e) => ({ id: e.id, alive: e.alive, hitPoints: e.hitPoints }));
+      const enemiesAfter = enemyStates.value.map((e) => ({
+        id: e.id,
+        alive: e.alive,
+        hitPoints: e.hitPoints,
+      }));
       expect(enemiesAfter).toEqual(enemiesBefore);
       // The hazard really did arm and fall while the enemy stayed unharmed.
       expect(fallingStalactiteTimerStates.value.some((s) => s.id === hazard.id)).toBe(true);
@@ -6977,19 +7189,19 @@ describe('PlatformerPage', () => {
         frame(t);
       }
 
-      expect(effectsOfKind<DebrisState>('debris').filter((e) => e.id.startsWith('stalactite-'))).toEqual([]);
+      expect(
+        effectsOfKind<DebrisState>('debris').filter((e) => e.id.startsWith('stalactite-')),
+      ).toEqual([]);
       const merged = hazardPlacementsForTick().find((h) => h.id === hazard.id)!;
       expect(merged.fallingStalactitePhase).toBe('gone');
     });
   });
 
-  describe('PlatformerPage — tile meta layer (S-030)', () => {
+  describe('PlatformerPage — tile meta layer', () => {
     it('aSignMarkersHintDrivesTheInGameBubble', () => {
       currentLayout.value = ['S.T', 'GGG'];
       currentMarkers.value = [{ col: 2, row: 0, marker: { kind: 'sign', hintId: 'bomb' } }];
-      expect(signPlacements.value).toEqual([
-        expect.objectContaining({ hintId: 'bomb' }),
-      ]);
+      expect(signPlacements.value).toEqual([expect.objectContaining({ hintId: 'bomb' })]);
     });
 
     it('aBareTWithNoSignMarkerFallsBackToTheDefaultHint', () => {

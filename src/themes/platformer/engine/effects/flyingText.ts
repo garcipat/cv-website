@@ -1,5 +1,5 @@
 /**
- * The collected-fact flying-text family (R-004 US1): a rising/holding/flying
+ * The collected-fact flying-text family: a rising/holding/flying
  * four-phase machine that carries its own screen-space start/mid/target and an
  * optional emoji icon, plus the collection-text slot allocator every
  * flying-text site shares.
@@ -9,14 +9,14 @@ import { fillTextWithOutline, RESTART_PROMPT_FONT_FAMILY } from '../textDraw';
 import type { EffectRenderContext, TransientEffect } from './transientEffect';
 
 /** Seconds each phase of a collected-fact animation takes: a quick rise from
- *  the collection point to the middle of the screen, a hold there so the
- *  fact is actually readable, then the flying leg to the journal icon. */
+ * the collection point to the middle of the screen, a hold there so the
+ * fact is actually readable, then the flying leg to the journal icon. */
 export const RISE_DURATION_SECONDS = 0.4;
 export const HOLD_DURATION_SECONDS = 1.0;
 export const FLY_DURATION_SECONDS = 0.6;
 
 /** Total lifetime of a flying-text effect (the default expiry bound is unused: the
- *  family expires on `phase === 'done'`). */
+ * family expires on `phase === 'done'`). */
 export const FLYING_TEXT_DURATION_SECONDS =
   RISE_DURATION_SECONDS + HOLD_DURATION_SECONDS + FLY_DURATION_SECONDS;
 
@@ -41,7 +41,7 @@ export interface FlyingTextState {
 }
 
 /** Fixed number of vertical text "slots" fast/simultaneous collections cycle
- *  through (handed out by `createSlotAllocator` below) — 1, 2, 3, 1, 2, 3, ... */
+ * through (handed out by `createSlotAllocator` below) — 1, 2, 3, 1, 2, 3, ... */
 export const COLLECTION_TEXT_SLOT_COUNT = 3;
 
 /** Vertical gap between successive collection-text slots, in screen px. */
@@ -66,7 +66,7 @@ export function createSlotAllocator(inFlightCount: number): SlotAllocator {
 }
 
 /** Advances the effect by `dt`, transitioning `rising → holding → flying →
- *  done`. No-op (same reference) once `done`. */
+ * done`. No-op (same reference) once `done`. */
 export function tickFlyingText(
   effect: TransientEffect<FlyingTextState>,
   dt: number,
@@ -89,9 +89,11 @@ export function flyingTextExpired(effect: TransientEffect<FlyingTextState>): boo
 }
 
 /** Current screen-space position and opacity (0-1) to draw the text at. */
-export function flyingTextPosition(
-  effect: TransientEffect<FlyingTextState>,
-): { x: number; y: number; opacity: number } {
+export function flyingTextPosition(effect: TransientEffect<FlyingTextState>): {
+  x: number;
+  y: number;
+  opacity: number;
+} {
   const s = effect.state;
   if (s.phase === 'done') {
     return { x: s.targetX, y: s.targetY, opacity: 0 };
@@ -117,8 +119,11 @@ const COLLECTION_EFFECT_ICON_FONT_SIZE = 20;
 const COLLECTION_EFFECT_ICON_GAP = 6;
 
 /** The flying-text family's registered draw — the former scene renderer collection-text
- *  draw body. Screen-space (no camera offset). */
-export function drawFlyingText(effect: TransientEffect<FlyingTextState>, rc: EffectRenderContext): void {
+ * draw body. Screen-space (no camera offset). */
+export function drawFlyingText(
+  effect: TransientEffect<FlyingTextState>,
+  rc: EffectRenderContext,
+): void {
   const ctx = rc.ctx;
   const { x, y, opacity } = flyingTextPosition(effect);
   if (opacity <= 0) return;

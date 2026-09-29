@@ -16,7 +16,10 @@ import { LEVEL_1_LAYOUT } from '../level/level';
 import { currentLayout } from '../state/levelSession';
 import { toEnemyState } from '../entities/Enemy';
 import { toBlockState } from '../entities/Block';
-import { JOURNAL_OPEN_FRAME_COUNT, JOURNAL_OPEN_FRAME_INTERVAL_MS } from '../entities/JournalAnimation';
+import {
+  JOURNAL_OPEN_FRAME_COUNT,
+  JOURNAL_OPEN_FRAME_INTERVAL_MS,
+} from '../entities/JournalAnimation';
 import { sectionTotal } from '../entities/JournalSections';
 import type { CollectedFact } from '../types';
 
@@ -47,7 +50,7 @@ describe('Journal', () => {
   afterEach(() => {
     collectedFacts.value = originalFacts;
     // activeJournalSection is a module-level signal (deliberately, so the
-    // selected bookmark survives Journal unmounting/remounting on close) —
+    // selected bookmark survives Journal unmounting/remounting on close)
     // it must be reset between tests the same way collectedFacts is, or a
     // manual tab click in one test leaks into the next test's default.
     activeJournalSection.value = undefined;
@@ -58,10 +61,7 @@ describe('Journal', () => {
   it('render-onMount-showsFirstAnimationFrame', () => {
     render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
 
-    expect(journalPage.book).toHaveAttribute(
-      'src',
-      '/sprites/journal_open_1.png',
-    );
+    expect(journalPage.book).toHaveAttribute('src', '/sprites/journal_open_1.png');
   });
 
   it('render-afterAnimationCompletes-showsFinalFrame', () => {
@@ -191,7 +191,9 @@ describe('Journal', () => {
     ];
     collectedFacts.value = facts;
 
-    const { unmount } = render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
+    const { unmount } = render(
+      <Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />,
+    );
     openBookAnimation();
     fireEvent.click(journalPage.bookmarkTabs.experience);
     expect(journalPage.emptyState).toBeInTheDocument();
@@ -213,7 +215,7 @@ describe('Journal', () => {
     openBookAnimation();
     fireEvent.click(journalPage.closeButton);
 
-    // The close animation plays in reverse before onClose actually fires —
+    // The close animation plays in reverse before onClose actually fires
     // content hides right away, but onClose is not called yet.
     expect(journalPage.queryCloseButton).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
@@ -251,7 +253,9 @@ describe('Journal', () => {
     collectedFacts.value = [];
     const onClose = vi.fn();
 
-    const { rerender } = render(<Journal onClose={onClose} closeRequested={false} onResetGame={() => {}} />);
+    const { rerender } = render(
+      <Journal onClose={onClose} closeRequested={false} onResetGame={() => {}} />,
+    );
     openBookAnimation();
     expect(journalPage.closeButton).toBeInTheDocument();
 
@@ -353,9 +357,7 @@ describe('Journal', () => {
       openBookAnimation();
       fireEvent.click(journalPage.bookmarkTabs.experience);
 
-      expect(journalPage.emptyState).toHaveTextContent(
-        'No facts discovered yet — keep exploring!',
-      );
+      expect(journalPage.emptyState).toHaveTextContent('No facts discovered yet — keep exploring!');
     });
   });
 
@@ -620,7 +622,10 @@ describe('Journal', () => {
         // S spawn, one placed coin (o), two coin-pots (u, u) -> coins total = 3.
         currentLayout.value = ['Souu', 'GGGG'];
         collectedFacts.value = [];
-        baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: false }));
+        baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({
+          ...p,
+          collected: false,
+        }));
 
         render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
         openBookAnimation();
@@ -658,7 +663,9 @@ describe('Journal', () => {
         // Defeat only the first of the 2 green enemies — its slice alone is
         // most of the pool (6 of 12 courses with an even split).
         const [first] = enemyStates.value.filter((e) => e.type === 'slimeGreen');
-        enemyStates.value = enemyStates.value.map((e) => (e.id === first.id ? { ...e, rewardGiven: true } : e));
+        enemyStates.value = enemyStates.value.map((e) =>
+          e.id === first.id ? { ...e, rewardGiven: true } : e,
+        );
         collectedFacts.value = [first.fact!, ...(first.extraFacts ?? [])];
 
         render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
@@ -684,7 +691,9 @@ describe('Journal', () => {
         currentLayout.value = ['S===', 'GGGG'];
         blockStates.value = blockPlacements.value.map(toBlockState);
         const crates = blockPlacements.value.filter((b) => b.blockKind === 'crate');
-        blockStates.value = blockStates.value.map((b) => (b.id === crates[0].id ? { ...b, hitsTaken: 2 } : b));
+        blockStates.value = blockStates.value.map((b) =>
+          b.id === crates[0].id ? { ...b, hitsTaken: 2 } : b,
+        );
         collectedFacts.value = crates.slice(0, 3).map((c) => c.fact!);
 
         render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
@@ -722,7 +731,10 @@ describe('Journal', () => {
       // guaranteed to exceed the enemy fact pool's length.
       try {
         const enemyMarkerCount = 20;
-        currentLayout.value = ['S' + 'M'.repeat(enemyMarkerCount), 'G'.repeat(enemyMarkerCount + 1)];
+        currentLayout.value = [
+          'S' + 'M'.repeat(enemyMarkerCount),
+          'G'.repeat(enemyMarkerCount + 1),
+        ];
         collectedFacts.value = [];
 
         render(<Journal onClose={() => {}} closeRequested={false} onResetGame={() => {}} />);
@@ -762,7 +774,7 @@ describe('Journal', () => {
     });
 
     it('clicked-doesNotCallOnCloseItself', () => {
-      // Closing (immediate, no animation) is the parent's responsibility —
+      // Closing (immediate, no animation) is the parent's responsibility
       // it unmounts Journal directly (`journalOpen` state) rather than
       // going through `onClose`/the reverse-close animation path the ×
       // button and icon/`J` use.

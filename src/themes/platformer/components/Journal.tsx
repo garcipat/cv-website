@@ -53,7 +53,7 @@ interface JournalProps {
  * Notebook journal overlay. Plays the book-opening sprite
  * sequence on mount, and in reverse on close (before actually calling
  * `onClose`), then overlays the active section's collected facts (Simple
- * List style, FR-017) or a per-section empty-state message on top of the
+ * List style) or a per-section empty-state message on top of the
  * open pages. Bookmark tabs switch which section is shown. The
  * `personality` ("About Me") section is shown directly from CV data rather
  * than `collectedFacts`, since it has no collectible source of its own.
@@ -62,7 +62,7 @@ interface JournalProps {
  * (`entities/JournalEntry.ts`), not here — this component stays
  * presentational.
  *
- * Animation state is just `frame` (1..COUNT) plus whether we're `closing` —
+ * Animation state is just `frame` (1..COUNT) plus whether we're `closing`
  * "fully open" and "fully closed" are *derived* from those two rather than
  * stored as their own phase, so reaching them needs no direct `setState`
  * call in an effect body (only the `setTimeout` callbacks that advance
@@ -169,7 +169,9 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
   // whether this page needs the skill-category layout doesn't format the
   // same fact twice.
   const currentFactEntry =
-    currentPageEntry?.content.kind === 'fact' ? formatJournalEntry(currentPageEntry.content.fact) : null;
+    currentPageEntry?.content.kind === 'fact'
+      ? formatJournalEntry(currentPageEntry.content.fact)
+      : null;
   const setActiveSection = (section: SectionId) => {
     const idx = flatPages.findIndex((p) => p.section === section);
     if (idx >= 0) goToPage(idx);
@@ -177,7 +179,7 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
 
   const contentVisible = frame >= JOURNAL_OPEN_FRAME_COUNT && !closing;
   // Bookmark tabs appear only in the last two frames of the opening
-  // animation (and, symmetrically, disappear at the same point on close) —
+  // animation (and, symmetrically, disappear at the same point on close)
   // showing them from frame 1 looked wrong hanging off a still-closed cover.
   const bookmarksVisible = frame >= JOURNAL_OPEN_FRAME_COUNT - 1 && !closing;
   // Section-level aggregate for the header counter (e.g. "Experience 3/5")
@@ -186,7 +188,9 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
     ? facts.filter((fact) => fact.sectionId === effectiveSection).length
     : 0;
   const sectionCounterTotal =
-    effectiveSection && effectiveSection !== 'personality' ? sectionTotal(cv, effectiveSection) : undefined;
+    effectiveSection && effectiveSection !== 'personality'
+      ? sectionTotal(cv, effectiveSection)
+      : undefined;
 
   // Resetting is entirely the parent's job — clearing progress, closing the
   // journal immediately (no reverse-close animation, per user request), and
@@ -221,7 +225,9 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
   // standalone image (chest_closed.png, 28×20, not a frame in a sprite
   // sheet) via an early return, avoiding the sheet-cropping logic used for
   // the others.
-  const renderCollectibleIcon = (labelKey: 'coins' | 'fruits' | 'enemies' | 'crates' | 'chests') => {
+  const renderCollectibleIcon = (
+    labelKey: 'coins' | 'fruits' | 'enemies' | 'crates' | 'chests',
+  ) => {
     if (labelKey === 'chests') {
       return (
         <img
@@ -249,8 +255,10 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
             ? BLOCK_FRAME_SIZE
             : SLIME_GREEN_SHEET.frameWidth;
     const sheetCols = labelKey === 'coins' ? COIN_FRAME_COUNT : labelKey === 'crates' ? 16 : 4;
-    const sheetRows = labelKey === 'coins' ? 1 : labelKey === 'fruits' ? 4 : labelKey === 'crates' ? 16 : 3;
-    const displaySize = labelKey === 'crates' ? CRATE_ICON_DISPLAY_SIZE : COLLECTIBLE_ICON_DISPLAY_SIZE;
+    const sheetRows =
+      labelKey === 'coins' ? 1 : labelKey === 'fruits' ? 4 : labelKey === 'crates' ? 16 : 3;
+    const displaySize =
+      labelKey === 'crates' ? CRATE_ICON_DISPLAY_SIZE : COLLECTIBLE_ICON_DISPLAY_SIZE;
     const scale = displaySize / frameSize;
     const { sx, sy } =
       labelKey === 'enemies'
@@ -337,7 +345,7 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
         // column left its subtitle stranded alone at the top of the next
         // (seen live with courses, whose grouped page is exactly where
         // this bites: a title/subtitle entry, unlike languages' title-only
-        // one). A ratedItems (skills) entry never reaches this function —
+        // one). A ratedItems (skills) entry never reaches this function
         // see renderSkillCategoryPage above.
         className="break-inside-avoid-column"
       >
@@ -345,7 +353,9 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
           {entry.icon} {entry.title}
         </span>
         {entry.subtitle && (
-          <span className="ml-6 block text-xs whitespace-pre-line text-gray-500">{entry.subtitle}</span>
+          <span className="ml-6 block text-xs whitespace-pre-line text-gray-500">
+            {entry.subtitle}
+          </span>
         )}
       </li>
     );
@@ -441,7 +451,9 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                     <div className="font-caveat text-gray-700">
                       <p className="text-lg font-semibold">{cv.personality.name}</p>
                       <p className="text-sm text-gray-500 italic">{cv.personality.tagline}</p>
-                      <p className="mt-2 text-base leading-snug whitespace-pre-line">{cv.personality.summary}</p>
+                      <p className="mt-2 text-base leading-snug whitespace-pre-line">
+                        {cv.personality.summary}
+                      </p>
                     </div>
                     <div
                       data-testid="journal-collectibles-summary"
@@ -487,7 +499,10 @@ export const Journal = ({ onClose, closeRequested, onResetGame }: JournalProps) 
                     </div>
                   </div>
                 ) : currentPageEntry.content.kind === 'emptyState' ? (
-                  <p data-testid="journal-empty-state" className="font-caveat text-sm text-gray-500">
+                  <p
+                    data-testid="journal-empty-state"
+                    className="font-caveat text-sm text-gray-500"
+                  >
                     {ui.platformer.journal.emptyState}
                   </p>
                 ) : currentPageEntry.content.kind === 'fact' ? (

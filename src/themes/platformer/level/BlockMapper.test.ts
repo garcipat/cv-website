@@ -15,7 +15,11 @@ const cv: CVData = {
   skills: [],
   courses: [],
   education: [
-    { degree: 'B.Sc. Computer Science', institution: 'Technical University Berlin', startDate: '2016-10' },
+    {
+      degree: 'B.Sc. Computer Science',
+      institution: 'Technical University Berlin',
+      startDate: '2016-10',
+    },
   ],
   activities: [{ name: 'Volunteering', startDate: '2019-01', endDate: '2019-06' }],
   certificates: [{ name: 'AWS Solutions Architect', issuer: 'AWS', date: '2023-06' }],
@@ -37,7 +41,7 @@ describe('mapCVDataToBlocks', () => {
   });
 
   it('experienceEntries-produceNoCrateBlocks', () => {
-    // Experience lives on chests, not crates (see ChestMapper.ts) —
+    // Experience lives on chests, not crates (see ChestMapper.ts)
     // mapCVDataToBlocks must never build an experience-sourced crate.
     const defs = mapCVDataToBlocks(cv);
     expect(defs.some((d) => d.fact?.sectionId === 'experience')).toBe(false);
@@ -110,7 +114,7 @@ describe('mapCVDataToBlocks', () => {
 });
 
 /** Every fact a crate placement owns, in the order `placeBlocks` assigns
- *  them — see EnemyMapper.test.ts's identical helper for the reasoning. */
+ * them — see EnemyMapper.test.ts's identical helper for the reasoning. */
 function factsOf(placement: { fact?: unknown; extraFacts?: unknown[] }): unknown[] {
   return [...(placement.fact ? [placement.fact] : []), ...(placement.extraFacts ?? [])];
 }
@@ -145,7 +149,11 @@ describe('placeBlocks', () => {
     // the map, breaking it must reveal every education/activity/language
     // fact the CV has.
     const defs = mapCVDataToBlocks(cv); // 2 crate defs
-    const placed = placeBlocks(defs, { crate: [{ col: 1, row: 0 }], questionMark: [], fragileRock: [] });
+    const placed = placeBlocks(defs, {
+      crate: [{ col: 1, row: 0 }],
+      questionMark: [],
+      fragileRock: [],
+    });
     const crateDefs = defs.filter((d) => d.blockKind === 'crate');
 
     const crates = placed.filter((p) => p.blockKind === 'crate');
@@ -207,7 +215,11 @@ describe('placeBlocks', () => {
 
   it('fewerQuestionMarkMarkersThanDefs-onlyMarkedCountGetsAFact', () => {
     const defs = mapCVDataToBlocks(cv); // 2 questionMark defs
-    const placed = placeBlocks(defs, { crate: [], questionMark: [{ col: 2, row: 1 }], fragileRock: [] });
+    const placed = placeBlocks(defs, {
+      crate: [],
+      questionMark: [{ col: 2, row: 1 }],
+      fragileRock: [],
+    });
     const questionMarkPlacements = placed.filter((p) => p.blockKind === 'questionMark');
     expect(questionMarkPlacements).toHaveLength(1);
     expect(questionMarkPlacements[0].fact).toBeDefined();
@@ -249,12 +261,20 @@ describe('placeBlocks', () => {
 
 describe('isBlockOccupied', () => {
   it('tileMatchesABlockPlacement-returnsTrue', () => {
-    const placed = placeBlocks([], { crate: [], questionMark: [{ col: 5, row: 2 }], fragileRock: [] });
+    const placed = placeBlocks([], {
+      crate: [],
+      questionMark: [{ col: 5, row: 2 }],
+      fragileRock: [],
+    });
     expect(isBlockOccupied(placed, 5, 2)).toBe(true);
   });
 
   it('tileDoesNotMatchAnyBlockPlacement-returnsFalse', () => {
-    const placed = placeBlocks([], { crate: [], questionMark: [{ col: 5, row: 2 }], fragileRock: [] });
+    const placed = placeBlocks([], {
+      crate: [],
+      questionMark: [{ col: 5, row: 2 }],
+      fragileRock: [],
+    });
     expect(isBlockOccupied(placed, 6, 2)).toBe(false);
     expect(isBlockOccupied(placed, 5, 3)).toBe(false);
   });
@@ -266,12 +286,20 @@ describe('isBlockOccupied', () => {
 
 describe('blockIdAt', () => {
   it('tileMatchesABlockPlacement-returnsItsId', () => {
-    const placed = placeBlocks([], { crate: [], questionMark: [{ col: 5, row: 2 }], fragileRock: [] });
+    const placed = placeBlocks([], {
+      crate: [],
+      questionMark: [{ col: 5, row: 2 }],
+      fragileRock: [],
+    });
     expect(blockIdAt(placed, 5, 2)).toBe(placed[0].id);
   });
 
   it('tileDoesNotMatchAnyBlockPlacement-returnsUndefined', () => {
-    const placed = placeBlocks([], { crate: [], questionMark: [{ col: 5, row: 2 }], fragileRock: [] });
+    const placed = placeBlocks([], {
+      crate: [],
+      questionMark: [{ col: 5, row: 2 }],
+      fragileRock: [],
+    });
     expect(blockIdAt(placed, 6, 2)).toBeUndefined();
   });
 
@@ -286,7 +314,12 @@ describe('placeBlocks — coinPot markers', () => {
   // is resolved dynamically at pickup time (see CollectibleMapper.ts's
   // mapCVDataToSkillFactPool), never bound to the block itself.
   it('coinPotMarker-producesAPlacementWithNoFact', () => {
-    const placed = placeBlocks([], { crate: [], questionMark: [], fragileRock: [], coinPot: [{ col: 5, row: 2 }] });
+    const placed = placeBlocks([], {
+      crate: [],
+      questionMark: [],
+      fragileRock: [],
+      coinPot: [{ col: 5, row: 2 }],
+    });
     expect(placed).toHaveLength(1);
     expect(placed[0].blockKind).toBe('coinPot');
     expect(placed[0].fact).toBeUndefined();
@@ -357,7 +390,7 @@ describe('placeBlocks — potionPot markers', () => {
 describe('placeBlocks — bombPot markers', () => {
   // bombPot carries no CVData mapping at all (same convention as
   // coinPot/potionPot/fragileRock) — the bomb it drops is an inventory
-  // resource, never a CV fact (O-012 FR-011).
+  // resource, never a CV fact.
   it('bombPotMarker-producesAPlacementWithNoFact', () => {
     const placed = placeBlocks([], {
       crate: [],

@@ -28,7 +28,7 @@ export function tileAt(level: LevelDef, col: number, row: number): TileType {
 
 /**
  * Plain "blocks movement" — a thin registry-delegating wrapper. All per-kind
- * logic lives in the tile module; this holds none (FR-018), it only keeps the
+ * logic lives in the tile module; this holds none, it only keeps the
  * long-standing `isSolid(tile)` call shape for the ~40 existing call sites.
  */
 export function isSolid(tile: TileType): boolean {
@@ -98,11 +98,15 @@ export function tileToPixel(col: number, row: number): { x: number; y: number } 
  * The background material at `(col, row)`, or `null` for an empty cell.
  * Out-of-bounds and a missing `background` field both resolve to `null`,
  * mirroring `tileAt`'s out-of-bounds-returns-`'empty'` contract. The grid MAY
- * be smaller than `terrain`'s own bounds (FR-013's dropped-on-load empty
+ * be smaller than `terrain`'s own bounds (the dropped-on-load empty
  * grid, or an editor grid grown less far than the foreground) — any cell
  * outside the grid's own bounds is `null` too, never an out-of-bounds throw.
  */
-export function backgroundAt(level: LevelDef, col: number, row: number): BackgroundMaterialId | null {
+export function backgroundAt(
+  level: LevelDef,
+  col: number,
+  row: number,
+): BackgroundMaterialId | null {
   const gridRow = level.background?.[row];
   if (!gridRow) return null;
   return gridRow[col] ?? null;
@@ -125,7 +129,7 @@ export function markerAt(level: LevelDef, col: number, row: number): MarkerEntry
  * A 4-bit same-material neighbour mask for the background cell at
  * `(col, row)`, computed the same way `neighbourMask` computes it for
  * terrain — but counting only a same-material neighbour as connected
- * (FR-004). A different material, an empty cell, or an out-of-bounds cell
+ *. A different material, an empty cell, or an out-of-bounds cell
  * all count as closed, which falls out for free from strict equality against
  * `backgroundAt`'s own `null`-safe result: `null !== 'dirt'`, and
  * `'charcoal' !== 'dirt'`, so neither an empty neighbour nor a
@@ -178,7 +182,7 @@ export type VerticalRunRole = 'only' | 'bottom' | 'middle' | 'top';
 
 /**
  * Classifies `(col, row)`'s position within a vertical run of `tile`-typed
- * cells, by comparing only its immediate neighbours above and below —
+ * cells, by comparing only its immediate neighbours above and below
  * unlike `horizontalRunPosition`, this never counts a run's full length, so
  * an arbitrarily tall stack (e.g. a tree with no height cap) costs no more
  * to classify than a lone tile. `tileAt` already returns `'empty'` for any

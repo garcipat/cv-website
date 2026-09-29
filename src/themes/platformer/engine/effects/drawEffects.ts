@@ -1,5 +1,5 @@
 /**
- * The single layer-filtered effect draw pass (R-004 FR-005). It iterates the
+ * The single layer-filtered effect draw pass. It iterates the
  * registry in declaration order, drawing only entries whose `layer` matches,
  * and within a kind the collection's effects in insertion order — so
  * intra-layer order is preserved. The page invokes this once per pipeline
@@ -9,7 +9,7 @@ import { EFFECT_REGISTRY, type EffectLayer, type EffectRegistryEntry } from './e
 import type { EffectRenderContext, TransientEffect } from './transientEffect';
 
 /**
- * The single layer-filtered effect draw pass (R-004 FR-005). `drawEffects` is
+ * The single layer-filtered effect draw pass. `drawEffects` is
  * the one dispatch; `drawEffectsFrom` is its registry-parameterized core, used
  * by the contributor-recipe regression test to prove a freshly registered kind
  * is picked up (see docs/TransientEffectRecipe.md).

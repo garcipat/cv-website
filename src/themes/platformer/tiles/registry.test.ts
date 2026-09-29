@@ -2,27 +2,21 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  TILE_MODULES,
-  TERRAIN_CHARS,
-  TILE_FOG_EXEMPT,
-  isFogExempt,
-} from './registry';
+import { TILE_MODULES, TERRAIN_CHARS, TILE_FOG_EXEMPT, isFogExempt } from './registry';
 import type { TileModule } from './TileModule';
 import { parseLevel } from '../level/LevelParser';
 import { tileAt } from '../level/Terrain';
 
 /**
- * FR-014 structural guard for the tile module registry.
+ * Structural guard for the tile module registry.
  *
- * This is the automated regression watch for R-015's layer invariants
- * (`contracts/layer-invariants.md` §4). It reads source files with
- * `node:fs`/`node:path` — test-only — so a structural regression fails the
- * suite rather than drifting silently.
+ * This is the automated regression watch for the layer invariants. It reads
+ * source files with `node:fs`/`node:path` — test-only — so a structural
+ * regression fails the suite rather than drifting silently.
  *
- * Check (3), the rule-branch absence scan, is **relaxed during US1** (its
+ * Check (3), the rule-branch absence scan, is **relaxed during ** (its
  * targets `engine/Physics.ts`/`engine/Standable.ts`/`level/Terrain.ts` are not
- * registry-wired until US2). It is enabled in US5/T052 by flipping
+ * registry-wired until ). It is enabled in / by flipping
  * `RULE_BRANCH_CHECK_ENABLED` to `true`.
  */
 
@@ -54,7 +48,7 @@ const SHIPPED_TILE_KINDS = [
 // Registry-only kinds that are never author-placeable and so declare no `char`.
 const REGISTRY_ONLY_KINDS = ['ropeLadder'] as const;
 
-// Enabled in US5/T052 now that Physics/Standable/Terrain are wired to the registry.
+// Enabled in / now that Physics/Standable/Terrain are wired to the registry.
 const RULE_BRANCH_CHECK_ENABLED = true;
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -102,7 +96,7 @@ function relativeImports(source: string): string[] {
   return specifiers;
 }
 
-// `contracts/` is a leaf, and these two edges are the new FR-011 invariants.
+// `contracts/` is a leaf, and these two edges are the new invariants.
 const FORBIDDEN_EDGES: readonly (readonly [string, string])[] = [
   ['contracts', 'engine'],
   ['contracts', 'entities'],
@@ -173,9 +167,13 @@ describe('TILE_MODULES registry shape', () => {
 describe('TERRAIN_CHARS derivation', () => {
   it('maps-everyAuthorPlaceableKindExactlyOnce', () => {
     // Arrange
-    const modulesWithChar = Object.entries(MODULES_BY_KIND).filter(([, module]) => module.char !== undefined);
+    const modulesWithChar = Object.entries(MODULES_BY_KIND).filter(
+      ([, module]) => module.char !== undefined,
+    );
     // Act
-    const charValues = Object.values(TERRAIN_CHARS).filter((tile): tile is NonNullable<typeof tile> => tile !== undefined);
+    const charValues = Object.values(TERRAIN_CHARS).filter(
+      (tile): tile is NonNullable<typeof tile> => tile !== undefined,
+    );
     // Assert
     expect(charValues).toHaveLength(modulesWithChar.length);
     for (const [kind, module] of modulesWithChar) {
@@ -262,9 +260,9 @@ describe('stateful-kind declarations', () => {
   });
 });
 
-describe('palette read model (FR-009 / SC-008)', () => {
+describe('palette read model', () => {
   it('everyKind-exposesItsRegistryMetadataForThePalette', () => {
-    // R-010 can build the palette from `TILE_MODULES` alone: every kind exposes
+    // can build the palette from `TILE_MODULES` alone: every kind exposes
     // its fog flag and draw band, and every author-placeable kind its char.
     for (const kind of Object.keys(TILE_MODULES)) {
       const module = MODULES_BY_KIND[kind];
@@ -279,7 +277,7 @@ describe('palette read model (FR-009 / SC-008)', () => {
 
   it('tileModules-isTheOnlyTileTableInTheTheme', () => {
     // Arrange / Act — no other source file declares a second `TILE_MODULES`
-    // (a competing tile/palette registry would break SC-008).
+    // (a competing tile/palette registry would break ).
     const declarers = listSourceFiles(PLATFORMER_ROOT).filter((file) =>
       /export\s+const\s+TILE_MODULES\b/.test(fs.readFileSync(file, 'utf8')),
     );
@@ -318,15 +316,10 @@ describe('layer edges', () => {
  * that must consume the registry instead of comparing tile types directly.
  */
 describe('rule-branch absence', () => {
-  const RULE_FILES = [
-    'engine/Physics.ts',
-    'engine/Standable.ts',
-    'level/Terrain.ts',
-  ] as const;
+  const RULE_FILES = ['engine/Physics.ts', 'engine/Standable.ts', 'level/Terrain.ts'] as const;
 
   // The pure run classifiers in level/Terrain.ts select run *sprites* by
-  // comparing `tileAt(...)` to a tile name — they are explicitly exempt
-  // (contracts/layer-invariants.md §4 check 3).
+  // comparing `tileAt(...)` to a tile name — they are explicitly exempt.
   const EXEMPT_FUNCTIONS = new Set(['bridgeRunPosition', 'chainRunLength']);
 
   it('ruleFiles-containNoTileTypeEqualityComparison', () => {

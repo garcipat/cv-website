@@ -2,17 +2,17 @@ import type { BlockState } from '../entities/Block';
 import { clamp01 } from '../shared/math';
 
 /** How long the shared bump/nudge animation plays on every upward hit
- *  (FR-022d: "roughly 100ms"). */
+ * ( "roughly 100ms"). */
 export const BLOCK_BUMP_DURATION_SECONDS = 0.1;
 
-/** How far the block nudges upward at the peak of its bump, in rendered px —
- *  small and quick, just enough to read as tactile feedback. */
+/** How far the block nudges upward at the peak of its bump, in rendered px
+ * small and quick, just enough to read as tactile feedback. */
 export const BLOCK_BUMP_HEIGHT_PX = 6;
 
 /** How long a crate's shatter (fade-out) plays after its terminal hit's bump
- *  finishes, before it's removed from the world. No dedicated shatter sprite
- *  sheet exists (same tileset gap step 20 already worked around) — a fade is
- *  built entirely from the already-loaded crate tile, no new asset needed. */
+ * finishes, before it's removed from the world. No dedicated shatter sprite
+ * sheet exists (same tileset gap step 20 already worked around) — a fade is
+ * built entirely from the already-loaded crate tile, no new asset needed. */
 export const CRATE_SHATTER_DURATION_SECONDS = 0.25;
 
 /**

@@ -8,9 +8,13 @@ import { DEFAULT_TORCH_STRENGTH, nextTorchStrength } from '../../tiles/torch';
  * the start for a leftward/upward growth and leaving it untouched for a
  * rightward/downward one (new cells already read as `null`). The marker grid's
  * own analogue of `editorActions.ts`'s `shiftBackgroundGrid`; the marker grid
- * must stay aligned to the terrain grid across a growth (D9/FR-004).
+ * must stay aligned to the terrain grid across a growth.
  */
-export function shiftMarkerGrid(markers: MarkerGrid, colShift: number, rowShift: number): MarkerGrid {
+export function shiftMarkerGrid(
+  markers: MarkerGrid,
+  colShift: number,
+  rowShift: number,
+): MarkerGrid {
   if (colShift === 0 && rowShift === 0) return markers;
   const shiftedRows = markers.map((row) => [
     ...new Array<MarkerEntry | null>(colShift).fill(null),
@@ -26,7 +30,7 @@ export function shiftMarkerGrid(markers: MarkerGrid, colShift: number, rowShift:
  * `width × height`, mirroring a terrain grid's own dimensions. A left/up
  * terrain growth is handled by `shiftMarkerGrid`; a right/down growth appends
  * cells without shifting, so this is what keeps the marker grid aligned to the
- * terrain grid in that direction (D9/FR-004). Returns the same grid when it is
+ * terrain grid in that direction. Returns the same grid when it is
  * already large enough.
  */
 export function resizeMarkerGrid(markers: MarkerGrid, width: number, height: number): MarkerGrid {
@@ -44,8 +48,8 @@ export function resizeMarkerGrid(markers: MarkerGrid, width: number, height: num
 /**
  * Writes exactly one marker into cell `(col, row)` and returns a new grid.
  * Unlike `paintCell`/`paintBackgroundCell`, this **never grows** the grid
- * (FR-010): an out-of-bounds click is a no-op returning the same grid. At most
- * one marker per cell falls out of the single-cell write (FR-003).
+ *: an out-of-bounds click is a no-op returning the same grid. At most
+ * one marker per cell falls out of the single-cell write.
  */
 export function paintMarkerCell(
   markers: MarkerGrid,
@@ -59,7 +63,7 @@ export function paintMarkerCell(
 
 /**
  * Clears cell `(col, row)` to `null`; a no-op for an already-empty or
- * out-of-bounds cell (FR-010).
+ * out-of-bounds cell.
  */
 export function eraseMarkerCell(markers: MarkerGrid, col: number, row: number): MarkerGrid {
   if (markers[row]?.[col] === undefined || markers[row][col] === null) return markers;
@@ -68,7 +72,7 @@ export function eraseMarkerCell(markers: MarkerGrid, col: number, row: number): 
 
 /**
  * The sign tool's marker write: `{kind:'sign', hintId: DEFAULT_HINT_ID}` on a
- * fresh cell, else the next hint in `HINT_IDS` (FR-030). An out-of-bounds cell
+ * fresh cell, else the next hint in `HINT_IDS`. An out-of-bounds cell
  * is a no-op, matching `paintMarkerCell`.
  */
 export function paintSignMarker(markers: MarkerGrid, col: number, row: number): MarkerGrid {
@@ -82,7 +86,7 @@ export function paintSignMarker(markers: MarkerGrid, col: number, row: number): 
  * The torch tool's marker write on a cell that already holds `¥`: the next
  * strength in the `0`–`9` cycle (`nextTorchStrength`). The cycle clears the
  * marker when it reaches `DEFAULT_TORCH_STRENGTH`, so a torch at the default is
- * stored as no marker at all (FR-014) and an unadjusted level stays sparse.
+ * stored as no marker at all and an unadjusted level stays sparse.
  * An out-of-bounds cell is a no-op, matching `paintMarkerCell`.
  */
 export function paintTorchMarker(markers: MarkerGrid, col: number, row: number): MarkerGrid {
@@ -90,6 +94,7 @@ export function paintTorchMarker(markers: MarkerGrid, col: number, row: number):
   const existing = markers[row][col];
   const current = existing?.kind === 'torch' ? existing.strength : DEFAULT_TORCH_STRENGTH;
   const next = nextTorchStrength(current);
-  const marker = next === DEFAULT_TORCH_STRENGTH ? null : { kind: 'torch' as const, strength: next };
+  const marker =
+    next === DEFAULT_TORCH_STRENGTH ? null : { kind: 'torch' as const, strength: next };
   return paintGridCell(markers, col, row, marker, null, false).grid;
 }

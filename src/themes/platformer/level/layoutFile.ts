@@ -1,9 +1,9 @@
 /**
- * The single home for raw level/blueprint file validation and parsing (FR-012):
+ * The single home for raw level/blueprint file validation and parsing:
  * the shared path-stem helper, the three shape validators, and the two module
  * parsers the registries use to turn an `import.meta.glob` result into registry
  * entries. Replaces the copies that lived in `levelRegistry.ts`,
- * `BlueprintData.ts`, and `blueprintRegistry.ts` (FR-013).
+ * `BlueprintData.ts`, and `blueprintRegistry.ts`.
  *
  * `level/` vocabulary only — it must never import `engine/`.
  */
@@ -14,7 +14,12 @@ import { isBlueprint, type Blueprint } from './BlueprintData';
 
 /** `'./levels/cave-run.json'` → `'cave-run'`. */
 export function idFromPath(path: string): string {
-  return path.split('/').pop()?.replace(/\.json$/, '') ?? path;
+  return (
+    path
+      .split('/')
+      .pop()
+      ?.replace(/\.json$/, '') ?? path
+  );
 }
 
 /** Non-empty array of strings — a level must have at least one layout row. */
@@ -25,19 +30,19 @@ export function isLayout(value: unknown): value is string[] {
 /**
  * `background`'s shape check: the same "array of strings" check as `isLayout`,
  * but without its non-empty requirement — an all-empty background layer may
- * legally be `[]`. The old array-of-arrays `BackgroundGrid`/pre-O-014
+ * legally be `[]`. The old array-of-arrays `BackgroundGrid`/pre-
  * `BackgroundPlacement[]` formats both fail this — their entries are
  * arrays/objects, not strings — so such a file loads with `background` unset,
- * the FR-013 "no conversion" behaviour for free from the shape check alone.
+ * the "no conversion" behaviour for free from the shape check alone.
  */
 export function isBackground(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((row) => typeof row === 'string');
 }
 
 /** `markers`'s shape check: an array whose entries each carry numeric
- *  `col`/`row` and a `marker` object with a string `kind`. Forgiving — a
- *  malformed field costs only that field, and a missing field means the level
- *  is pre-feature (the `T` generation rule). */
+ * `col`/`row` and a `marker` object with a string `kind`. Forgiving — a
+ * malformed field costs only that field, and a missing field means the level
+ * is pre-feature (the `T` generation rule). */
 export function isMarkers(value: unknown): value is MarkerPlacement[] {
   return (
     Array.isArray(value) &&
@@ -57,7 +62,7 @@ export function isMarkers(value: unknown): value is MarkerPlacement[] {
 
 /**
  * Turns an `import.meta.glob` result into level registry entries, skipping
- * anything malformed (spec FR-027). A hand-edited or half-written JSON file in
+ * anything malformed. A hand-edited or half-written JSON file in
  * `levels/` must not take the editor down with it — the level whose file is
  * broken simply doesn't appear in the dropdown, and every other one still
  * does.

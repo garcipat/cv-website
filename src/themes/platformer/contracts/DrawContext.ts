@@ -25,11 +25,11 @@ export interface DrawContext<TPotPlan = unknown> {
   /** Seconds since the world started animating — drives bob and pulse. */
   worldElapsed: number;
   /** This frame's pot bunch-render plan (see
-   *  entities/blocks/potRenderPlan.ts). Computed once per frame by
-   *  PlatformerPage.tsx / EditorCanvas.tsx from the live block list and
-   *  attached here — every block kind's `draw` receives it, but only a pot
-   *  kind's `drawPotBunch` reads it; every other kind ignores it entirely.
-   *  Undefined for any draw call built without it (e.g. a test constructing
-   *  a bare DrawContext for an unrelated kind). */
+   * entities/blocks/potRenderPlan.ts). Computed once per frame by
+   * PlatformerPage.tsx / EditorCanvas.tsx from the live block list and
+   * attached here — every block kind's `draw` receives it, but only a pot
+   * kind's `drawPotBunch` reads it; every other kind ignores it entirely.
+   * Undefined for any draw call built without it (e.g. a test constructing
+   * a bare DrawContext for an unrelated kind). */
   potPlan?: TPotPlan;
 }

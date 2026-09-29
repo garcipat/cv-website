@@ -14,28 +14,28 @@ import { gridToLayout } from './gridLayout';
  * `MAX_DARKNESS` (≈ 0.97): in play the camera follows the player, so their
  * carried light is always on screen, while the editor's viewport can sit away
  * from any light — at the game's full darkness the level would read as a black
- * rectangle. Preview-only; it never changes the in-game darkness (O-015 FR-016).
+ * rectangle. Preview-only; it never changes the in-game darkness.
  */
 export const EDITOR_PREVIEW_DARKNESS = 0.82;
 
 /**
  * The inputs the engine's cave-lighting draw passes need for the editor's
- * dark-mode preview (O-015 US3). Pure, derived, and stored nowhere. The lights
+ * dark-mode preview. Pure, derived, and stored nowhere. The lights
  * are the shared `LightSource` list both passes consume; the spawn only
  * supplies its carried light and never decides *whether* the scene darkens.
  */
 export interface CaveLightingPreview {
-  /** Always `EDITOR_PREVIEW_DARKNESS` while the preview is active (FR-013). */
+  /** Always `EDITOR_PREVIEW_DARKNESS` while the preview is active. */
   darknessLevel: number;
   /** Wall torches at `t = 0` plus the spawn's carried light when one exists. */
   lights: LightSource[];
 }
 
 /**
- * One light per `torch` terrain tile, at `tileToPixel` + half a rendered tile —
+ * One light per `torch` terrain tile, at `tileToPixel` + half a rendered tile
  * the same conversion `PlatformerState`'s `torchPositions` uses. Each light's
  * strength is its `torch` marker's value, or `DEFAULT_TORCH_STRENGTH` when it
- * carries none. A pure scan of the editor's `TileChar[][]` (O-015 D6), never
+ * carries none. A pure scan of the editor's `TileChar[][]`, never
  * mutating its arguments.
  */
 export function torchLightsFromGrid(grid: TileChar[][], markers?: MarkerGrid): TorchLight[] {
@@ -69,7 +69,7 @@ export function torchLightsFromGrid(grid: TileChar[][], markers?: MarkerGrid): T
 export function caveLightingPreview(grid: TileChar[][], markers?: MarkerGrid): CaveLightingPreview {
   const player = previewPlayerState(gridToLayout(grid));
   // Resolve torch radii at `worldElapsed = 0`, matching the editor's static
-  // preview frame (FR-013).
+  // preview frame.
   const lights: LightSource[] = torchLightsFromGrid(grid, markers).map((torch) =>
     torchLightSource(torch, 0),
   );

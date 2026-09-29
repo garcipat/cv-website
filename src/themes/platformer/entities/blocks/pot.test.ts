@@ -6,7 +6,7 @@ import { BLOCK_TYPES } from './index';
 import { toBlockState } from '../Block';
 import type { BlockState } from '../Block';
 import type { BlockPlacement } from '../../level/BlockMapper';
-import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
+import { POT_BOUNCE_VY } from './pot';
 import { STATIC_OBJECTS_SHEET } from '../sprites/sheets';
 import { tileToPixel } from '../../level/Terrain';
 import type { DrawContext } from '../../contracts/DrawContext';
@@ -35,7 +35,12 @@ function makeConfig(overrides: Partial<PotTypeConfig> = {}): PotTypeConfig {
   };
 }
 
-function potBlockAt(kind: string, col: number, row: number, id = `${kind}-${col}-${row}`): BlockState {
+function potBlockAt(
+  kind: string,
+  col: number,
+  row: number,
+  id = `${kind}-${col}-${row}`,
+): BlockState {
   const { x, y } = tileToPixel(col, row);
   return toBlockState({ id, blockKind: kind as BlockPlacement['blockKind'], x, y });
 }
@@ -67,10 +72,15 @@ describe('createPotType — shared behavior', () => {
   });
 
   it('testOnlyKind-builtWithTheFactory-getsTheFullSharedContract', () => {
-    // SC-005: a third kind declared with only its own facts gets the shared
+    // : a third kind declared with only its own facts gets the shared
     // trigger/removal/bounce and its own drop policy for free.
     const type = createPotType(
-      makeConfig({ key: 'thirdKind', drop: 'key', dropPolicy: 'everyBreak', restoredOnRespawn: true }),
+      makeConfig({
+        key: 'thirdKind',
+        drop: 'key',
+        dropPolicy: 'everyBreak',
+        restoredOnRespawn: true,
+      }),
     );
 
     expect(type).toMatchObject({ maxHits: 1, removeWhenUsedUp: true, triggerSides: ['top'] });
@@ -83,7 +93,7 @@ describe('createPotType — shared behavior', () => {
     const block = potBlockAt('thirdKind', 0, 0);
     expect(type.onHit!({ ...block, hitsTaken: 1, rewardGiven: true })).toEqual({
       spawnPickup: 'key',
-      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
+      effects: [{ type: 'velocity', y: POT_BOUNCE_VY, preserveJump: true }],
     });
   });
 });
@@ -97,7 +107,7 @@ describe('createPotType — drop policy honors BlockState.rewardGiven', () => {
 
     expect(outcome).toEqual({
       spawnPickup: 'coin',
-      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
+      effects: [{ type: 'velocity', y: POT_BOUNCE_VY, preserveJump: true }],
     });
   });
 
@@ -107,7 +117,9 @@ describe('createPotType — drop policy honors BlockState.rewardGiven', () => {
 
     const outcome = type.onHit!({ ...block, hitsTaken: 1, rewardGiven: true });
 
-    expect(outcome).toEqual({ bounceVelocity: PHYSICS_CONFIG.potBounceVelocity });
+    expect(outcome).toEqual({
+      effects: [{ type: 'velocity', y: POT_BOUNCE_VY, preserveJump: true }],
+    });
     expect(outcome.spawnPickup).toBeUndefined();
   });
 
@@ -119,7 +131,7 @@ describe('createPotType — drop policy honors BlockState.rewardGiven', () => {
 
     expect(outcome).toEqual({
       spawnPickup: 'heart',
-      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
+      effects: [{ type: 'velocity', y: POT_BOUNCE_VY, preserveJump: true }],
     });
   });
 });
@@ -142,7 +154,12 @@ describe('drawPotBunch — owner draws the run, absent plan falls back', () => {
     const drawPotion = vi.fn();
     const coinType = createPotType(makeConfig({ key: 'testCoin', drawPot: drawCoin }));
     const potionType = createPotType(
-      makeConfig({ key: 'testPotion', drop: 'heart', dropPolicy: 'everyBreak', drawPot: drawPotion }),
+      makeConfig({
+        key: 'testPotion',
+        drop: 'heart',
+        dropPolicy: 'everyBreak',
+        drawPot: drawPotion,
+      }),
     );
     const left = potBlockAt('testCoin', 5, 2);
     const right = potBlockAt('testPotion', 6, 2);
@@ -166,7 +183,12 @@ describe('drawPotBunch — owner draws the run, absent plan falls back', () => {
     const drawPotion = vi.fn();
     const coinType = createPotType(makeConfig({ key: 'testCoin', drawPot: drawCoin }));
     const potionType = createPotType(
-      makeConfig({ key: 'testPotion', drop: 'heart', dropPolicy: 'everyBreak', drawPot: drawPotion }),
+      makeConfig({
+        key: 'testPotion',
+        drop: 'heart',
+        dropPolicy: 'everyBreak',
+        drawPot: drawPotion,
+      }),
     );
     const left = potBlockAt('testCoin', 5, 2);
     const right = potBlockAt('testPotion', 6, 2);

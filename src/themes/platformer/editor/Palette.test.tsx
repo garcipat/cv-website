@@ -48,8 +48,8 @@ describe('Palette', () => {
     ).length;
     const decorationCount = DECORATION_CHARS.length;
     const entityCount = Object.keys(ENTITY_CHARS).length;
-    // One tile per hazard KIND (static spike, floor spear — O-020, floor
-    // spike — O-021) plus the falling-stalactite marker tool, which lives
+    // One tile per hazard KIND (static spike, floor spear — , floor
+    // spike) plus the falling-stalactite marker tool, which lives
     // here beside the hazards it behaves like.
     const hazardCount = 4;
     // The Tools group: Sign, Patrol Boundary, and the Eraser.
@@ -180,7 +180,7 @@ describe('Palette — subtitle groups', () => {
   it('hazardsGroup-containsExactlyOneTilePerHazardKind', () => {
     // One button per hazard kind: Spike (whose canvas click auto-detects a
     // facing and cycles it), Floor Spear (a single fixed orientation), Floor
-    // Spike (also a single fixed orientation, O-021) and the falling
+    // Spike (also a single fixed orientation) and the falling
     // stalactite marker tool, which lives here beside them.
     render(<Palette {...defaultProps} />);
     const hazardsGroup = palette.group('hazards');

@@ -17,16 +17,16 @@ export interface RevealContext {
   canvasWidth: number;
   canvasHeight: number;
   /** The journal button's rect in CANVAS-LOCAL coordinates (i.e. already
-   *  translated out of `getBoundingClientRect()`'s viewport-relative space
-   *  by subtracting the canvas's own bounding rect — see the call site),
-   *  or null when the button hasn't mounted yet, in which case the flying text
-   *  targets the bottom-right corner instead. */
+   * translated out of `getBoundingClientRect()`'s viewport-relative space
+   * by subtracting the canvas's own bounding rect — see the call site),
+   * or null when the button hasn't mounted yet, in which case the flying text
+   * targets the bottom-right corner instead. */
   journalRect: DOMRect | null;
   /** This tick's collection-text slot allocator (see `createSlotAllocator`).
-   *  Passed in rather than built here because it is SHARED with the key
-   *  pickup, which is outside this trigger: one counter across every
-   *  flying-text site is what keeps two texts in the same tick off the same
-   *  row. */
+   * Passed in rather than built here because it is SHARED with the key
+   * pickup, which is outside this trigger: one counter across every
+   * flying-text site is what keeps two texts in the same tick off the same
+   * row. */
   allocateSlotOffset: SlotAllocator;
 }
 
@@ -35,7 +35,7 @@ export interface RevealOptions {
   x: number;
   y: number;
   /** Unique id for the flying-text effect — usually the entity's own id, but a
-   *  coin revealing more than one fact needs one per fact. */
+   * coin revealing more than one fact needs one per fact. */
   effectId: string;
   /**
    * Which HUD counter popup to bump, or omitted for a reveal that bumps none.
@@ -100,7 +100,7 @@ export function createRewardReveal(
     // separately, NOT concatenated into `label`: the HUD counter drawer draws it in a
     // different font, and the pixel font `label` uses has no emoji glyphs.
     const { icon, title: label } = formatJournalEntry(fact);
-    // The offset applies to BOTH the rise's start and its mid hold point —
+    // The offset applies to BOTH the rise's start and its mid hold point
     // offsetting mid alone still let two effects starting near the same world
     // position overlap through most of the rise.
     const stackOffsetY = ctx.allocateSlotOffset();

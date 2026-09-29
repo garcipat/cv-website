@@ -1,16 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { ATLAS_STRIDE } from '../shared/tileAtlas';
-import {
-  BACKGROUND_ATLAS_ROW_PITCH,
-  backgroundAtlasCell,
-} from './BackgroundAtlas';
+import { BACKGROUND_ATLAS_ROW_PITCH, backgroundAtlasCell } from './BackgroundAtlas';
 import type { BackgroundMaterialId } from '../level/LevelData';
-import {
-  NEIGHBOUR_UP,
-  NEIGHBOUR_RIGHT,
-  NEIGHBOUR_DOWN,
-  NEIGHBOUR_LEFT,
-} from '../level/Terrain';
+import { NEIGHBOUR_UP, NEIGHBOUR_RIGHT, NEIGHBOUR_DOWN, NEIGHBOUR_LEFT } from '../level/Terrain';
 
 const ALL_MASKS = Array.from({ length: 16 }, (_, mask) => mask);
 const ALL_MATERIALS: BackgroundMaterialId[] = [

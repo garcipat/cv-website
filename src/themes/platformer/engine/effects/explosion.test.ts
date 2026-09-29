@@ -29,7 +29,9 @@ describe('ExplosionEffect', () => {
     const frames: number[] = [];
     for (let i = 0; i < EXPLOSION_FRAME_COUNT; i++) {
       const elapsed = ((i + 0.5) * EXPLOSION_DURATION_SECONDS) / EXPLOSION_FRAME_COUNT;
-      frames.push(explosionFrameIndex(tickExplosionEffect(startExplosionEffect('a', 0, 0), elapsed)));
+      frames.push(
+        explosionFrameIndex(tickExplosionEffect(startExplosionEffect('a', 0, 0), elapsed)),
+      );
     }
     expect(frames).toEqual(Array.from({ length: EXPLOSION_FRAME_COUNT }, (_, i) => i));
   });
@@ -37,7 +39,10 @@ describe('ExplosionEffect', () => {
   it('explosionFrameIndex-clampsToTheLastFrameAtAndPastTheEnd', () => {
     const atEnd = tickExplosionEffect(startExplosionEffect('a', 0, 0), EXPLOSION_DURATION_SECONDS);
     expect(explosionFrameIndex(atEnd)).toBe(EXPLOSION_FRAME_COUNT - 1);
-    const past = tickExplosionEffect(startExplosionEffect('a', 0, 0), EXPLOSION_DURATION_SECONDS * 10);
+    const past = tickExplosionEffect(
+      startExplosionEffect('a', 0, 0),
+      EXPLOSION_DURATION_SECONDS * 10,
+    );
     expect(explosionFrameIndex(past)).toBe(EXPLOSION_FRAME_COUNT - 1);
   });
 
@@ -98,7 +103,10 @@ describe('drawExplosionEffect', () => {
     const ctx = makeMockContext() as unknown as { drawImage: ReturnType<typeof vi.fn> };
     const effect = startExplosionEffect('e', 100, 200);
 
-    drawExplosionEffect(effect, renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]));
+    drawExplosionEffect(
+      effect,
+      renderContext(ctx as unknown as CanvasRenderingContext2D, [effect]),
+    );
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });

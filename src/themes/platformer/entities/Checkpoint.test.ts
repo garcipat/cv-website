@@ -52,7 +52,9 @@ describe('toCheckpointState', () => {
   });
 
   it('preservesThePlacementsIdCellAndPixels', () => {
-    const state = toCheckpointState(placement({ id: 'checkpoint-5-6', col: 5, row: 6, x: 10, y: 20 }));
+    const state = toCheckpointState(
+      placement({ id: 'checkpoint-5-6', col: 5, row: 6, x: 10, y: 20 }),
+    );
     expect(state.id).toBe('checkpoint-5-6');
     expect(state.col).toBe(5);
     expect(state.row).toBe(6);

@@ -3,11 +3,23 @@ import { particleList } from './particles';
 
 describe('particleList', () => {
   it('emitsExactlyCountItems', () => {
-    expect(particleList(5, () => ({ dx: 0, dy: 0 }), () => 1)).toHaveLength(5);
+    expect(
+      particleList(
+        5,
+        () => ({ dx: 0, dy: 0 }),
+        () => 1,
+      ),
+    ).toHaveLength(5);
   });
 
   it('zeroCount-emitsNothing', () => {
-    expect(particleList(0, () => ({ dx: 0, dy: 0 }), () => 1)).toEqual([]);
+    expect(
+      particleList(
+        0,
+        () => ({ dx: 0, dy: 0 }),
+        () => 1,
+      ),
+    ).toEqual([]);
   });
 
   it('appliesOffsetAtForEachIndex', () => {
@@ -24,7 +36,11 @@ describe('particleList', () => {
   });
 
   it('appliesOpacityAtToEveryItem', () => {
-    const particles = particleList(4, () => ({ dx: 0, dy: 0 }), () => 0.25);
+    const particles = particleList(
+      4,
+      () => ({ dx: 0, dy: 0 }),
+      () => 0.25,
+    );
     expect(particles.every((particle) => particle.opacity === 0.25)).toBe(true);
   });
 
@@ -36,7 +52,11 @@ describe('particleList', () => {
 
   it('introducesNoRandomness-sameInputsProduceIdenticalOutput', () => {
     const make = () =>
-      particleList(6, (index) => ({ dx: Math.cos(index), dy: Math.sin(index) }), () => 0.5);
+      particleList(
+        6,
+        (index) => ({ dx: Math.cos(index), dy: Math.sin(index) }),
+        () => 0.5,
+      );
     expect(make()).toEqual(make());
   });
 });

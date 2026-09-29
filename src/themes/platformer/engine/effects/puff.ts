@@ -1,5 +1,5 @@
 /**
- * The world-event puff family (R-004 US1): a fixed radial sparkle burst
+ * The world-event puff family: a fixed radial sparkle burst
  * anchored to a world point, with an optional pixel-art square style used by
  * the checkpoint activation burst.
  */
@@ -14,9 +14,9 @@ const SPARKLE_MAX_RADIUS = 18;
 export type SparkleParticle = Particle;
 
 /** A fixed ring of small dots radiating outward from a collection point and
- *  fading. `scale` multiplies the ring's radius. Routes the emission loop
- *  through `particles.ts`'s `particleList`; the ring's own arithmetic (the
- *  angle-per-index placement and radius/fade) stays here byte-for-byte. */
+ * fading. `scale` multiplies the ring's radius. Routes the emission loop
+ * through `particles.ts`'s `particleList`; the ring's own arithmetic (the
+ * angle-per-index placement and radius/fade) stays here byte-for-byte. */
 export function sparkleParticles(elapsedSinceCollect: number, scale = 1): Particle[] {
   if (elapsedSinceCollect < 0 || elapsedSinceCollect > SPARKLE_DURATION_SECONDS) return [];
   const progress = elapsedSinceCollect / SPARKLE_DURATION_SECONDS;
@@ -33,7 +33,7 @@ export function sparkleParticles(elapsedSinceCollect: number, scale = 1): Partic
 }
 
 /** The puff family's payload. `pixel` swaps the soft dot ring for small
- *  integer-aligned pixel squares (the checkpoint's activation burst). */
+ * integer-aligned pixel squares (the checkpoint's activation burst). */
 export interface PuffState {
   x: number;
   y: number;
@@ -61,7 +61,7 @@ export function startPuffEffect(
 }
 
 /** Advances the puff by `dt`. No phase machine — a puff has exactly one
- *  phase, bursting. */
+ * phase, bursting. */
 export function tickPuffEffect(
   effect: TransientEffect<PuffState>,
   dt: number,
@@ -70,13 +70,13 @@ export function tickPuffEffect(
 }
 
 /** Screen-px side of one pixel-art burst square (2 native px) and its warm
- *  gold colour. */
+ * gold colour. */
 const SPARKLE_RADIUS_PX = 3;
 const SPARKLE_PIXEL_SIZE = 4;
 const SPARKLE_PIXEL_COLOR = '#ffe9a8';
 
 /** The puff family's registered draw — the former scene renderer
- *  `drawSparkleBurst`/`drawPuffEffects` body. Screen-space. */
+ * `drawSparkleBurst`/`drawPuffEffects` body. Screen-space. */
 export function drawPuffEffect(effect: TransientEffect<PuffState>, rc: EffectRenderContext): void {
   const ctx = rc.ctx;
   const { x, y, scale, pixel } = effect.state;

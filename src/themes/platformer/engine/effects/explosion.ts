@@ -1,5 +1,5 @@
 /**
- * The explosion family (R-004 US1): a one-shot sheet animation centred on a
+ * The explosion family: a one-shot sheet animation centred on a
  * world point. Purely cosmetic — never a hazard.
  */
 import { EXPLOSION_SHEET } from '../../entities/sprites/sheets';
@@ -49,14 +49,14 @@ export function tickExplosionEffect(
 }
 
 /** The active sheet's frame to draw, playing each frame once in order and
- *  clamping to the last frame at/past the duration. */
+ * clamping to the last frame at/past the duration. */
 export function explosionFrameIndex(effect: TransientEffect<ExplosionState>): number {
   const progress = clamp01(effect.elapsed / EXPLOSION_DURATION_SECONDS);
   return Math.min(Math.floor(progress * EXPLOSION_FRAME_COUNT), EXPLOSION_FRAME_COUNT - 1);
 }
 
 /** The explosion family's registered draw — the former scene renderer
- *  `drawExplosions` body. */
+ * `drawExplosions` body. */
 export function drawExplosionEffect(
   effect: TransientEffect<ExplosionState>,
   rc: EffectRenderContext,

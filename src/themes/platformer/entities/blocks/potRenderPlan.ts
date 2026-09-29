@@ -13,15 +13,15 @@ import { RENDERED_TILE_SIZE } from '../../level/Terrain';
  *
  * Kind-agnostic by design: a block is a pot member iff its registry entry
  * declares a `pot` descriptor, so adding a kind is one `BLOCK_TYPES` entry
- * and needs no edit here (FR-003/FR-004). The optional `registry` parameter
+ * and needs no edit here. The optional `registry` parameter
  * exists purely so a test can register a test-only kind without mutating the
- * global registry (SC-005); production callers use the default.
+ * global registry; production callers use the default.
  *
  * Recomputed every frame directly from `blocks` (never cached across ticks):
  * a block already hit (`isBlockUsedUp`) no longer counts as part of any run,
  * even before its bump animation finishes and it is actually removed from the
  * world — so destroying one tile immediately re-forms its former neighbours'
- * bunches on the very next frame (FR-010, SC-004).
+ * bunches on the very next frame.
  */
 export function computePotRenderPlan(
   blocks: readonly BlockState[],

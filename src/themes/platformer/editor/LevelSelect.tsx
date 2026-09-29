@@ -12,7 +12,7 @@ export interface LevelSelectProps {
 /**
  * The editor's level dropdown — a thin adapter over the shared
  * `EditorEntrySelect` supplying the level registry and level wording
- * (FR-021).
+ *.
  *
  * `main` and `empty` are simply the first two entries, so reloading the
  * shipped level and clearing to a bare grid are both "pick a level" — the

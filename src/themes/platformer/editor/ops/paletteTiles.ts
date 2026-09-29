@@ -13,7 +13,7 @@ import type { EditorTool } from '../editorState';
  * measurement. Coordinates are hand-picked to match the exact frame the
  * real engine renders for that tile/marker's "at rest" state (see the matching
  * `tiles/<kind>.ts` `draw`, and `coinFrameIndex`/`enemyFrameIndex`/
- * `blockFrameSource`/`playerFrameSource` in the respective entity files) —
+ * `blockFrameSource`/`playerFrameSource` in the respective entity files)
  * this is a palette icon, not a live game sprite, so it intentionally
  * doesn't reuse those functions' animation/context-dependent logic; it just
  * needs one representative, correct-looking icon per tile.
@@ -27,19 +27,19 @@ export interface TileSpriteSpec {
   frameWidth: number;
   frameHeight: number;
   /** Shifts the base sprite DOWN within its icon box by this many source
-   *  px (scaled the same as everything else), without changing what's
-   *  cropped from the sheet. Every existing tile omits this (defaults to
-   *  0, unchanged). `g`'s ledge art is top-aligned within its own 16x16
-   *  cell (rows 0-8 opaque, 9-15 transparent) — the same shape the live
-   *  game renders — but the palette icon reads better nudged down a
-   *  little rather than sitting flush against the box's own top edge. */
+   * px (scaled the same as everything else), without changing what's
+   * cropped from the sheet. Every existing tile omits this (defaults to
+   * 0, unchanged). `g`'s ledge art is top-aligned within its own 16x16
+   * cell (rows 0-8 opaque, 9-15 transparent) — the same shape the live
+   * game renders — but the palette icon reads better nudged down a
+   * little rather than sitting flush against the box's own top edge. */
   topOffset?: number;
   /**
    * A translucent reddish wash drawn over the sprite in the palette (and, via
    * the same value, on the editor grid) to mark an otherwise camouflage hazard
    * — the falling stalactite (`T`), whose in-game art is pixel-identical to
    * the decorative `⊤`. Editor-only: the live game never reads this field, so
-   * a hanging hazard stays untinted in play (O-027 FR-017/SC-001). Omitted for
+   * a hanging hazard stays untinted in play. Omitted for
    * every existing tile, unchanged.
    */
   tint?: string;
@@ -73,7 +73,7 @@ const DECORATIONS_SHEET_WIDTH = 67;
 const DECORATIONS_SHEET_HEIGHT = 35;
 
 /** The group a palette tool is rendered under. Grouping is authoring
- *  metadata (the tile registry carries none), so it lives here. */
+ * metadata (the tile registry carries none), so it lives here. */
 export type PaletteGroup =
   | 'terrain'
   | 'decoration'
@@ -93,16 +93,16 @@ export interface PaletteTool {
 }
 
 /**
- * The one palette descriptor (FR-007). Keyed by `EditorTool`, in the exact
+ * The one palette descriptor. Keyed by `EditorTool`, in the exact
  * order the palette renders its groups: terrain, decoration, entities,
  * hazards, tools (sign, patrol boundary, connection point, Eraser last). It
  * is the single source of each tool's label, description, sprite spec, glyph
  * and grouping — adding a tool is one descriptor entry.
  *
  * Terrain **membership and the `char`/`fogExempt`/`drawBand` flags** come from
- * R-015's shipped `TILE_MODULES` registry (never a palette-local table); see
- * `terrainPaletteTools()`. The icon sprite stays here because R-015 carries no
- * palette icon metadata (FR-008).
+ * 's shipped `TILE_MODULES` registry (never a palette-local table); see
+ * `terrainPaletteTools()`. The icon sprite stays here because carries no
+ * palette icon metadata.
  */
 export const PALETTE_TOOLS: Record<EditorTool, PaletteTool> = {
   // --- Terrain ---------------------------------------------------------
@@ -179,8 +179,7 @@ export const PALETTE_TOOLS: Record<EditorTool, PaletteTool> = {
   },
   I: {
     label: 'Chain',
-    description:
-      'Chain; climbs like a ladder, art hugs whichever wall (if any) it hangs against',
+    description: 'Chain; climbs like a ladder, art hugs whichever wall (if any) it hangs against',
     sprite: {
       // The ceiling-attachment "cap" piece — not 16x16 like most other
       // entries, since chain art keeps its own true native size rather than
@@ -517,11 +516,10 @@ export const PALETTE_TOOLS: Record<EditorTool, PaletteTool> = {
   },
   b: {
     label: 'Bomb Pot',
-    description:
-      'Bomb-pot; land on it from above to break it and drop a bomb you can place',
+    description: 'Bomb-pot; land on it from above to break it and drop a bomb you can place',
     sprite: {
       // Row 8, column 0 of world_tileset.png — the blue bottle left of the
-      // potion pot's red bottle (see entities/blocks/BombPot.ts, O-012).
+      // potion pot's red bottle (see entities/blocks/BombPot.ts).
       sheet: WORLD_TILESET,
       sheetWidth: 256,
       sheetHeight: 256,
@@ -716,18 +714,18 @@ export const PALETTE_TOOLS: Record<EditorTool, PaletteTool> = {
 };
 
 /** The turn-around character standing in for the patrol boundary's missing
- *  sprite — in the palette button and on the tile itself in the editor canvas
- *  (`EditorCanvas.tsx` re-exports it as `PATROL_MARKER_GLYPH`). */
+ * sprite — in the palette button and on the tile itself in the editor canvas
+ * (`EditorCanvas.tsx` re-exports it as `PATROL_MARKER_GLYPH`). */
 export const PATROL_GLYPH = '⇄';
 
 /** The socket character standing in for the blueprint connection point's
- *  missing sprite. Deliberately distinct from `PATROL_GLYPH`: both tiles are
- *  sprite-less markers and would otherwise be indistinguishable. */
+ * missing sprite. Deliberately distinct from `PATROL_GLYPH`: both tiles are
+ * sprite-less markers and would otherwise be indistinguishable. */
 export const CONNECTION_POINT_GLYPH = '⊕';
 
 /** The room character standing in for a saved blueprint's missing sprite in the
- *  Palette's Blueprints section. Distinct from the other two glyphs; not part
- *  of `PALETTE_TOOLS`, since a blueprint is not a tile character. */
+ * Palette's Blueprints section. Distinct from the other two glyphs; not part
+ * of `PALETTE_TOOLS`, since a blueprint is not a tile character. */
 export const BLUEPRINT_GLYPH = '▦';
 
 /**
@@ -751,7 +749,7 @@ export const HAZARD_PALETTE_KEYS: TileChar[] = (() => {
 })();
 
 /** A terrain palette tool: its descriptor plus the registry-owned flags a
- *  terrain button/tile needs. */
+ * terrain button/tile needs. */
 export interface TerrainPaletteTool extends PaletteTool {
   tileType: TileType;
   /** The module's author-placeable character (== its `EditorTool` key). */
@@ -761,7 +759,7 @@ export interface TerrainPaletteTool extends PaletteTool {
 }
 
 /**
- * The terrain palette, derived from R-015's shipped `TILE_MODULES` (FR-008):
+ * The terrain palette, derived from 's shipped `TILE_MODULES`:
  * exactly the modules whose descriptor has `group === 'terrain'`. It therefore
  * excludes `'.'` (the Eraser, group `'tools'`), the decoration chars (group
  * `'decoration'`), and every non-author-placeable kind (`ropeLadder`, no

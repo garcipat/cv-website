@@ -1,7 +1,7 @@
 import { bombPot } from './BombPot';
 import { toBlockState } from '../Block';
 import type { BlockState } from '../Block';
-import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
+import { POT_BOUNCE_VY } from './pot';
 import { WORLD_TILESET_SHEET } from '../sprites/sheets';
 import { frameSource } from '../sprites/SpriteSheet';
 import { computePotRenderPlan } from './potRenderPlan';
@@ -10,7 +10,7 @@ import type { DrawContext } from '../../contracts/DrawContext';
 import type { PotRenderPlan } from './potTypes';
 
 /** Row 8, column 0 of `world_tileset.png` — the blue bottle directly left of
- *  the potion pot's red bottle. */
+ * the potion pot's red bottle. */
 const BOMB_POT_FRAME = 8 * 16 + 0; // 128
 
 function blockAt(kind: string, col: number, row: number, id = `${kind}-${col}-${row}`): BlockState {
@@ -58,7 +58,7 @@ describe('bombPot BlockType', () => {
   });
 
   it('drawPot-drawsItsFixedBottleFrameNeverAClayVariant', () => {
-    // FR-006: the bomb pot is never swapped for a clay size variant inside a
+    // : the bomb pot is never swapped for a clay size variant inside a
     // bunch — its single-pot draw always blits its own frame 128.
     const image = {} as HTMLImageElement;
     const { dc, drawImage } = makeDrawContext(image);
@@ -81,7 +81,7 @@ describe('bombPot.onHit', () => {
 
     expect(outcome).toEqual({
       spawnPickup: 'bomb',
-      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
+      effects: [{ type: 'velocity', y: POT_BOUNCE_VY, preserveJump: true }],
     });
   });
 
@@ -92,7 +92,7 @@ describe('bombPot.onHit', () => {
 
     expect(outcome).toEqual({
       spawnPickup: 'bomb',
-      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
+      effects: [{ type: 'velocity', y: POT_BOUNCE_VY, preserveJump: true }],
     });
   });
 });

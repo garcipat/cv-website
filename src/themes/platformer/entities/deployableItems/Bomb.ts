@@ -22,7 +22,7 @@ import type {
 const NO_CRUMBLING_FLOOR_STATES: readonly CrumblingFloorTimerState[] = [];
 
 /**
- * The bomb's **one home** (R-008 FR-007/FR-008): the placed/lit face (the
+ * The bomb's **one home**: the placed/lit face (the
  * state machine, the fuse frames, fall/landing and removal) merged with the
  * held/dropped pickup face, over one shared `BOMB_SHEET` descriptor and one
  * fuse/fall constant set — so the two faces' art and rules can never drift.
@@ -69,11 +69,11 @@ export const BOMB_PULSE_FRAMES: readonly number[] = [4, 5, 4, 5, 4, 5];
 /** Fixed pre-detonation frame order. */
 export const BOMB_FUSE_SEQUENCE: readonly number[] = [...BOMB_BURN_FRAMES, ...BOMB_PULSE_FRAMES];
 /** Seconds the burn-down frames occupy — deliberately the larger share, so the
- *  early fuse stages read clearly instead of flashing past (each of frames
- *  1-3 gets a third of this). */
+ * early fuse stages read clearly instead of flashing past (each of frames
+ * 1-3 gets a third of this). */
 export const BOMB_BURN_SECONDS = 1.2;
 /** Seconds the pulse frames occupy — short, so the 4/5 alternation reads as
- *  urgent. */
+ * urgent. */
 export const BOMB_PULSE_SECONDS = 0.8;
 /** Fixed fuse duration. */
 export const BOMB_FUSE_SECONDS = BOMB_BURN_SECONDS + BOMB_PULSE_SECONDS;
@@ -108,8 +108,8 @@ export function bombLandingRow(
 }
 
 /** Creates a placed bomb at `(col, row)` with its landing row resolved from
- *  the current level + live blocks. Pure; called once when the bomb is
- *  placed. */
+ * the current level + live blocks. Pure; called once when the bomb is
+ * placed. */
 export function createPlacedBomb(
   id: string,
   level: LevelDef,
@@ -162,8 +162,8 @@ export function stepPlacedBomb(state: PlacedBombState, dt: number): PlacedBombSt
 }
 
 /** True once the bomb's bottom edge has passed the level's bottom — only
- *  meaningful when `landingRow === null`. The caller removes the bomb and
- *  does NOT explode it. */
+ * meaningful when `landingRow === null`. The caller removes the bomb and
+ * does NOT explode it. */
 export function checkBombFellOut(state: PlacedBombState, level: LevelDef): boolean {
   return state.y + RENDERED_TILE_SIZE > level.height * RENDERED_TILE_SIZE;
 }
@@ -191,7 +191,7 @@ export function bombFuseFrame(fuseElapsed: number): BombFrame {
 }
 
 /** Whether the fuse has burned down to detonation. The caller detonates
- *  exactly once and removes the bomb. */
+ * exactly once and removes the bomb. */
 export function hasDetonated(state: PlacedBombState): boolean {
   return state.fuseElapsed >= BOMB_FUSE_SECONDS;
 }
@@ -267,7 +267,7 @@ export const bombDeployableItem: SpawnedType<PlacedBombState> = {
 export const BOMB_PICKUP_RENDERED_SIZE = 24;
 
 /** Centers the smaller rendered pickup within its one-tile marker, on both
- *  axes — mirrors Heart.ts's offsets. */
+ * axes — mirrors Heart.ts's offsets. */
 export const BOMB_PICKUP_TILE_OFFSET_X = (RENDERED_TILE_SIZE - BOMB_PICKUP_RENDERED_SIZE) / 2;
 export const BOMB_PICKUP_TILE_OFFSET_Y = (RENDERED_TILE_SIZE - BOMB_PICKUP_RENDERED_SIZE) / 2;
 
@@ -284,9 +284,9 @@ export interface BombPickupState extends Pickup {
 }
 
 /** Spawns a bomb pickup at a just-destroyed bomb-pot's position, reusing the
- *  pot's own id — a bomb-pot is removed from the world on its one hit, and
- *  `bombPickupStates` is cleared on respawn, so there's no collision risk
- *  (same convention as `spawnHeartPickup`). */
+ * pot's own id — a bomb-pot is removed from the world on its one hit, and
+ * `bombPickupStates` is cleared on respawn, so there's no collision risk
+ * (same convention as `spawnHeartPickup`). */
 export function spawnBombPickup(id: string, x: number, y: number): BombPickupState {
   return { id, kind: 'bomb', x, y, collected: false };
 }

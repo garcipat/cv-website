@@ -1,6 +1,6 @@
 /**
  * Public barrel for the unified platformer transient-effect subsystem
- * (R-004). This is the single import site for consumers: the base type and
+ *. This is the single import site for consumers: the base type and
  * collection operations, the registry and its kinds, the one draw dispatch,
  * the shared particle producer, and every per-kind module's public API.
  *

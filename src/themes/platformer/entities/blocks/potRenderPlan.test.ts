@@ -6,7 +6,7 @@ import type { BlockState } from '../Block';
 import type { BlockPlacement } from '../../level/BlockMapper';
 import { RENDERED_TILE_SIZE, tileToPixel } from '../../level/Terrain';
 import { STATIC_OBJECTS_SHEET } from '../sprites/sheets';
-import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
+import { POT_BOUNCE_VY } from './pot';
 
 function blockAt(kind: string, col: number, row: number, id = `${kind}-${col}-${row}`): BlockState {
   const { x, y } = tileToPixel(col, row);
@@ -93,7 +93,7 @@ describe('computePotRenderPlan', () => {
     // A block becomes "used up" the instant its terminal hit lands
     // (isBlockUsedUp), well before its bump animation finishes and it is
     // actually removed from the world — the plan must stop counting it as a
-    // live neighbour immediately (FR-010, SC-004).
+    // live neighbour immediately.
     const left = coinPotAt(5, 2);
     const middleHit = { ...coinPotAt(6, 2), hitsTaken: 1 };
     const right = coinPotAt(7, 2);
@@ -146,7 +146,7 @@ describe('computePotRenderPlan', () => {
 
 describe('computePotRenderPlan — test-only kind through the registry seam', () => {
   it('testOnlyKindRegisteredLocally-mergesIntoARunAndDropsItsPickupWithNoSharedEdit', () => {
-    // SC-005: a kind built with the same factory, registered only in a local
+    // : a kind built with the same factory, registered only in a local
     // registry (never the global BLOCK_TYPES), merges and breaks like the
     // built-in kinds.
     const testPot = createPotType({
@@ -167,7 +167,7 @@ describe('computePotRenderPlan — test-only kind through the registry seam', ()
     expect(run.fillers).toHaveLength(1);
     expect(testPot.onHit!({ ...test, hitsTaken: 1, rewardGiven: false })).toEqual({
       spawnPickup: 'coin',
-      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
+      effects: [{ type: 'velocity', y: POT_BOUNCE_VY, preserveJump: true }],
     });
   });
 });

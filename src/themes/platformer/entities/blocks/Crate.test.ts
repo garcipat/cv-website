@@ -24,7 +24,11 @@ describe('crateShatterOpacity', () => {
     expect(crateShatterOpacity(block({ animState: 'shatter', animTimer: 0 }))).toBe(1);
   });
   it('shatterEnd-zeroOpacity', () => {
-    expect(crateShatterOpacity(block({ animState: 'shatter', animTimer: CRATE_SHATTER_DURATION_SECONDS }))).toBe(0);
+    expect(
+      crateShatterOpacity(
+        block({ animState: 'shatter', animTimer: CRATE_SHATTER_DURATION_SECONDS }),
+      ),
+    ).toBe(0);
   });
 });
 

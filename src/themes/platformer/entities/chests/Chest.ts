@@ -53,7 +53,7 @@ export type ChestVisualState = 'closed' | 'open';
 /**
  * Live per-instance open/closed state for a placed chest — composes the shared
  * `DeployableItemState` base so the chest travels the one `deployableItems`
- * collection/registry (R-008). No hit-count/animation timer: opening is a
+ * collection/registry. No hit-count/animation timer: opening is a
  * single, permanent, un-animated state flip.
  */
 export interface ChestState extends DeployableItemState {
@@ -62,8 +62,8 @@ export interface ChestState extends DeployableItemState {
   fact: CollectedFact;
 }
 
-/** Converts a placed-but-static `ChestPlacement` into its initial live state —
- *  always starts closed. */
+/** Converts a placed-but-static `ChestPlacement` into its initial live state
+ * always starts closed. */
 export function toChestState(placement: ChestPlacement): ChestState {
   return {
     id: placement.id,
@@ -78,7 +78,7 @@ export function toChestState(placement: ChestPlacement): ChestState {
 }
 
 /** Narrows a generic deployable-item state to a chest (the derived
- *  `chestStates` projection over the one `deployableItems` collection). */
+ * `chestStates` projection over the one `deployableItems` collection). */
 export function isChestState(item: DeployableItemState): item is ChestState {
   return item.kind === 'chest';
 }
@@ -88,24 +88,24 @@ export function isChestOpen(chest: ChestState): boolean {
 }
 
 /** Opens a chest — permanent for the rest of the session (only Reset Game,
- *  via PlatformerState.ts's resetGameProgress, puts it back to closed). A
- *  no-op (same reference) if already open, matching Block.ts's
- *  applyBlockHit's already-used-up guard convention. */
+ * via PlatformerState.ts's resetGameProgress, puts it back to closed). A
+ * no-op (same reference) if already open, matching Block.ts's
+ * applyBlockHit's already-used-up guard convention. */
 export function openChest(chest: ChestState): ChestState {
   if (chest.state === 'open') return chest;
   return { ...chest, state: 'open' };
 }
 
 /** Whether every chest in the level has been opened (the Thank You screen
- *  trigger) — false for an empty array so a level with zero chests never
- *  spuriously "completes". */
+ * trigger) — false for an empty array so a level with zero chests never
+ * spuriously "completes". */
 export function allChestsOpen(chests: readonly ChestState[]): boolean {
   return chests.length > 0 && chests.every(isChestOpen);
 }
 
 /** The chest's trigger footprint: its CLOSED rendered size, centered on its
- *  tile. Closed regardless of the chest's current state — an open chest is no
- *  longer a trigger, so its (narrower) open footprint would have no consumer. */
+ * tile. Closed regardless of the chest's current state — an open chest is no
+ * longer a trigger, so its (narrower) open footprint would have no consumer. */
 export function chestTriggerBox(chest: ChestState): Rect {
   return {
     x: chest.x + CHEST_CLOSED_OFFSET_X,
@@ -116,7 +116,7 @@ export function chestTriggerBox(chest: ChestState): Rect {
 }
 
 /**
- * The chest family's one home (R-008 FR-009, resolving X7 by folding): the
+ * The chest family's one home (resolving X7 by folding): the
  * state, helpers, constants and this `WorldInteractableType<ChestState>` entry,
  * reachable only from `entities/chests`.
  *

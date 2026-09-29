@@ -14,11 +14,11 @@ describe('levelFileName', () => {
   });
 
   it('punctuationAndRunsOfSeparators-collapseToSingleHyphens', () => {
-    expect(levelFileName('Cave!! __ Run??  Two')).toBe('cave-run-two.json');
+    expect(levelFileName('Cave!! __ Run?? Two')).toBe('cave-run-two.json');
   });
 
   it('leadingAndTrailingSeparators-areTrimmed', () => {
-    expect(levelFileName('  -- cave run -- ')).toBe('cave-run.json');
+    expect(levelFileName(' -- cave run -- ')).toBe('cave-run.json');
   });
 
   it('nameThatSlugifiesToNothing-fallsBackToLevel', () => {

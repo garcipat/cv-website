@@ -65,12 +65,16 @@ import {
   hazardPlacementsForTick,
 } from './PlatformerState';
 import { MUSHROOM_SQUASH_DURATION_SECONDS } from './tiles/bouncyMushroom';
-import { FLOOR_SPIKE_CYCLE_SECONDS, FLOOR_SPIKE_DELAY_SECONDS, FLOOR_SPIKE_WARNING_SECONDS } from './entities/hazards/FloorSpike';
+import {
+  FLOOR_SPIKE_CYCLE_SECONDS,
+  FLOOR_SPIKE_DELAY_SECONDS,
+  FLOOR_SPIKE_WARNING_SECONDS,
+} from './entities/hazards/FloorSpike';
 import { mapCVDataToEnemies } from './level/EnemyMapper';
 import { toBlockState } from './entities/Block';
 import { computePotRenderPlan } from './entities/blocks/potRenderPlan';
 import { BLOCK_TYPES } from './entities/blocks';
-import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
+import { POT_BOUNCE_VY } from './entities/blocks/pot';
 import { changeLocale, currentCV } from '@/state/locale';
 import { MAX_HALF_HEARTS } from './entities/Health';
 import { tileToPixel, tileAt, RENDERED_TILE_SIZE } from './level/Terrain';
@@ -136,17 +140,17 @@ import {
 } from './entities/deployableItems';
 
 /** The live collection narrowed to one effect kind. */
-const effectsOfKind = <S,>(kind: EffectKind): readonly TransientEffect<S>[] =>
+const effectsOfKind = <S>(kind: EffectKind): readonly TransientEffect<S>[] =>
   activeEffects.value.filter((effect) => effect.kind === kind) as readonly TransientEffect<S>[];
 
-/** The single live speech bubble (R-005), kind-filtered from the collection. */
+/** The single live speech bubble, kind-filtered from the collection. */
 const speechBubble = (): TransientEffect<SpeechBubbleState> | undefined =>
   activeEffects.value.find(
     (effect): effect is TransientEffect<SpeechBubbleState> => effect.kind === 'speechBubble',
   );
 
 /** Opens the first live chest through the one `deployableItems` collection (the
- *  derived `chestStates` projection is read-only). */
+ * derived `chestStates` projection is read-only). */
 function openFirstChest(): void {
   let opened = false;
   deployableItems.value = deployableItems.value.map((item) => {
@@ -213,7 +217,7 @@ describe('PlatformerState', () => {
 
   describe('chestPlacements', () => {
     it('module-places-oneChestPerMarker', () => {
-      // One chest per `$` marker, each zipped against one Experience entry —
+      // One chest per `$` marker, each zipped against one Experience entry
       // a fixture authored with exactly one marker per Experience entry (the
       // shipped level's own convention) proves both halves without pinning
       // the shipped level's marker count.
@@ -247,7 +251,7 @@ describe('PlatformerState', () => {
       expect(state.vx).toBe(0);
       expect(state.direction).toBe('right');
       // Each kind seeds its OWN resting state: the slimes walk, the bee flies
-      // (FR-008).
+      //.
       expect(state.animState).toBe(state.type === 'bee' ? 'fly' : 'walk');
     }
   });
@@ -267,7 +271,7 @@ describe('PlatformerState', () => {
   });
 
   it('levelTotalsAndEnemiesDefeated-areUnchangedByTheBee', () => {
-    // SC-008: a level with bees reports the same enemies total / defeated
+    // : a level with bees reports the same enemies total / defeated
     // count as the same level with them removed. Swap the `q` marker out of
     // the layout and confirm neither counter moves, then restore.
     const withBee = currentLayout.value;
@@ -295,7 +299,12 @@ describe('PlatformerState', () => {
   });
 
   it('resetGame-calledAfterEnemiesMoved-restoresEnemiesToInitialState', () => {
-    enemyStates.value = enemyStates.value.map((e) => ({ ...e, x: e.x + 500, vx: 60, direction: 'left' as const }));
+    enemyStates.value = enemyStates.value.map((e) => ({
+      ...e,
+      x: e.x + 500,
+      vx: 60,
+      direction: 'left' as const,
+    }));
 
     resetGame();
 
@@ -322,12 +331,18 @@ describe('PlatformerState', () => {
     );
     const collectedId = baseCoinPlacements.value[0].id;
     collectedFacts.value = [
-      { id: 'coin-backend', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Backend', skills: [] }, sourceType: 'coin' },
+      {
+        id: 'coin-backend',
+        sectionId: 'skills',
+        sectionLabel: 'Skills',
+        data: { category: 'Backend', skills: [] },
+        sourceType: 'coin',
+      },
     ];
 
     resetGame();
 
-    // FR-020c: collected coins/facts survive a death/respawn reset — the
+    // : collected coins/facts survive a death/respawn reset — the
     // base coin keeps its shared `collected` flag.
     expect(baseCoinPlacements.value.find((p) => p.id === collectedId)?.collected).toBe(true);
     expect(collectedFacts.value).toHaveLength(1);
@@ -484,7 +499,7 @@ describe('PlatformerState', () => {
     });
 
     it('calledWhileCrouched-returnsTheCharacterStanding', () => {
-      // FR-012: crouch is session-scoped in-memory state and never survives a
+      // : crouch is session-scoped in-memory state and never survives a
       // respawn — resetGame() assigns a fresh playerStateAtTile result.
       playerState.value = { ...playerState.value, crouching: true };
 
@@ -505,7 +520,13 @@ describe('resetGameProgress', () => {
 
   it('called-clearsCollectedFactsAndReDerivesBaseCoinsUncollected', () => {
     collectedFacts.value = [
-      { id: 'coin-backend', sectionId: 'skills', sectionLabel: 'Skills', data: { category: 'Backend', skills: [] }, sourceType: 'coin' },
+      {
+        id: 'coin-backend',
+        sectionId: 'skills',
+        sectionLabel: 'Skills',
+        data: { category: 'Backend', skills: [] },
+        sourceType: 'coin',
+      },
     ];
     baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: true }));
     activeJournalSection.value = 'skills';
@@ -518,7 +539,7 @@ describe('resetGameProgress', () => {
   });
 
   it('called-alsoRestoresSpawnHealthAndCamera', () => {
-    // Reuses resetGame()'s existing behavior (position/health/camera) —
+    // Reuses resetGame()'s existing behavior (position/health/camera)
     // this asserts the seam is actually called, not just facts/ids cleared.
     playerState.value = { ...playerState.value, x: 999, hitPoints: 0 };
     cameraPositionX.value = 300;
@@ -531,7 +552,7 @@ describe('resetGameProgress', () => {
   });
 
   it('calledWhileCrouched-returnsTheCharacterStanding', () => {
-    // FR-012: a full Reset Game also returns the character standing.
+    // : a full Reset Game also returns the character standing.
     playerState.value = { ...playerState.value, crouching: true };
 
     resetGameProgress();
@@ -841,7 +862,9 @@ describe('resetGame — potion-pots restore, dropped hearts vanish', () => {
     // settled: isBlockRemoved splices a used-up, removeWhenUsedUp block out
     // of blockStates entirely (see Block.ts's doc comment), so there is
     // nothing left in blockStates for this placement's id at all.
-    blockStates.value = blockPlacements.value.map(toBlockState).filter((b) => b.id !== placement.id);
+    blockStates.value = blockPlacements.value
+      .map(toBlockState)
+      .filter((b) => b.id !== placement.id);
     expect(blockStates.value.some((b) => b.id === placement.id)).toBe(false);
 
     resetGame();
@@ -856,7 +879,9 @@ describe('resetGame — potion-pots restore, dropped hearts vanish', () => {
     // Every other block kind's progress persists across a death/respawn
     // (see resetGame's own doc comment) — only potionPot is special-cased.
     const crate = blockStates.value.find((b) => b.blockKind === 'crate')!;
-    blockStates.value = blockStates.value.map((b) => (b.id === crate.id ? { ...b, hitsTaken: 1 } : b));
+    blockStates.value = blockStates.value.map((b) =>
+      b.id === crate.id ? { ...b, hitsTaken: 1 } : b,
+    );
 
     resetGame();
 
@@ -876,7 +901,9 @@ describe('resetGame — restored-on-respawn flag and rewardGiven carry-over', ()
     currentLayout.value = ['Sp', 'GG'];
     const placement = blockPlacements.value.find((b) => b.blockKind === 'potionPot')!;
     blockStates.value = blockPlacements.value.map((b) =>
-      b.id === placement.id ? { ...toBlockState(b), rewardGiven: true, hitsTaken: 1 } : toBlockState(b),
+      b.id === placement.id
+        ? { ...toBlockState(b), rewardGiven: true, hitsTaken: 1 }
+        : toBlockState(b),
     );
 
     resetGame();
@@ -925,7 +952,7 @@ describe('resetGame — restored-on-respawn flag and rewardGiven carry-over', ()
 
     expect(BLOCK_TYPES.potionPot.onHit!({ ...block, hitsTaken: 1, rewardGiven: true })).toEqual({
       spawnPickup: 'heart',
-      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
+      effects: [{ type: 'velocity', y: POT_BOUNCE_VY, preserveJump: true }],
     });
   });
 
@@ -933,12 +960,18 @@ describe('resetGame — restored-on-respawn flag and rewardGiven carry-over', ()
     const block = toBlockState({ id: 'coin-1', blockKind: 'coinPot', x: 0, y: 0 });
 
     expect(BLOCK_TYPES.coinPot.onHit!({ ...block, hitsTaken: 1, rewardGiven: true })).toEqual({
-      bounceVelocity: PHYSICS_CONFIG.potBounceVelocity,
+      effects: [{ type: 'velocity', y: POT_BOUNCE_VY, preserveJump: true }],
     });
   });
 
   it('resetGame-aPreviouslyDroppedCoinPickupSurvivesAndStaysCollectible', () => {
-    const droppedCoin = { id: 'coinpot-x', kind: 'coin' as const, x: 100, y: 100, collected: false };
+    const droppedCoin = {
+      id: 'coinpot-x',
+      kind: 'coin' as const,
+      x: 100,
+      y: 100,
+      collected: false,
+    };
     spawnedCoinPlacements.value = [droppedCoin];
 
     resetGame();
@@ -1012,7 +1045,7 @@ describe('levelTotals', () => {
   });
 
   // A coin-pot's coin does not exist in allCollectiblePlacements until the pot
-  // is destroyed, so the total counts placed coins PLUS every pot up front —
+  // is destroyed, so the total counts placed coins PLUS every pot up front
   // otherwise the denominator would creep upward during play instead of
   // staying fixed all session.
   it('layoutWithOneCoinAndOneCoinPot-countsBothAsCoins', () => {
@@ -1028,7 +1061,7 @@ describe('levelTotals', () => {
   });
 
   it('level1Layout-matchesTheSamePlacementFiltersEveryCallSiteUsedBefore', () => {
-    // Guards against a mis-wired field (crates reading questionMark, say) —
+    // Guards against a mis-wired field (crates reading questionMark, say)
     // each field must equal the exact expression its former call site used.
     expect(levelTotals.value).toEqual({
       coins:
@@ -1124,7 +1157,9 @@ describe('enemiesDefeated', () => {
 
   it('oneGreenSlimeRewardGiven-countsAsDefeated', () => {
     const [first] = enemyStates.value.filter((e) => e.type === 'slimeGreen');
-    enemyStates.value = enemyStates.value.map((e) => (e.id === first.id ? { ...e, rewardGiven: true } : e));
+    enemyStates.value = enemyStates.value.map((e) =>
+      e.id === first.id ? { ...e, rewardGiven: true } : e,
+    );
 
     expect(enemiesDefeated.value).toBe(1);
   });
@@ -1135,7 +1170,9 @@ describe('enemiesDefeated', () => {
     // courses (see COUNTER_SECTIONS), so a purple defeat must not inflate it.
     const [purple] = enemyStates.value.filter((e) => e.type === 'slimePurple');
     if (!purple) return; // this level may have no purple markers
-    enemyStates.value = enemyStates.value.map((e) => (e.id === purple.id ? { ...e, rewardGiven: true } : e));
+    enemyStates.value = enemyStates.value.map((e) =>
+      e.id === purple.id ? { ...e, rewardGiven: true } : e,
+    );
 
     expect(enemiesDefeated.value).toBe(0);
   });
@@ -1167,7 +1204,7 @@ describe('checkpointStates', () => {
   it('module-seedsOneDormantStatePerPlacement', () => {
     // The signal is seeded once at module load (from the shipped level, which
     // has no checkpoints) — rebuilding it for a new layout is
-    // resetGameProgress()'s job (FR-016), not a reactive recompute.
+    // resetGameProgress()'s job, not a reactive recompute.
     expect(checkpointStates.value).toEqual(checkpointPlacements.value.map(toCheckpointState));
     expect(checkpointStates.value.every((c) => c.activated === false)).toBe(true);
     expect(checkpointStates.value.every((c) => c.activatedAt === null)).toBe(true);
@@ -1289,9 +1326,9 @@ describe('checkpoint reset semantics', () => {
 });
 
 /** A background `string[]` layout just big enough to hold a single material
- *  character at `(col, row)`, everything else empty — mirrors the old
- *  single-placement fixtures these darkness tests used before O-014's grid
- *  rework (and its later storage-unification revision). */
+ * character at `(col, row)`, everything else empty — mirrors the old
+ * single-placement fixtures these darkness tests used before 's grid
+ * rework (and its later storage-unification revision). */
 function singleCellBackground(material: 'charcoal' | 'dirt', col: number, row: number): string[] {
   const char = material === 'charcoal' ? 'c' : 'd';
   const rows: string[] = Array.from({ length: row + 1 }, () => '.'.repeat(col + 1));
@@ -1483,7 +1520,9 @@ describe('torchPositions', () => {
     const [torch] = TORCH_TILES.value;
     const cell = tileToPixel(torch.col, torch.row);
 
-    currentMarkers.value = [{ col: torch.col, row: torch.row, marker: { kind: 'torch', strength: 9 } }];
+    currentMarkers.value = [
+      { col: torch.col, row: torch.row, marker: { kind: 'torch', strength: 9 } },
+    ];
 
     expect(torchPositions.value).toEqual([
       {
@@ -1669,9 +1708,7 @@ describe('falling stalactites — state and per-tick merge', () => {
 
   it('hazardPlacementsForTick-mergesTheFallingStalactitePhaseAndOffsets', () => {
     currentLayout.value = ['S...', '.⊤..', '....', 'GGGG'];
-    currentMarkers.value = [
-      { col: 1, row: 1, marker: { kind: 'fallingStalactite' } },
-    ];
+    currentMarkers.value = [{ col: 1, row: 1, marker: { kind: 'fallingStalactite' } }];
     const hazard = hazardPlacements.value.find((h) => h.hazardType === 'fallingStalactite')!;
 
     const hanging = hazardPlacementsForTick().find((h) => h.id === hazard.id)!;
@@ -1744,7 +1781,7 @@ describe('tile meta layer consumption', () => {
   });
 });
 
-describe('R-004 US5 — unified effect collection lifecycle', () => {
+describe('— unified effect collection lifecycle', () => {
   beforeEach(() => {
     activeEffects.value = [];
     mushroomSquashStates.value = [];
@@ -1810,7 +1847,7 @@ describe('R-004 US5 — unified effect collection lifecycle', () => {
   });
 });
 
-describe('R-006 collection storage — one collect-once mechanism (SC-008)', () => {
+describe('collection storage — one collect-once mechanism', () => {
   afterEach(() => {
     baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: false }));
     spawnedCoinPlacements.value = [];
@@ -1830,9 +1867,7 @@ describe('R-006 collection storage — one collect-once mechanism (SC-008)', () 
 
     expect(baseCoinPlacements.value).toHaveLength(before);
     expect(baseCoinPlacements.value.find((p) => p.id === target.id)?.collected).toBe(true);
-    expect(
-      pickupGroups.value.coin?.find((p) => p.id === target.id)?.collected,
-    ).toBe(true);
+    expect(pickupGroups.value.coin?.find((p) => p.id === target.id)?.collected).toBe(true);
   });
 
   it('aFlaggedBaseCoinSurvivesResetGameButIsReDerivedByResetGameProgress', () => {
@@ -1847,7 +1882,9 @@ describe('R-006 collection storage — one collect-once mechanism (SC-008)', () 
   });
 
   it('everyKind-markCollectedRetainsTheEntryFlaggedRatherThanRemovingIt', () => {
-    fruitStates.value = [tickFruit(spawnFruit('f1', 0, 0, undefined, 0), FRUIT_RISE_DURATION_SECONDS)];
+    fruitStates.value = [
+      tickFruit(spawnFruit('f1', 0, 0, undefined, 0), FRUIT_RISE_DURATION_SECONDS),
+    ];
     keyPickupStates.value = [{ id: 'k1', kind: 'key', x: 0, y: 0, collected: false }];
     heartPickupStates.value = [spawnHeartPickup('h1', 0, 0)];
     bombPickupStates.value = [spawnBombPickup('b1', 0, 0)];
@@ -1874,7 +1911,7 @@ describe('R-006 collection storage — one collect-once mechanism (SC-008)', () 
   });
 });
 
-describe('R-006 reset scopes are the only per-kind difference (FR-009)', () => {
+describe('reset scopes are the only per-kind difference', () => {
   afterEach(() => {
     baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: false }));
     spawnedCoinPlacements.value = [];
@@ -1888,7 +1925,12 @@ describe('R-006 reset scopes are the only per-kind difference (FR-009)', () => {
   it('resetGame-keepsCoinFruitKeyFlagsAndClearsHeartBomb', () => {
     const target = baseCoinPlacements.value[0];
     pickupStores.coin.markCollected(new Set([target.id]));
-    fruitStates.value = [{ ...tickFruit(spawnFruit('f1', 0, 0, undefined, 0), FRUIT_RISE_DURATION_SECONDS), collected: true }];
+    fruitStates.value = [
+      {
+        ...tickFruit(spawnFruit('f1', 0, 0, undefined, 0), FRUIT_RISE_DURATION_SECONDS),
+        collected: true,
+      },
+    ];
     keyPickupStates.value = [{ id: 'k1', kind: 'key', x: 0, y: 0, collected: true }];
     spawnedCoinPlacements.value = [{ id: 'spawned-1', kind: 'coin', x: 0, y: 0, collected: true }];
     heartPickupStates.value = [spawnHeartPickup('h1', 0, 0)];
@@ -1909,7 +1951,9 @@ describe('R-006 reset scopes are the only per-kind difference (FR-009)', () => {
   it('resetGameProgress-clearsEveryPickupArrayAndCollectedKeys', () => {
     baseCoinPlacements.value = baseCoinPlacements.value.map((p) => ({ ...p, collected: true }));
     spawnedCoinPlacements.value = [{ id: 'spawned-1', kind: 'coin', x: 0, y: 0, collected: true }];
-    fruitStates.value = [tickFruit(spawnFruit('f1', 0, 0, undefined, 0), FRUIT_RISE_DURATION_SECONDS)];
+    fruitStates.value = [
+      tickFruit(spawnFruit('f1', 0, 0, undefined, 0), FRUIT_RISE_DURATION_SECONDS),
+    ];
     keyPickupStates.value = [{ id: 'k1', kind: 'key', x: 0, y: 0, collected: true }];
     heartPickupStates.value = [spawnHeartPickup('h1', 0, 0)];
     bombPickupStates.value = [spawnBombPickup('b1', 0, 0)];
@@ -1927,7 +1971,7 @@ describe('R-006 reset scopes are the only per-kind difference (FR-009)', () => {
   });
 });
 
-describe('R-006 generic eligibility gates (FR-002)', () => {
+describe('generic eligibility gates', () => {
   // The player's hitbox stands at y 86..124; a pickup placed at y 100
   // overlaps it — same geometry the engine's other pickup tests use.
   const player = { ...playerState.value, x: 0, y: 100 - RENDERED_TILE_SIZE };
@@ -1970,7 +2014,11 @@ describe('R-006 generic eligibility gates (FR-002)', () => {
 
   it('aMidRiseFruitIsNotCollectible', () => {
     const fruit = spawnFruit('f1', 0, 100, undefined, 0);
-    const hits = checkPickupCollisions(player, { fruit: [fruit] }, { playerHitPoints: MAX_HALF_HEARTS });
+    const hits = checkPickupCollisions(
+      player,
+      { fruit: [fruit] },
+      { playerHitPoints: MAX_HALF_HEARTS },
+    );
     expect(hits).toEqual([]);
   });
 
@@ -2022,7 +2070,11 @@ describe('deployableItems — one collection, one tick, one consequence pass', (
   });
 
   it('tickDeployableItems-advancesEveryEntryThroughItsOwnStepAndLeavesAStepLessChestAlone', () => {
-    const ladder = { ...createRopeLadderState(currentLevel.value, 0, 0), phase: 'deploying' as const, elapsed: 0 };
+    const ladder = {
+      ...createRopeLadderState(currentLevel.value, 0, 0),
+      phase: 'deploying' as const,
+      elapsed: 0,
+    };
     const chest = makeChestState();
     deployableItems.value = [ladder, chest];
 
@@ -2035,7 +2087,10 @@ describe('deployableItems — one collection, one tick, one consequence pass', (
   });
 
   it('applyDeployableItemConsequences-removesADetonatedBombAndReturnsItsBlast', () => {
-    const bomb = { ...createPlacedBomb('bomb-0-0-0', currentLevel.value, [], 0, 0), fuseElapsed: BOMB_FUSE_SECONDS };
+    const bomb = {
+      ...createPlacedBomb('bomb-0-0-0', currentLevel.value, [], 0, 0),
+      fuseElapsed: BOMB_FUSE_SECONDS,
+    };
     const chest = makeChestState();
     deployableItems.value = [bomb, chest];
 
@@ -2069,16 +2124,22 @@ describe('deployableItems — one collection, one tick, one consequence pass', (
     const chest = makeChestState('chest-under-player', player.x, player.y);
     deployableItems.value = [chest];
 
-    expect(proposeDeployableItemInteraction(deployableItems.value, { level, player, keys: 0 })).toEqual({
+    expect(
+      proposeDeployableItemInteraction(deployableItems.value, { level, player, keys: 0 }),
+    ).toEqual({
       hint: 'noKeyForChest',
     });
     expect(
-      proposeDeployableItemInteraction(deployableItems.value, { level, player, keys: 1 }).activate?.id,
+      proposeDeployableItemInteraction(deployableItems.value, { level, player, keys: 1 }).activate
+        ?.id,
     ).toBe('chest-under-player');
   });
 
   it('resetGame-keepsADeployedLadderButDropsEveryBombWithoutExplodingIt', () => {
-    const ladder = { ...createRopeLadderState(currentLevel.value, 0, 0), phase: 'deployed' as const };
+    const ladder = {
+      ...createRopeLadderState(currentLevel.value, 0, 0),
+      phase: 'deployed' as const,
+    };
     const bomb = {
       ...createPlacedBomb('bomb-keep-check', currentLevel.value, [], 0, 0),
       fuseElapsed: BOMB_FUSE_SECONDS,
@@ -2087,7 +2148,9 @@ describe('deployableItems — one collection, one tick, one consequence pass', (
 
     resetGame();
 
-    expect(deployableItems.value.some((item) => item.id === ladder.id && item.kind === 'ladder')).toBe(true);
+    expect(
+      deployableItems.value.some((item) => item.id === ladder.id && item.kind === 'ladder'),
+    ).toBe(true);
     expect(liveBombs()).toEqual([]);
     // The dropped bomb is never exploded on a death/respawn.
     expect(effectsOfKind<ExplosionState>('explosion')).toEqual([]);
@@ -2106,8 +2169,8 @@ describe('deployableItems — one collection, one tick, one consequence pass', (
 
     expect(liveBombs()).toEqual([]);
     expect(chestStates.value.every((chestState) => chestState.state === 'closed')).toBe(true);
-    expect(deployableItems.value.every((item) => item.kind !== 'ladder' || item.phase === 'rolled')).toBe(
-      true,
-    );
+    expect(
+      deployableItems.value.every((item) => item.kind !== 'ladder' || item.phase === 'rolled'),
+    ).toBe(true);
   });
 });

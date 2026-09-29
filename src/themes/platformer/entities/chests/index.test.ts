@@ -1,8 +1,5 @@
 import { chestDeployableItem, toChestState } from './index';
-import {
-  CHEST_CLOSED_SHEET,
-  CHEST_OPEN_SHEET,
-} from '../sprites/sheets';
+import { CHEST_CLOSED_SHEET, CHEST_OPEN_SHEET } from '../sprites/sheets';
 import {
   CHEST_CLOSED_WIDTH,
   CHEST_CLOSED_HEIGHT,

@@ -10,8 +10,8 @@ import { ATLAS_STRIDE, type QuarterTurns, type TileAtlasEntry } from '../shared/
 export const BACKGROUND_ATLAS_ROW_PITCH = 60;
 
 /** `BackgroundAtlasEntry` is the shared `{ sx, sy, rotation }` atlas cell
- *  shape — a type alias rather than an empty `interface extends`, which is
- *  equivalent and lint-clean. */
+ * shape — a type alias rather than an empty `interface extends`, which is
+ * equivalent and lint-clean. */
 export type BackgroundAtlasEntry = TileAtlasEntry;
 
 /** Each material's row index (0-5) within the sheet, top to bottom. */
@@ -25,9 +25,9 @@ const BACKGROUND_MATERIAL_ROW_INDEX: Record<BackgroundMaterialId, number> = {
 };
 
 /** Per-material 4x3 grid coordinates (see data-model.md's sheet layout table):
- *  gy 0-2 (corner/edge/corner, edge/middle/edge, corner/edge/corner rows),
- *  gx 0-3 (the four shapes tiled across each row, with column 3 holding the
- *  strip-cap/strip-body/isolated shapes). */
+ * gy 0-2 (corner/edge/corner, edge/middle/edge, corner/edge/corner rows),
+ * gx 0-3 (the four shapes tiled across each row, with column 3 holding the
+ * strip-cap/strip-body/isolated shapes). */
 function cell(materialIndex: number, gx: number, gy: number): { sx: number; sy: number } {
   return {
     sx: gx * ATLAS_STRIDE,
@@ -79,19 +79,21 @@ const MASK_SHAPE: Record<number, { gx: number; gy: number; rotation: QuarterTurn
  * repeating the 16-entry table six times (data-model.md explicitly calls
  * this deduplication out).
  */
-const BACKGROUND_ATLAS: Record<BackgroundMaterialId, Record<number, BackgroundAtlasEntry>> =
-  Object.fromEntries(
-    (Object.keys(BACKGROUND_MATERIAL_ROW_INDEX) as BackgroundMaterialId[]).map((material) => {
-      const materialIndex = BACKGROUND_MATERIAL_ROW_INDEX[material];
-      const table = Object.fromEntries(
-        Object.entries(MASK_SHAPE).map(([mask, { gx, gy, rotation }]) => [
-          mask,
-          { ...cell(materialIndex, gx, gy), rotation },
-        ]),
-      );
-      return [material, table];
-    }),
-  ) as Record<BackgroundMaterialId, Record<number, BackgroundAtlasEntry>>;
+const BACKGROUND_ATLAS: Record<
+  BackgroundMaterialId,
+  Record<number, BackgroundAtlasEntry>
+> = Object.fromEntries(
+  (Object.keys(BACKGROUND_MATERIAL_ROW_INDEX) as BackgroundMaterialId[]).map((material) => {
+    const materialIndex = BACKGROUND_MATERIAL_ROW_INDEX[material];
+    const table = Object.fromEntries(
+      Object.entries(MASK_SHAPE).map(([mask, { gx, gy, rotation }]) => [
+        mask,
+        { ...cell(materialIndex, gx, gy), rotation },
+      ]),
+    );
+    return [material, table];
+  }),
+) as Record<BackgroundMaterialId, Record<number, BackgroundAtlasEntry>>;
 
 /**
  * Looks up the sprite + rotation for `material` at the given 4-bit neighbour
@@ -100,7 +102,10 @@ const BACKGROUND_ATLAS: Record<BackgroundMaterialId, Record<number, BackgroundAt
  * only ever produces a value in [0, 15], so this should never happen in
  * practice.
  */
-export function backgroundAtlasCell(material: BackgroundMaterialId, mask: number): BackgroundAtlasEntry {
+export function backgroundAtlasCell(
+  material: BackgroundMaterialId,
+  mask: number,
+): BackgroundAtlasEntry {
   const entry = BACKGROUND_ATLAS[material]?.[mask];
   if (!entry) {
     throw new Error(`No background atlas entry for material "${material}" mask ${mask}`);

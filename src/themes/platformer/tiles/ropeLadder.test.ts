@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  ropeLadderShaftPieces,
-  ROPE_TOP_CAP,
-  ROPE_STEP,
-  ROPE_BOTTOM_CAP,
-} from './ropeLadder';
+import { ropeLadderShaftPieces, ROPE_TOP_CAP, ROPE_STEP, ROPE_BOTTOM_CAP } from './ropeLadder';
 
 describe('ropeLadderShaftPieces', () => {
   it('zeroLength-isTopCapOverBottomCap', () => {

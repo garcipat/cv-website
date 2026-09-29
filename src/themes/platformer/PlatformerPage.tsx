@@ -44,11 +44,20 @@ import { drawBackgroundLayers, backgroundBandGeometry } from './engine/Backgroun
 import { createCloudField, stepCloudField, drawAmbientClouds } from './engine/AmbientClouds';
 import type { CloudField } from './engine/AmbientClouds';
 import type { DrawContext } from './contracts/DrawContext';
+import type { HitEffect } from './contracts/HitEffect';
 import { drawDebugOverlay, drawCameraDeadZoneOverlay } from './engine/DebugOverlay';
 import { createGameLoop } from './engine/GameLoop';
-import { stepPlayerPhysics, checkPitFall, resolvePitFall, playerOnMushroomCap } from './engine/Physics';
-import { startMushroomSquash } from './tiles/bouncyMushroom';
-import { PHYSICS_CONFIG } from './contracts/PhysicsConfig';
+import {
+  stepPlayerPhysics,
+  checkPitFall,
+  resolvePitFall,
+  playerOnMushroomCap,
+} from './engine/Physics';
+import { startMushroomSquash, MUSHROOM_BOUNCE_VY } from './tiles/bouncyMushroom';
+import { resolveBlasts } from './engine/BombSystem';
+import { resolveHitEffects } from './engine/HitResolver';
+import type { BlockHitResult } from './engine/HitResolver';
+import { DEFAULT_HIT_KNOCKBACK } from './shared/knockback';
 import { stepEnemyHitReaction } from './entities/enemies/hitReaction';
 import { updateCamera, updateCameraY, initialCameraX, initialCameraY } from './engine/Camera';
 import { createKeyboardInput } from './engine/Input';
@@ -74,22 +83,25 @@ import {
   resolveHazardContacts,
   checkHazardArmTriggers,
   checkCrumblingFloorTriggers,
-  playerHitbox,
 } from './engine/Collision';
 import type { PickupHit } from './engine/Collision';
 import type { PickupContext } from './contracts/Pickup';
 import type { PickupKind } from './contracts/PickupKind';
+import { bombDeployableItem } from './entities/deployableItems/Bomb';
 import {
-  bombDeployableItem,
-} from './entities/deployableItems/Bomb';
-import { proposeDeployableItemInteraction, DEPLOYABLE_ITEM_TYPES } from './entities/deployableItems';
-import { blastTiles, blocksInBlast, enemiesInBlast, playerInBlast } from './engine/Blast';
+  proposeDeployableItemInteraction,
+  DEPLOYABLE_ITEM_TYPES,
+} from './entities/deployableItems';
 import { resolveCheckpointContacts } from './engine/CheckpointLogic';
-import { allChestsOpen, chestDeployableItem, CHEST_CLOSED_WIDTH, CHEST_CLOSED_HEIGHT } from './entities/chests';
+import {
+  allChestsOpen,
+  chestDeployableItem,
+  CHEST_CLOSED_WIDTH,
+  CHEST_CLOSED_HEIGHT,
+} from './entities/chests';
 import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from './entities/pickups/Key';
 import { stepBlockAnimation } from './engine/BlockAI';
 import {
-  applyBlockHit,
   isBlockUsedUp,
   isBlockRemoved,
   blockFrameSource,
@@ -141,15 +153,14 @@ import { RENDERED_TILE_SIZE, tileToPixel } from './level/Terrain';
 import {
   advancePlayerAnimation,
   updatePlayerAnimState,
-  applyHitReaction,
   advancePlayerHitTimer,
-  beginPitFallReaction,
   isPlayerBlinkVisible,
   PLAYER_HIT_REACTION_SECONDS,
   PLAYER_RENDERED_SIZE,
   PLAYER_VISUAL_CENTER_Y_OFFSET,
   PLAYER_HEAD_PADDING,
   PLAYER_FOOT_PADDING,
+  playerEffectAnchor,
 } from './entities/Player';
 import type { BlockContact } from './entities/Player';
 import { playerLightSource } from './entities/Player';
@@ -157,7 +168,7 @@ import { torchLightSource } from './tiles/torch';
 import type { LightSource } from './contracts/lighting';
 import { strongerBounce } from './contracts/Outcome';
 import { isInvulnerable } from './contracts/capabilities';
-import { advanceEnemyAnimation, applyEnemyDamage, enemyEffectAnchor } from './entities/Enemy';
+import { advanceEnemyAnimation, enemyEffectAnchor } from './entities/Enemy';
 import {
   SLIME_GREEN_SHEET,
   KEY_SHEET,
@@ -188,12 +199,9 @@ import type { EnemyTypeKey } from './entities/enemies';
 import { spearTipMaskFromImage, setSpearTipMask } from './entities/hazards/SpearArt';
 import { PICKUP_TYPES } from './entities/pickups';
 import { BLOCK_TYPES } from './entities/blocks';
-import {
-  CHECKPOINT_FLAG_SHEET,
-  checkpointEffectAnchor,
-} from './entities/Checkpoint';
+import { CHECKPOINT_FLAG_SHEET, checkpointEffectAnchor } from './entities/Checkpoint';
 import type { EnemyState } from './entities/Enemy';
-import { takeDamage, healDamage, PIT_FALL_DAMAGE, isHealthCritical } from './entities/Health';
+import { healDamage, PIT_FALL_DAMAGE, isHealthCritical } from './entities/Health';
 import {
   playerState,
   cameraPositionX,
@@ -258,10 +266,6 @@ import { hintText } from './state/hintText';
 import type { CollectedFact } from './types';
 import { playCanvasSize } from './engine/CanvasSize';
 
-/** Hitpoints a bomb blast deals to a character caught in it — 2 half-heart
- *  units, one full heart (FR-021). */
-const BOMB_DAMAGE = 2;
-
 export const PlatformerPage = () => {
   // Subscribes this component's render to any signal `.value` read during
   // it — needed for `endingScreenOpen.value` in the JSX below to actually
@@ -274,7 +278,7 @@ export const PlatformerPage = () => {
   const backgroundLayersRef = useRef<HTMLImageElement | null>(null);
   const backgroundLayerGrassRef = useRef<HTMLImageElement | null>(null);
   const backgroundLayerRiverRef = useRef<HTMLImageElement | null>(null);
-  // The ambient cloud sheet (O-022) — loaded alongside the other backdrop
+  // The ambient cloud sheet — loaded alongside the other backdrop
   // sheets and drawn as a camera-independent layer just above the backdrop.
   const ambientCloudsRef = useRef<HTMLImageElement | null>(null);
   const groundAtlasRef = useRef<HTMLImageElement | null>(null);
@@ -286,14 +290,14 @@ export const PlatformerPage = () => {
   // call below), since a torch's frame animates over time.
   const torchRef = useRef<HTMLImageElement | null>(null);
   // The mushroom sheet — loaded alongside the other decorative sheets and
-  // threaded into drawTerrain's mushroom branch (O-018).
+  // threaded into drawTerrain's mushroom branch.
   const mushroomRef = useRef<HTMLImageElement | null>(null);
   // Reusable offscreen canvas the darkness/torch pass draws its overlay onto
   // before compositing it over the world. Created and sized alongside the main
   // canvas in `resize()` below, so it is never reallocated per frame.
   const darknessLayerRef = useRef<HTMLCanvasElement | null>(null);
   // Reusable 64×64 offscreen canvas the crouched-hit red tint draws onto
-  // (FR-016) — caller-owned and created once in `resize()` beside
+  // — caller-owned and created once in `resize()` beside
   // `darknessLayerRef`, so the tint allocates nothing per frame.
   const hitTintLayerRef = useRef<HTMLCanvasElement | null>(null);
   const playerSpriteRef = useRef<HTMLImageElement | null>(null);
@@ -329,7 +333,7 @@ export const PlatformerPage = () => {
   // death/respawn iris transition and collision geometry without navigating
   // pits repeatedly, not a feature end users should see.
   const debugControls = onPlatformerRoute && debugParams.has('debug');
-  // `?level=<id>` loads any level the Level Editor's own dropdown offers —
+  // `?level=<id>` loads any level the Level Editor's own dropdown offers
   // i.e. anything in `levelRegistry.ts`'s `LEVELS` (built-ins plus saved
   // `levels/*.json` files). An id that isn't a real, selectable level (typo,
   // stale link, renamed/deleted file) is silently skipped and the game keeps
@@ -374,7 +378,7 @@ export const PlatformerPage = () => {
   });
 
   /**
-   * Theme-switch reset (spec.md User Story 8): `App.tsx` mounts/unmounts
+   * Theme-switch reset (spec.md ): `App.tsx` mounts/unmounts
    * `PlatformerPage` whenever `currentTheme` changes, so a mount-only effect
    * fires exactly when a visitor switches into (or back into) the Platformer
    * theme. Every piece of game state this resets is module-level (see
@@ -382,7 +386,7 @@ export const PlatformerPage = () => {
    * round-trip unchanged — the same durability that makes `resetGameProgress`
    * safe to call here, mirroring `handleResetGameRequested`'s full reset.
    * `controlsOverlayDismissed` is reset too, unlike Reset Game's deliberate
-   * choice to leave it alone (FR-036's "session" is the same session for
+   * choice to leave it alone (the "session" is the same session for
    * Reset Game, but a genuinely new one for a theme switch).
    */
   useEffect(() => {
@@ -470,7 +474,7 @@ export const PlatformerPage = () => {
 
   /**
    * One-time camera snap for spawn/respawn/restart — both axes, so a death
-   * after a checkpoint frames the character already standing on it (FR-012).
+   * after a checkpoint frames the character already standing on it.
    * See `initialCameraX`/`initialCameraY`'s own doc comments for why this
    * can't just be left to the per-frame dead-zone tracking (a fresh spawn can
    * land anywhere inside the band with no correction at all). Reads
@@ -499,7 +503,7 @@ export const PlatformerPage = () => {
   };
 
   /**
-   * Reset Game (journal button, FR-018b): clears collected progress and
+   * Reset Game (journal button): clears collected progress and
    * closes the journal immediately (no reverse-close animation — per user
    * request, just an instant close), then starts the same iris-in
    * transition as a death respawn/debug respawn, centered on the
@@ -532,11 +536,14 @@ export const PlatformerPage = () => {
       animTimer: 0,
     };
     const p = playerState.value;
-    lifecycleState.value = startDeath(p.x + PLAYER_RENDERED_SIZE / 2, p.y + PLAYER_VISUAL_CENTER_Y_OFFSET);
+    lifecycleState.value = startDeath(
+      p.x + PLAYER_RENDERED_SIZE / 2,
+      p.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
+    );
     // Death immediately halts the effect-advance block below (the game loop
     // skips it entirely for the 'dying'/'awaitingRestart' phases), so without
     // this a bubble revealed just before dying would otherwise freeze on
-    // screen through the whole death animation and the restart-prompt wait —
+    // screen through the whole death animation and the restart-prompt wait
     // see this same comment at the other `startDeath()` call site below.
     activeEffects.value = clearEffectsOfKind(activeEffects.value, 'speechBubble');
   };
@@ -569,7 +576,7 @@ export const PlatformerPage = () => {
     // property change on any other frame.
     let backgroundColor = '#000';
 
-    // Shared spin/idle-loop timer for coins (see Coin.ts's coinFrameIndex) —
+    // Shared spin/idle-loop timer for coins (see Coin.ts's coinFrameIndex)
     // a plain variable, not a signal, since nothing outside this render loop
     // needs to read or react to it. Enemies track their own animation timers
     // independently.
@@ -583,10 +590,10 @@ export const PlatformerPage = () => {
 
     // Whether the visitor has asked for reduced motion — read once on mount
     // (same precedent as SpacePage.tsx) and threaded into the ambient-cloud
-    // step, so the clouds are drawn but never drift (FR-014).
+    // step, so the clouds are drawn but never drift.
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // The ambient cloud field (O-022) — a loop-local value like
+    // The ambient cloud field — a loop-local value like
     // `worldAnimElapsed` above, rebuilt from scratch on every resize and
     // stepped only inside the 'playing' branch, so it freezes with the world
     // during pause/death/restart. Starts empty until the first `resize()`.
@@ -607,7 +614,7 @@ export const PlatformerPage = () => {
 
       // The crouched-hit tint's scratch layer — one 64×64 tile-sized canvas
       // (the player's rendered size), created once and reused every frame
-      // (FR-016). Sized only on creation: it never depends on the viewport.
+      //. Sized only on creation: it never depends on the viewport.
       if (!hitTintLayerRef.current) {
         hitTintLayerRef.current = document.createElement('canvas');
         hitTintLayerRef.current.width = PLAYER_RENDERED_SIZE;
@@ -615,7 +622,7 @@ export const PlatformerPage = () => {
       }
 
       // Rebuild the ambient cloud field for the new play-area width and open
-      // sky region (FR-015, SC-007). `cloudsTop` is the painted clouds/hills
+      // sky region. `cloudsTop` is the painted clouds/hills
       // band's top edge — the open sky's bottom (see contracts/rendering.md).
       const geometry = backgroundBandGeometry(canvas.height);
       cloudField = createCloudField(width, geometry.skyTop, geometry.cloudsTop);
@@ -631,7 +638,7 @@ export const PlatformerPage = () => {
 
       // Re-resolve the active speech bubble's stored text before assembling the
       // effect render context, so a language switch updates a live bubble in
-      // the same frame (FR-005/FR-020); a no-op in the steady state.
+      // the same frame; a no-op in the steady state.
       refreshSpeechBubbleText();
 
       ctx.fillStyle = backgroundColor;
@@ -662,10 +669,10 @@ export const PlatformerPage = () => {
         );
       }
 
-      // The ambient cloud layer (O-022): its own right-to-left drift plus a
+      // The ambient cloud layer: its own right-to-left drift plus a
       // small camera-linked parallax shift at the painted clouds/hills band's
       // factor, drawn immediately above the backdrop and behind everything
-      // else (FR-002, FR-011).
+      // else.
       drawAmbientClouds(ctx, ambientCloudsRef.current, cloudField, cameraPositionX.value);
 
       // Built before the 'terrain' band (it used to be built after the ladder
@@ -831,7 +838,7 @@ export const PlatformerPage = () => {
           hitTintLayerRef.current,
         );
         // The very small torch the player carries, only while walking — drawn
-        // with the player so the player's own light reveals it (FR-025).
+        // with the player so the player's own light reveals it.
         if (playerVisible) {
           drawHeldTorch(
             ctx,
@@ -873,7 +880,7 @@ export const PlatformerPage = () => {
       // Outside-a-cave fog: drawn over the whole world (background, terrain,
       // player, enemies, pickups, water) but before every HUD/UI pass below,
       // same placement as the darkness overlay it is mutually exclusive with
-      // (O-028 FR-010).
+      //.
       drawFog(ctx, currentLevel.value, fogLevel.value, originX, originY, worldAnimElapsed, {
         x: playerState.value.x + PLAYER_RENDERED_SIZE / 2,
         y: playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
@@ -882,14 +889,14 @@ export const PlatformerPage = () => {
       // Cave-darkness overlay: drawn over the whole world (background,
       // terrain, player, enemies, pickups, water) but before every HUD/UI
       // pass below, so hearts, counters, hint bubbles and popups stay fully
-      // readable (FR-006). Each torch punches a warm, mildly pulsing pool
+      // readable. Each torch punches a warm, mildly pulsing pool
       // back through it, anchored to the torch's world position.
       //
-      // The single `LightSource[]` is assembled per frame — only when dark —
+      // The single `LightSource[]` is assembled per frame — only when dark
       // by adapting each torch with the frame's `worldElapsed` and appending
       // the player's carried light. No resolved radius enters a signal
-      // (FR-012); at `darknessLevel <= 0` no list is built and neither light
-      // pass runs (FR-019/SC-008).
+      //; at `darknessLevel <= 0` no list is built and neither light
+      // pass runs.
       if (darknessLevel.value > 0) {
         const lights: LightSource[] = [
           ...torchPositions.value.map((torch) => torchLightSource(torch, worldAnimElapsed)),
@@ -910,7 +917,7 @@ export const PlatformerPage = () => {
         }
 
         // Enemy eye markers are drawn AFTER the darkness overlay so they stay
-        // visible through it (FR-015), but before the speech bubble/UI below.
+        // visible through it, but before the speech bubble/UI below.
         drawEnemyEyes(
           ctx,
           enemyStates.value,
@@ -924,13 +931,13 @@ export const PlatformerPage = () => {
 
       // World-effects layer: registry declaration order fixes the intra-layer
       // sequence speechBubble → flyingText → puff → debris → hitSplatter →
-      // fadeOutText (FR-005), so the speech bubble keeps its depth after the
+      // fadeOutText, so the speech bubble keeps its depth after the
       // darkness/enemy-eye overlay and before the other world effects.
       drawEffects(effectRenderContext, 'worldEffects', activeEffects.value);
 
       // Explosions sit above the world effects and below the HUD — a bright,
       // short-lived burst that reads over the terrain but never over the
-      // counters (FR-023).
+      // counters.
       drawEffects(effectRenderContext, 'aboveWorld', activeEffects.value);
 
       // Counter popups are drawn last, after the enemy-eye/hint/UI work. The
@@ -958,7 +965,7 @@ export const PlatformerPage = () => {
       // Persistent HUD counters (chest → key → bomb) are declared as
       // descriptors and drawn through the one generic drawer; the chest
       // descriptor is built even while its group is hidden so the X-chain
-      // position is unchanged (FR-005/FR-006).
+      // position is unchanged.
       const chestDescriptor = scaledImageCounter({
         image: chestClosedSpriteRef.current,
         sourceWidth: CHEST_CLOSED_WIDTH,
@@ -986,7 +993,7 @@ export const PlatformerPage = () => {
         drawHudCounter(ctx, keyDescriptor, keyX, KEY_COUNTER_Y);
       }
 
-      // The bomb HUD group is hidden while the carried count is 0 (FR-010);
+      // The bomb HUD group is hidden while the carried count is 0;
       // a hidden key group does not advance the bomb group's X.
       const bombSprite = spritesRef.current[BOMB_SHEET.src];
       const bombX = collectedKeys.value > 0 ? hudCounterX(ctx, keyDescriptor, keyX) : keyX;
@@ -1002,7 +1009,10 @@ export const PlatformerPage = () => {
         drawHudCounter(ctx, bombDescriptor, bombX, KEY_COUNTER_Y);
       }
 
-      if (lifecycleState.value.phase === 'playing' && isHealthCritical(playerState.value.hitPoints)) {
+      if (
+        lifecycleState.value.phase === 'playing' &&
+        isHealthCritical(playerState.value.hitPoints)
+      ) {
         drawLowHealthGlow(ctx, canvas.width, canvas.height, worldAnimElapsed);
       }
 
@@ -1018,7 +1028,11 @@ export const PlatformerPage = () => {
       // bg-black/80 overlay instead of leaving the paused game dimly visible
       // through it.
       const lifecycle = lifecycleState.value;
-      if (lifecycle.phase !== 'playing' && lifecycle.phase !== 'paused' && lifecycle.phase !== 'ending-screen') {
+      if (
+        lifecycle.phase !== 'playing' &&
+        lifecycle.phase !== 'paused' &&
+        lifecycle.phase !== 'ending-screen'
+      ) {
         const centerX = lifecycle.centerX + originX;
         const centerY = lifecycle.centerY + originY;
         const maxRadius = maxIrisRadius(canvas.width, canvas.height, centerX, centerY);
@@ -1045,7 +1059,7 @@ export const PlatformerPage = () => {
     inputRef.current = input;
 
     /**
-     * Any key or a canvas click restarts the game while 'awaitingRestart' —
+     * Any key or a canvas click restarts the game while 'awaitingRestart'
      * full health, spawn position, back to the 'intro' iris-in. No-op in
      * every other phase (checked first) so this can't fire mid-gameplay.
      */
@@ -1081,10 +1095,10 @@ export const PlatformerPage = () => {
         if (lifecycleState.value.elapsed < DEATH_ANIM_SECONDS) {
           playerState.value = advancePlayerAnimation(playerState.value, dt);
         }
-        // The spear's blood burst (O-020) is spawned on the kill tick and must
+        // The spear's blood burst is spawned on the kill tick and must
         // keep spraying through the death lead-in; the rest of the world stays
         // frozen as before, so the filtered advance ticks only hit splatters and
-        // leaves every other effect's elapsed exactly (US5-3/FR-004).
+        // leaves every other effect's elapsed exactly (-3/).
         activeEffects.value = advanceEffects(activeEffects.value, dt, { kinds: ['hitSplatter'] });
         render();
         return;
@@ -1117,35 +1131,35 @@ export const PlatformerPage = () => {
       // Ambient clouds drift right-to-left here, in the 'playing' branch only,
       // so they freeze with the world during pause/death/restart. Stepping by
       // the loop's own clamped `dt` is what makes them resume from where they
-      // were after a stall rather than jumping forward (FR-002).
+      // were after a stall rather than jumping forward.
       cloudField = stepCloudField(cloudField, dt, prefersReducedMotion);
 
       // Darkness is eased here, in the `playing` branch only, so it freezes
-      // with the rest of the world during pause/death (research D8).
+      // with the rest of the world during pause/death.
       tickDarkness(dt);
 
       // Fog is eased here too, in the `playing` branch only, so it freezes
       // with the rest of the world during pause/death, same as darkness
-      // (O-028).
+      //.
       tickFog(dt);
 
       // In-progress rope-ladder unrolls advance here too, so they freeze with
-      // the world on pause/death (O-011).
+      // the world on pause/death.
       tickDeployableItems(dt);
 
       // In-progress bouncy-mushroom cap dips advance here too, freezing with
-      // the world on pause/death (O-018).
+      // the world on pause/death.
       tickMushroomSquashes(dt);
 
       // In-progress floor spike cycles advance here too, freezing with the
-      // world on pause/death (O-021).
+      // world on pause/death.
       tickFloorSpikes(dt);
 
       // In-progress crumbling floor cycles advance here too, freezing with
-      // the world on pause/death (O-023).
+      // the world on pause/death.
       tickCrumblingFloors(dt);
 
-      // Falling stalactites advance here too (O-027), so their shake/fall
+      // Falling stalactites advance here too, so their shake/fall
       // timelines freeze with the world on pause/death.
       tickFallingStalactites(dt);
 
@@ -1165,7 +1179,9 @@ export const PlatformerPage = () => {
       // Seeded from the number of fact-flying-text effects still in the air from
       // previous ticks (already filtered for 'done' ones at the end of the
       // previous tick — see the activeEffects tick/filter below).
-      const allocateSlotOffset = createSlotAllocator(effectCount(activeEffects.value, 'flyingText'));
+      const allocateSlotOffset = createSlotAllocator(
+        effectCount(activeEffects.value, 'flyingText'),
+      );
       // The one fact-reveal trigger every reveal site below goes through.
       const journalButtonRect = journalButtonRef.current?.getBoundingClientRect() ?? null;
       // journalButtonRect is viewport-relative (getBoundingClientRect), but
@@ -1219,7 +1235,7 @@ export const PlatformerPage = () => {
       // One context per tick, shared by every enemy that tick. The player box
       // feeds proximity strategies (chase); `elapsed` is the existing shared
       // world clock the fly bob's phase reads, so the bob freezes with the
-      // world on pause/death and resumes on the same phase (research D8).
+      // world on pause/death and resumes on the same phase.
       const movementCtx: MovementContext = {
         level: currentLevel.value,
         blockedTiles,
@@ -1239,7 +1255,9 @@ export const PlatformerPage = () => {
             : typeOf(enemy).movement.step(enemy, movementCtx, dt);
         return advanceEnemyAnimation(typeOf(next).onTick?.(next, dt) ?? next, dt);
       };
-      enemyStates.value = enemyStates.value.map((enemy) => (enemy.alive ? stepEnemy(enemy) : enemy));
+      enemyStates.value = enemyStates.value.map((enemy) =>
+        enemy.alive ? stepEnemy(enemy) : enemy,
+      );
 
       // Blocks currently playing their shared bump/shatter reaction advance
       // it here every tick, same convention as the enemy hit-reaction step
@@ -1268,7 +1286,7 @@ export const PlatformerPage = () => {
       // enemy stomped again in a later life IS selected here again — its new
       // death still deserves its own puff. `rewardGiven` is separate and
       // permanent: it gates whether anything is actually paid out, not
-      // whether the enemy is selected. See B-003.
+      // whether the enemy is selected. See .
       const justDefeated = enemyStates.value.filter((e) => !e.alive && !e.deathEffectGiven);
       if (justDefeated.length > 0) {
         applyEnemyDefeats(justDefeated, { revealFact, originX, originY });
@@ -1276,7 +1294,7 @@ export const PlatformerPage = () => {
 
       // ONE advance replaces the six byte-identical per-kind tick bodies plus
       // the flying-text phase and counter-popup plumbing. Each effect's registered
-      // tick/expiry reproduces its exact boundary (FR-004/FR-007).
+      // tick/expiry reproduces its exact boundary.
       activeEffects.value = advanceEffects(activeEffects.value, dt);
 
       // ONE generic collect path. The shared collision entry point returns
@@ -1301,7 +1319,7 @@ export const PlatformerPage = () => {
           const ids = new Set(hits.map((hit) => hit.state.id));
           // Seed the pre-tick already-collected count and advance it per
           // processed hit, so several same-tick coins reveal successive fact
-          // windows (FR-009) exactly as the old coinsCollectedSoFar loop did.
+          // windows exactly as the old coinsCollectedSoFar loop did.
           let collectedBefore = pickupStores[kind].items.filter((item) => item.collected).length;
           const outcomes = hits.map((hit) => {
             const context: PickupContext = {
@@ -1395,16 +1413,20 @@ export const PlatformerPage = () => {
 
           if (counterKeyToBump) {
             spawnEffect(
-              startCounterPopup(counterKeyToBump, collectedBefore, levelTotals.value[counterKeyToBump]),
+              startCounterPopup(
+                counterKeyToBump,
+                collectedBefore,
+                levelTotals.value[counterKeyToBump],
+              ),
             );
           }
         }
       }
 
       // Chests don't open on touch like every other collectible — spec.md
-      // FR-023 requires an explicit Arrow Up press
+      // requires an explicit Arrow Up press
       // while standing on one (KeyW also works, mirroring the A/D-as-
-      // Left/Right convention — see FR-007). `originX`/`originY` are already
+      // Left/Right convention — see ). `originX`/`originY` are already
       // in scope from this tick's earlier collision blocks above.
       //
       // Both must be evaluated (not short-circuited) since consumePress has
@@ -1444,7 +1466,7 @@ export const PlatformerPage = () => {
       }
       const bundleDeployedThisTick = interactPressed && interaction.activate !== undefined;
 
-      // FR-038: revealed like a chest — stand on a sign (or, per the same
+      // : revealed like a chest — stand on a sign (or, per the same
       // convention, a locked chest with zero keys) and press Up/W
       // (interactPressed, consumed above for the shared dispatch) — but
       // reusable (not dedup-tracked) and hidden again automatically the
@@ -1469,7 +1491,7 @@ export const PlatformerPage = () => {
         if (!currentBubble || currentBubble.state.messageId !== overlappingHintId) {
           spawnEffect(startSpeechBubble(overlappingHintId, hintText.value[overlappingHintId]));
         } else if (currentBubble.state.phase === 'exiting') {
-          // Pressed Up again before the previous reveal finished leaving —
+          // Pressed Up again before the previous reveal finished leaving
           // restart the entrance rather than leaving it stuck exiting.
           spawnEffect(beginSpeechBubbleEnter(currentBubble));
         }
@@ -1481,7 +1503,7 @@ export const PlatformerPage = () => {
 
       // Arm any at-rest floor spike the player just stepped onto, or hanging
       // falling stalactite whose detection zone the player just entered
-      // (FR-003) — before resolving hazard contacts below, so a hazard armed
+      // — before resolving hazard contacts below, so a hazard armed
       // this same tick is still correctly non-hazardous (a floor spike's phase
       // right after arming is 'delay', never 'fullExtend'; a stalactite's is
       // 'shaking', never 'falling'). Each kind's own `armTriggerRects` supplies
@@ -1494,12 +1516,16 @@ export const PlatformerPage = () => {
         blockStates: blockStates.value,
         crumblingFloorTimers: crumblingFloorTimerStates.value,
       };
-      for (const id of checkHazardArmTriggers(playerState.value, hazardPlacements.value, hazardTickContext)) {
+      for (const id of checkHazardArmTriggers(
+        playerState.value,
+        hazardPlacements.value,
+        hazardTickContext,
+      )) {
         armHazardTrigger(id);
       }
 
       // Arm any at-rest crumbling floor tile the player just stepped onto
-      // (spec FR-003) — keyed by grid cell rather than hazard id (O-023).
+      // — keyed by grid cell rather than hazard id.
       for (const { col, row } of checkCrumblingFloorTriggers(
         playerState.value,
         activeLevel.value,
@@ -1520,7 +1546,10 @@ export const PlatformerPage = () => {
       // later tick while still broken has a pre-tick elapsed already past
       // that threshold, so the check is false and nothing spawns again.
       for (const state of crumblingFloorTimerStates.value) {
-        if (crumblingFloorPhaseFor(crumblingFloorTimerStates.value, state.col, state.row) !== 'broken') continue;
+        if (
+          crumblingFloorPhaseFor(crumblingFloorTimerStates.value, state.col, state.row) !== 'broken'
+        )
+          continue;
         const justBroken = state.elapsed - dt < CRUMBLING_FLOOR_CRACK_SECONDS;
         if (!justBroken) continue;
         const { x, y } = tileToPixel(state.col, state.row);
@@ -1532,10 +1561,10 @@ export const PlatformerPage = () => {
       }
 
       // Spawn the falling stalactite's shatter debris exactly once, on the
-      // tick its fall first reaches its landing row (FR-020). Same
+      // tick its fall first reaches its landing row. Same
       // `elapsed - dt` just-crossed guard as the crumbling floor above, so
       // the effect can never spawn twice; a hazard with no landing below it
-      // despawns off the bottom with no debris (FR-009). The landing row is
+      // despawns off the bottom with no debris. The landing row is
       // re-resolved here from the live block/crumbling state, so a floor that
       // broke mid-fall is respected.
       for (const state of fallingStalactiteTimerStates.value) {
@@ -1549,7 +1578,7 @@ export const PlatformerPage = () => {
           hazard.row,
         );
         if (landingRow === null) continue;
-        // The offset at which the sprite's bottom meets the landing solid —
+        // The offset at which the sprite's bottom meets the landing solid
         // one sprite-height above the landing row's top, so the shatter fires
         // as it comes to rest rather than after it has sunk into the floor.
         const restOffset = fallingStalactiteRestOffsetY(hazard, landingRow);
@@ -1560,14 +1589,19 @@ export const PlatformerPage = () => {
         if (!justLanded) continue;
         const shatter = fallingStalactiteShatter(hazard, landingRow);
         spawnEffect(
-          startDebrisEffect(`stalactite-${hazard.id}-${state.elapsed}`, shatter.x, shatter.y, shatter.layers),
+          startDebrisEffect(
+            `stalactite-${hazard.id}-${state.elapsed}`,
+            shatter.x,
+            shatter.y,
+            shatter.layers,
+          ),
         );
       }
 
       // Hazard contacts are resolved BEFORE enemy contacts, so a lethal floor
-      // spear can win the tick (FR-012). A lethal tip landing drops health
+      // spear can win the tick. A lethal tip landing drops health
       // straight to zero with no `takeDamage`, no knockback, no hit animation
-      // and no splatter (FR-004/FR-005); the flags below then suppress the
+      // and no splatter; the flags below then suppress the
       // enemy-damage and ordinary-hazard-damage blocks for this tick, while
       // enemy contact resolution still runs so a same-tick stomp still merges
       // its enemy state. `hazardPlacementsForTick()` merges each floor
@@ -1576,18 +1610,17 @@ export const PlatformerPage = () => {
       const hazardContacts = resolveHazardContacts(playerState.value, hazardPlacementsForTick());
       const spearKilled = hazardContacts.lethal !== undefined;
       if (spearKilled) {
-        playerState.value = { ...playerState.value, hitPoints: 0, alive: false };
-        // A blood burst at the character's feet (O-020 FR-006): the kill has no
-        // knockback or hit animation, but the impalement is still shown as
-        // impact feedback. Screen-space, like every other hit splatter.
-        const playerCenterX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
-        const feetY =
-          playerState.value.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING + originY;
+        // The spear deals the player's whole current health, at a site that
+        // skips the invulnerability guard.
+        playerState.value = resolveHitEffects(playerState.value, [
+          { type: 'damage', amount: playerState.value.hitPoints },
+        ]).player;
+        const spearAnchor = playerEffectAnchor(playerState.value, originX, originY, 'feet');
         spawnEffect(
           startSpearBloodSplatter(
             `spear-${effectCount(activeEffects.value, 'hitSplatter')}`,
-            playerCenterX,
-            feetY,
+            spearAnchor.x,
+            spearAnchor.y,
           ),
         );
       }
@@ -1616,78 +1649,46 @@ export const PlatformerPage = () => {
         }
       }
 
-      if (contacts.bounceVelocity !== undefined) {
-        playerState.value = {
-          ...playerState.value,
-          vy: contacts.bounceVelocity,
-          bounceAscending: true,
-        };
+      if (contacts.bounceEffects.length > 0) {
+        // Unguarded: a stomp still bounces the player mid-invulnerability.
+        playerState.value = resolveHitEffects(playerState.value, contacts.bounceEffects).player;
       }
 
-      // Damage is dropped entirely while inside the refractory window, so
-      // one persisting overlap can't register a fresh hit every tick. Also
-      // skipped when the spear already killed this tick (FR-012).
+      // Dropped while inside the refractory window, so one persisting overlap
+      // can't register a fresh hit every tick; also skipped when the spear
+      // already killed this tick.
       if (
-        contacts.damagePlayer > 0 &&
+        contacts.hitEffects.length > 0 &&
         !spearKilled &&
         !isInvulnerable(playerState.value, PLAYER_HIT_REACTION_SECONDS)
       ) {
-        const hitPoints = takeDamage(playerState.value.hitPoints, contacts.damagePlayer);
-        playerState.value = { ...playerState.value, hitPoints, alive: hitPoints > 0 };
-        if (playerState.value.crouching) {
-          // A crouched directional hit deals damage and shows the red
-          // reaction but applies no knockback (horizontal or vertical), so
-          // the one-tile box can never be displaced or forced open into a
-          // ceiling (FR-011/SC-009).
-          playerState.value = applyHitReaction(playerState.value);
-        } else {
-          playerState.value = applyHitReaction(playerState.value, {
-            direction: contacts.knockbackDirection,
-            vx: PHYSICS_CONFIG.sideHitKnockbackVx,
-            duration: PHYSICS_CONFIG.sideHitKnockbackDuration,
-          });
-          if (contacts.knockback === 'awayAndUp') {
-            // Without `bounceAscending: true` (same mechanism the stomp
-            // bounce above relies on), `stepPlayerPhysics`'s variable-jump-
-            // height cut would shear this upward velocity to ~45% of its
-            // configured magnitude on this very tick, and again every tick
-            // after while the jump key isn't held — this isn't a jump the
-            // player is "holding", so it must play out at its full
-            // configured magnitude regardless of jump-key state.
-            playerState.value = {
-              ...playerState.value,
-              vy: PHYSICS_CONFIG.awayAndUpKnockbackVy,
-              bounceAscending: true,
-            };
-          }
-        }
+        // A crouched hit keeps the damage and red reaction but drops the
+        // velocity, so the one-tile box can never be displaced into a ceiling.
+        const effects: HitEffect[] = playerState.value.crouching
+          ? contacts.hitEffects.filter((effect) => effect.type !== 'velocity')
+          : [...contacts.hitEffects];
 
-        // No splatter on the hit that kills the character — the death
-        // transition (GameLifecycle.ts's iris-out) is centered and timed
-        // around the character's own sprite, and a burst of debris starting
-        // at that same instant reads as covering it up rather than as
-        // impact feedback.
-        if (hitPoints > 0) {
-          const contactSide = -contacts.knockbackDirection as -1 | 1;
-          const playerCenterX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
-          const playerCenterY = playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
+        // No splatter on the killing blow — the death iris-out is centred on
+        // the character, so a debris burst there would read as covering it up.
+        const applied = resolveHitEffects(playerState.value, effects);
+        playerState.value = applied.player;
+        if (applied.player.alive) {
+          const anchor = playerEffectAnchor(applied.player, originX, originY, 'center');
           spawnEffect(
-            startPlayerHitSplatter(`player-${effectCount(activeEffects.value, 'hitSplatter')}`, playerCenterX, playerCenterY, contactSide),
+            startPlayerHitSplatter(
+              `player-${effectCount(activeEffects.value, 'hitSplatter')}`,
+              anchor.x,
+              anchor.y,
+              -contacts.knockbackDirection as -1 | 1,
+            ),
           );
         }
       }
 
-      // Ordinary (non-lethal) hazards: an entirely separate, independent
-      // damage source from enemy contacts above. Sequencing after the enemy
-      // block (rather than merging the two) is deliberate and safe:
-      // applyHitReaction resets hitTimer to 0, and
-      // isInvulnerable(player, PLAYER_HIT_REACTION_SECONDS) treats hitTimer 0
-      // as WITHIN the refractory window (0 < 0.8) — so if an enemy contact
-      // already damaged the player this very tick, this block's own
-      // isInvulnerable check reads that just-updated state and correctly
-      // skips, giving "at most one hit per tick" for free with no shared
-      // aggregation code. Also skipped when the spear killed this tick
-      // (FR-012) — `hazardContacts.lethal` was already handled above.
+      // Ordinary (non-lethal) hazards: an independent damage source, sequenced
+      // after the enemy block so an enemy hit this tick opens the refractory
+      // window and this block's own `isInvulnerable` check skips — "at most one
+      // hit per tick" for free. Also skipped when the spear killed this tick.
       if (
         hazardContacts.hazard !== undefined &&
         !spearKilled &&
@@ -1695,50 +1696,42 @@ export const PlatformerPage = () => {
       ) {
         const hazard = hazardContacts.hazard;
         const damage = hazardContacts.damage;
-        const hitPoints = takeDamage(playerState.value.hitPoints, damage);
-        playerState.value = { ...playerState.value, hitPoints, alive: hitPoints > 0 };
-        // Pushed away from the hazard's own tile, same knockback amount as a
-        // side enemy touch — without this, standing still against a spike
-        // re-lands a fresh hit (and restarts the hit animation) the instant
-        // the refractory window lapses, since nothing ever moves the player
-        // out of contact with it.
+        // Pushed away from the hazard's own tile: without this, standing still
+        // against a spike re-lands a fresh hit the instant the refractory
+        // window lapses, since nothing moves the player out of contact.
         const contactSide: -1 | 1 = hazard.x >= playerState.value.x ? 1 : -1;
-        // The knockback decision is the hazard kind's own `knocksBack` flag
-        // (false for the floor spike and falling stalactite — spec FR-006 /
-        // O-027 FR-007), while a crouched hit never knocks back regardless
-        // (player-side and unchanged, FR-011/SC-009). All still show the same
-        // red hit reaction as every other damage source — `applyHitReaction`
-        // with no knockback — which also opens the shared refractory window,
-        // or the player would take repeated damage every tick they remain on
-        // the tile through the rest of the full-extend phase. Every
-        // knock-back hazard touch pushes the player away. Only a pit fall
-        // keeps the transparent blink (see `beginPitFallReaction`).
-        if (!hazardTypeOf(hazard).knocksBack || playerState.value.crouching) {
-          playerState.value = applyHitReaction(playerState.value);
-        } else {
-          // Pushed away from the hazard, not toward it — the opposite sign
-          // of contactSide, spelled out as its own conditional (rather than
-          // `-contactSide`) since TS widens a negated `-1 | 1` to `number`.
-          const knockbackDirection: -1 | 1 = contactSide === 1 ? -1 : 1;
-          playerState.value = applyHitReaction(playerState.value, {
-            direction: knockbackDirection,
-            vx: PHYSICS_CONFIG.sideHitKnockbackVx,
-            duration: PHYSICS_CONFIG.sideHitKnockbackDuration,
+        const effects: HitEffect[] = [{ type: 'damage', amount: damage }, { type: 'reaction' }];
+        // The knockback is the hazard kind's own `knocksBack` flag (false for
+        // the floor spike and falling stalactite), and a crouched hit never
+        // knocks back. The red reaction also opens the refractory window, or
+        // the player would take repeated damage each tick they remain on the
+        // tile; only a pit fall keeps the transparent blink.
+        if (hazardTypeOf(hazard).knocksBack && !playerState.value.crouching) {
+          const direction: -1 | 1 = contactSide === 1 ? -1 : 1;
+          effects.push({
+            type: 'velocity',
+            x: direction * DEFAULT_HIT_KNOCKBACK.vx,
+            duration: DEFAULT_HIT_KNOCKBACK.duration,
           });
         }
 
-        // No splatter on the hit that kills the character — see the same
-        // guard on the enemy-contact site above.
-        if (hitPoints > 0) {
-          const playerCenterX = playerState.value.x + PLAYER_RENDERED_SIZE / 2 + originX;
-          const playerCenterY = playerState.value.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
+        // No splatter on the killing blow.
+        const applied = resolveHitEffects(playerState.value, effects);
+        playerState.value = applied.player;
+        if (applied.player.alive) {
+          const anchor = playerEffectAnchor(applied.player, originX, originY, 'center');
           spawnEffect(
-            startPlayerHitSplatter(`player-${effectCount(activeEffects.value, 'hitSplatter')}`, playerCenterX, playerCenterY, contactSide),
+            startPlayerHitSplatter(
+              `player-${effectCount(activeEffects.value, 'hitSplatter')}`,
+              anchor.x,
+              anchor.y,
+              contactSide,
+            ),
           );
         }
       }
 
-      // A/D accepted as an alternate to Arrow Left/Right (FR-007 only
+      // A/D accepted as an alternate to Arrow Left/Right ( only
       // requires arrows; this is an additive convenience, not a replacement).
       const horizontal = {
         left: input.isHeld('ArrowLeft') || input.isHeld('KeyA'),
@@ -1763,13 +1756,13 @@ export const PlatformerPage = () => {
           jumpHeld,
           dropThroughHeld,
           climbUpHeld,
-          suppressJumpCut: contacts.bounceVelocity !== undefined,
+          suppressJumpCut: contacts.bounceEffects.length > 0,
         },
         blockStates.value,
         crumblingFloorTimerStates.value,
       );
 
-      // Place-bomb input (`B`, FR-012/FR-013/FR-014): read once per tick as an
+      // Place-bomb input (`B`, //): read once per tick as an
       // edge-triggered press. The bomb goes in the tile the character occupies
       // — the column containing the player's horizontal centre and the row
       // containing its feet (the same `- 1` foot-row `Physics.ts` uses for the
@@ -1833,7 +1826,9 @@ export const PlatformerPage = () => {
       const firePuffIfJustUsedUp = (block: BlockState): void => {
         if (!BLOCK_TYPES[block.blockKind].removeWhenUsedUp || !isBlockUsedUp(block)) return;
         const anchor = blockEffectAnchor(block);
-        spawnEffect(startPuffEffect(block.id, anchor.x + originX, anchor.y + originY, anchor.scale));
+        spawnEffect(
+          startPuffEffect(block.id, anchor.x + originX, anchor.y + originY, anchor.scale),
+        );
       };
 
       // Whether any crate reached its terminal hit this tick — gates the
@@ -1843,17 +1838,14 @@ export const PlatformerPage = () => {
       let crateDestroyedThisTick = false;
 
       /**
-       * The one shared terminal-outcome resolver for a block that has just
-       * taken its registering hit: puff, pickup spawn, fact reveal and the
-       * permanent `rewardGiven` marking — exactly as a bump destruction does.
-       * Reused by the contact-hit loop and by a bomb's blast, so a blast
-       * destruction is identical to a normal one (FR-019). Bounce is
+       * The one shared terminal-outcome applier for a block that has just taken
+       * its registering hit: puff, pickup spawn, fact reveal and the permanent
+       * `rewardGiven` marking. Reused by the contact-hit loop and by a bomb's
+       * blast, so a blast destruction is identical to a normal one. Bounce is
        * deliberately NOT here — only a landed-on pot bounces the player.
        */
-      const resolveBlockTerminalOutcome = (block: BlockState): BlockHitOutcome => {
+      const resolveBlockTerminalOutcome = (block: BlockState, outcome: BlockHitOutcome): void => {
         firePuffIfJustUsedUp(block);
-
-        const outcome = BLOCK_TYPES[block.blockKind].onHit?.(block) ?? {};
 
         // Mark a block that handed out its pickup as permanently paid out
         // (surviving death/respawn; cleared only by Reset Game), exactly as
@@ -1913,14 +1905,12 @@ export const PlatformerPage = () => {
             counterKey: outcome.counterKey,
           });
         }
-
-        return outcome;
       };
 
       // Every block whose contact side this kind actually reacts to (see
       // BlockType.triggerSides) and that isn't already used up. This replaces
       // two near-duplicate loops — one for 'bottom' contacts that excluded
-      // coinPot by name, one for 'top' contacts that admitted only coinPot —
+      // coinPot by name, one for 'top' contacts that admitted only coinPot
       // whose only real difference was per-kind knowledge that now lives in
       // the registry.
       const hitBlocks = next.blockContacts
@@ -1935,24 +1925,31 @@ export const PlatformerPage = () => {
       // Most negative wins, so several blocks bouncing the player in one tick
       // is deterministic regardless of iteration order. Hoisted out of the
       // block loop so a same-tick mushroom landing can join the aggregation
-      // before the single impulse is applied (FR-009).
+      // before the single impulse is applied.
       let bounceVelocity: number | undefined;
 
       if (hitBlocks.length > 0) {
         const hitIds = new Set(hitBlocks.map((entry) => entry.block.id));
+        const resolvedHits = new Map<string, BlockHitResult>();
 
-        blockStates.value = blockStates.value.map((block) =>
-          hitIds.has(block.id) ? applyBlockHit(block) : block,
-        );
+        // One hit per block; the adapter's `onHit` sees the incremented
+        // `hitsTaken`, which is how a kind knows this hit was its terminal one.
+        blockStates.value = blockStates.value.map((block) => {
+          if (!hitIds.has(block.id)) return block;
+          const hit = resolveHitEffects(block, [{ type: 'damage', amount: 1 }]);
+          resolvedHits.set(block.id, hit);
+          return hit.block;
+        });
 
         for (const id of hitIds) {
-          // Re-read from the post-applyBlockHit array: onHit must see the
-          // incremented hitsTaken, which is how a kind knows this hit was its
-          // terminal one.
-          const block = blockStates.value.find((b) => b.id === id);
-          if (!block) continue;
-          const outcome = resolveBlockTerminalOutcome(block);
-          bounceVelocity = strongerBounce(bounceVelocity, outcome.bounceVelocity);
+          const hit = resolvedHits.get(id);
+          if (!hit) continue;
+          resolveBlockTerminalOutcome(hit.block, hit.outcome);
+          const bounce = hit.outcome.effects?.find(
+            (effect): effect is Extract<HitEffect, { type: 'velocity' }> =>
+              effect.type === 'velocity' && effect.y !== undefined,
+          );
+          if (bounce?.y !== undefined) bounceVelocity = strongerBounce(bounceVelocity, bounce.y);
         }
       }
 
@@ -1962,14 +1959,16 @@ export const PlatformerPage = () => {
       // tick, so the squash always reacts to a real landing.
       const cap = playerOnMushroomCap(activeLevel.value, next);
       if (cap) {
-        bounceVelocity = strongerBounce(bounceVelocity, PHYSICS_CONFIG.mushroomBounceVelocity);
+        bounceVelocity = strongerBounce(bounceVelocity, MUSHROOM_BOUNCE_VY);
       }
       if (bounceVelocity !== undefined) {
-        // Mutates `next`, not `playerState.value` — `next` is what gets
-        // persisted further down this tick (after the pit-fall check and
-        // anim-state updates), so a direct playerState.value write here
-        // would be silently clobbered by that later assignment.
-        next = { ...next, vy: bounceVelocity, bounceAscending: true };
+        // Applies to `next`, not `playerState.value`: `next` is what gets
+        // persisted later this tick, so a `playerState.value` write here would
+        // be clobbered. The strongest block/mushroom bounce becomes one
+        // protected `velocity`.
+        next = resolveHitEffects(next, [
+          { type: 'velocity', y: bounceVelocity, preserveJump: true },
+        ]).player;
       }
       if (cap) {
         mushroomSquashStates.value = startMushroomSquash(
@@ -1983,114 +1982,59 @@ export const PlatformerPage = () => {
       // kind returns a declarative outcome (a placed bomb detonates or falls
       // out; the ladder/chest ask for nothing), the pass drops the removed
       // entries and returns the blasts to resolve here. A placed bomb is never
-      // in `blockPlacements`, so it never blocks the player (FR-015).
+      // in `blockPlacements`, so it never blocks the player.
       if (deployableItems.value.length > 0) {
         const blasts = applyDeployableItemConsequences();
+        if (blasts.length > 0) {
+          const delta = resolveBlasts(blasts, {
+            level: currentLevel.value,
+            player: next,
+            blocks: blockStates.value,
+            enemies: enemyStates.value,
+          });
 
-        // At most one blast's damage per invincibility window, even when two
-        // blasts overlap in one tick (FR-021/edge case).
-        let bombDamagedPlayerThisTick = false;
-        for (const blast of blasts) {
-          const tiles = blastTiles(
-            blast.col,
-            blast.row,
-            currentLevel.value.width,
-            currentLevel.value.height,
-          );
-
-          // Destructible blocks: drive each to its terminal hit, then run the
-          // shared terminal-outcome resolver — identical to a bump
-          // destruction (FR-019). A question-mark is never in this set.
-          const blastedBlocks = blocksInBlast(blockStates.value, tiles);
-          if (blastedBlocks.length > 0) {
-            const blastIds = new Set(blastedBlocks.map((b) => b.id));
-            blockStates.value = blockStates.value.map((block) => {
-              if (!blastIds.has(block.id)) return block;
-              let hit = block;
-              while (!isBlockUsedUp(hit)) hit = applyBlockHit(hit);
-              return hit;
-            });
-            for (const id of blastIds) {
-              const block = blockStates.value.find((b) => b.id === id);
-              if (block) resolveBlockTerminalOutcome(block);
-            }
+          // The blast drove each destructible block to its terminal hit; run
+          // the shared terminal applier. A question-mark is never in this set.
+          blockStates.value = [...delta.blocks];
+          for (const id of delta.terminalBlockIds) {
+            const block = blockStates.value.find((b) => b.id === id);
+            if (!block) continue;
+            resolveBlockTerminalOutcome(block, BLOCK_TYPES[block.blockKind].onHit?.(block) ?? {});
           }
 
-          // Enemies in the blast take BOMB_DAMAGE hit points through the
-          // shared hit pipeline — a `hit` reaction, then the existing
-          // `justDefeated` pipeline pays their reward/drop/puff once the
-          // reaction finishes if they were finished off. The same shape a
-          // stomp takes, but more than one point, so a tougher enemy survives
-          // a blast (FR-020).
-          const blastedEnemies = enemiesInBlast(enemyStates.value, tiles, RENDERED_TILE_SIZE);
-          if (blastedEnemies.length > 0) {
-            const blastEnemyIds = new Set(blastedEnemies.map((e) => e.id));
-            enemyStates.value = enemyStates.value.map((e) =>
-              blastEnemyIds.has(e.id) ? applyEnemyDamage(e, BOMB_DAMAGE) : e,
+          // `justDefeated` pays any enemy's reward/drop/puff once its reaction
+          // finishes, so a blast kill needs nothing extra here.
+          enemyStates.value = [...delta.enemies];
+
+          // `BombSystem` already decided the player's hit (invulnerability,
+          // crouch, one blast per tick) against this same `next`, so no guard
+          // belongs here.
+          if (delta.playerEffects) {
+            next = resolveHitEffects(next, delta.playerEffects).player;
+          }
+          if (delta.playerSplatter) {
+            const anchor = playerEffectAnchor(next, originX, originY, 'center');
+            spawnEffect(
+              startPlayerHitSplatter(
+                delta.playerSplatter.id,
+                anchor.x,
+                anchor.y,
+                delta.playerSplatter.side,
+              ),
             );
           }
 
-          // The player takes one full heart (2 hitpoints) if their hitbox
-          // overlaps the blast, subject to the shared invincibility window
-          // (FR-021/SC-007).
-          if (
-            !bombDamagedPlayerThisTick &&
-            !isInvulnerable(next, PLAYER_HIT_REACTION_SECONDS) &&
-            playerInBlast(playerHitbox(next), tiles, RENDERED_TILE_SIZE)
-          ) {
-            const hitPoints = takeDamage(next.hitPoints, BOMB_DAMAGE);
-            next = { ...next, hitPoints, alive: hitPoints > 0 };
-            // A blast has no single contact side, so the push direction is
-            // derived from the character's position relative to the blast's
-            // centre — away from it. This is the same knockback + `hit` sprite
-            // flash a side hit uses, not the blink-only pit-fall reaction
-            // (FR-021).
-            const bombCenterX = blast.x + RENDERED_TILE_SIZE / 2;
-            const knockbackDirection: -1 | 1 =
-              next.x + PLAYER_RENDERED_SIZE / 2 <= bombCenterX ? -1 : 1;
-            if (next.crouching) {
-              // A crouched blast hit deals damage and shows the red reaction
-              // but applies no knockback (FR-011/SC-009).
-              next = applyHitReaction(next);
-            } else {
-              next = applyHitReaction(next, {
-                direction: knockbackDirection,
-                vx: PHYSICS_CONFIG.sideHitKnockbackVx,
-                duration: PHYSICS_CONFIG.sideHitKnockbackDuration,
-              });
-            }
-            bombDamagedPlayerThisTick = true;
-            if (hitPoints > 0) {
-              const playerCenterX = next.x + PLAYER_RENDERED_SIZE / 2 + originX;
-              const playerCenterY = next.y + PLAYER_VISUAL_CENTER_Y_OFFSET + originY;
-              spawnEffect(
-                startPlayerHitSplatter(
-                  blast.hitEffectId,
-                  playerCenterX,
-                  playerCenterY,
-                  knockbackDirection === 1 ? -1 : 1,
-                ),
-              );
-            }
+          // Cosmetic, centred on where the bomb was when the fuse expired.
+          for (const explosion of delta.explosions) {
+            spawnEffect(startExplosionEffect(explosion.id, explosion.x, explosion.y));
           }
-
-          // The explosion is purely cosmetic, centred on where the bomb
-          // actually is when the fuse expires (FR-023). Never a hazard: the
-          // effects above resolved once, here.
-          spawnEffect(
-            startExplosionEffect(
-              blast.effectId,
-              blast.x + RENDERED_TILE_SIZE / 2,
-              blast.y + RENDERED_TILE_SIZE / 2,
-            ),
-          );
         }
       }
 
       // The crates popup bumped here rather than by the reveal trigger,
       // mirroring the coins loop above: a crate's fact(s) are a fixed pool
       // slice (see BlockMapper.ts's placeCrates), so most crates can reveal
-      // zero facts whenever there are more crates than crate-pool facts —
+      // zero facts whenever there are more crates than crate-pool facts
       // gating this on a reveal would leave those destructions with no
       // "crates destroyed / total" feedback, and could even show more facts
       // revealed than crates exist. Uses `cratesDestroyed` (PlatformerState.ts),
@@ -2100,9 +2044,7 @@ export const PlatformerPage = () => {
       // own doc comment for why that would undercount). Set by BOTH the
       // contact-hit loop and a blast above.
       if (crateDestroyedThisTick) {
-        spawnEffect(
-          startCounterPopup('crates', cratesDestroyed.value, levelTotals.value.crates),
-        );
+        spawnEffect(startCounterPopup('crates', cratesDestroyed.value, levelTotals.value.crates));
       }
 
       if (checkPitFall(next, currentLevel.value)) {
@@ -2113,13 +2055,13 @@ export const PlatformerPage = () => {
         // character would keep falling forever while merely invulnerable
         // from an earlier, unrelated hit.
         if (!isInvulnerable(next, PLAYER_HIT_REACTION_SECONDS)) {
-          const hitPoints = takeDamage(next.hitPoints, PIT_FALL_DAMAGE);
-          next = { ...next, hitPoints, alive: hitPoints > 0 };
           // No debris burst — unlike an enemy/hazard touch, nothing visibly
           // struck the character, so a blood splatter doesn't read right
-          // here (only the blink applies; see beginPitFallReaction's doc
-          // comment for why this never enters the `hit` animState either).
-          next = beginPitFallReaction(next);
+          // here (only the blink applies; see `beginPitFallReaction`).
+          next = resolveHitEffects(next, [
+            { type: 'damage', amount: PIT_FALL_DAMAGE },
+            { type: 'reaction', blinkOnly: true },
+          ]).player;
         }
         next = resolvePitFall(next);
       }
@@ -2157,9 +2099,16 @@ export const PlatformerPage = () => {
           const state = checkpointResolution.states.find((s) => s.id === id);
           if (!state) continue;
           const anchor = checkpointEffectAnchor(state);
-          spawnEffect(startPuffEffect(id, anchor.x + originX, anchor.y + originY, anchor.scale, true));
           spawnEffect(
-            startFadeOutTextEffect(id, anchor.x, anchor.y, currentUI.value.platformer.checkpoint.label),
+            startPuffEffect(id, anchor.x + originX, anchor.y + originY, anchor.scale, true),
+          );
+          spawnEffect(
+            startFadeOutTextEffect(
+              id,
+              anchor.x,
+              anchor.y,
+              currentUI.value.platformer.checkpoint.label,
+            ),
           );
         }
       }
@@ -2206,7 +2155,7 @@ export const PlatformerPage = () => {
       // Deliberately allows 'intro' here too, not just 'playing': per
       // GameLifecycle.ts's doc comment, 'intro' is a purely visual overlay
       // on top of already-running gameplay (a pit near spawn is still live
-      // during it), and physics/collisions — including chest-opening —
+      // during it), and physics/collisions — including chest-opening
       // already run during 'intro' the same as any other tick. Explicitly
       // listing the two live phases (rather than e.g. `!== 'dying'`) is
       // required, not just tidier: this check runs every tick regardless of
@@ -2296,7 +2245,7 @@ export const PlatformerPage = () => {
       .catch(() => {
         // The ambient layer is purely decorative — it simply won't render if
         // this sheet fails to load (drawAmbientClouds returns early on a null
-        // image); the backdrop, level and HUD still show (FR-012).
+        // image); the backdrop, level and HUD still show.
       });
     loadImage(BACKGROUND_TILES_SHEET.src)
       .then((img) => {
@@ -2366,7 +2315,7 @@ export const PlatformerPage = () => {
     // The floor spear's sheet is hand-listed (like EXPLOSION_SHEET) rather
     // than discovered through a registry walk, because its loaded image must
     // also build the module-level tip mask the lethal contact test reads
-    // (O-020). An unloaded/failed spear stays inert and renders nothing.
+    //. An unloaded/failed spear stays inert and renders nothing.
     loadImage(SPEAR_SHEET.src)
       .then((img) => {
         if (cancelled) return;
@@ -2379,9 +2328,9 @@ export const PlatformerPage = () => {
         // The spear simply won't render (and stays inert) if its art fails to
         // load; the rest of the game still shows.
       });
-    // The floor spike sheet (O-021) is no type's primary sprite either
+    // The floor spike sheet is no type's primary sprite either
     // (spike/spear/floorSpike are hazards, not enemies/pickups/blocks, so
-    // HAZARD_TYPES is never walked by the collectSheetSources loop below) —
+    // HAZARD_TYPES is never walked by the collectSheetSources loop below)
     // same hand-listed-load convention as EXPLOSION_SHEET above.
     loadImage(FLOOR_SPIKE_SHEET.src)
       .then((img) => {
@@ -2452,7 +2401,7 @@ export const PlatformerPage = () => {
     // hand-listing each one — adding an enemy, pickup, block, deployable item
     // or chest type needs no new loadImage call here. coin.png and fruit.png
     // are also loaded individually above into coinSpriteRef/fruitSpriteRef,
-    // which the HUD counters still read directly —
+    // which the HUD counters still read directly
     // the two loads race harmlessly (same convention KEY_SHEET already
     // established alongside keySpriteRef's own individual load below).
     // world_tileset.png is likewise still loaded individually above into

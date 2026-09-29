@@ -1,5 +1,5 @@
 /**
- * The "(icon) collected / total" counter-popup family (R-004 US1/US5): a keyed
+ * The "(icon) collected / total" counter-popup family: a keyed
  * slot (at most one per `labelKey`, refreshed in place) whose `tick` returns
  * the `null` drop sentinel at its duration. The row is assembled per effect
  * from the live collection so the fixed `coins`/`fruits`/`enemies`/`crates`
@@ -11,14 +11,14 @@ import { COLLECTION_TEXT_STACK_ROW_HEIGHT } from './flyingText';
 import type { EffectRenderContext, TransientEffect } from './transientEffect';
 
 /** Seconds the popup stays fully visible before fading, and the total seconds
- *  until it is gone (sized to slightly exceed the flying text's own 2.0s). */
+ * until it is gone (sized to slightly exceed the flying text's own 2.0s). */
 export const COUNTER_POPUP_HOLD_SECONDS = 1.7;
 export const COUNTER_POPUP_FADE_SECONDS = 0.4;
 export const COUNTER_POPUP_DURATION_SECONDS =
   COUNTER_POPUP_HOLD_SECONDS + COUNTER_POPUP_FADE_SECONDS;
 
 /** One popup's payload: the collectible label, the running count, and the
- *  total for that type. */
+ * total for that type. */
 export interface CounterPopupState {
   labelKey: CounterPopupLabelKey;
   collected: number;
@@ -26,8 +26,13 @@ export interface CounterPopupState {
 }
 
 /** The fixed left-to-right layout order, matching the journal summary's own
- *  coins/fruits/enemies/crates ordering. */
-const COUNTER_POPUP_ORDER: readonly CounterPopupLabelKey[] = ['coins', 'fruits', 'enemies', 'crates'];
+ * coins/fruits/enemies/crates ordering. */
+const COUNTER_POPUP_ORDER: readonly CounterPopupLabelKey[] = [
+  'coins',
+  'fruits',
+  'enemies',
+  'crates',
+];
 
 const COUNTER_POPUP_ICON_SIZE = 28;
 const COUNTER_POPUP_FONT_SIZE = 24;
@@ -53,7 +58,7 @@ export function startCounterPopup(
 }
 
 /** Advances the popup by `dt`; returns `null` once its total duration has
- *  elapsed (the collection drops it at that point). */
+ * elapsed (the collection drops it at that point). */
 export function tickCounterPopup(
   effect: TransientEffect<CounterPopupState>,
   dt: number,
@@ -82,7 +87,8 @@ export function drawCounterPopup(
   rc: EffectRenderContext,
 ): void {
   const popups = rc.effects.filter(
-    (candidate): candidate is TransientEffect<CounterPopupState> => candidate.kind === 'counterPopup',
+    (candidate): candidate is TransientEffect<CounterPopupState> =>
+      candidate.kind === 'counterPopup',
   );
 
   const items = COUNTER_POPUP_ORDER.flatMap((labelKey) => {
@@ -143,12 +149,7 @@ export function drawCounterPopup(
       ctx.font = `${COUNTER_POPUP_FONT_SIZE}px "${RESTART_PROMPT_FONT_FAMILY}", monospace`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      fillTextWithOutline(
-        ctx,
-        text,
-        cursorX + COUNTER_POPUP_ICON_SIZE + COUNTER_POPUP_TEXT_GAP,
-        y,
-      );
+      fillTextWithOutline(ctx, text, cursorX + COUNTER_POPUP_ICON_SIZE + COUNTER_POPUP_TEXT_GAP, y);
       ctx.restore();
       return;
     }

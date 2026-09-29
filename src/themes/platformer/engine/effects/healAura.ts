@@ -1,5 +1,5 @@
 /**
- * The heal-aura family (R-004 US1/US5): a golden glow, light rays, and
+ * The heal-aura family: a golden glow, light rays, and
  * sparkles anchored live to the moving player. It stores NO position of its
  * own — the draw re-derives its anchor from `EffectRenderContext.playerAnchor`
  * every frame.
@@ -74,7 +74,7 @@ export function healAuraSparkles(elapsed: number, width: number): HealAuraSparkl
 }
 
 /** The heal-aura family's registered draw — the former scene renderer
- *  `drawHealAuraEffects` body, re-anchored from the live player each frame. */
+ * `drawHealAuraEffects` body, re-anchored from the live player each frame. */
 export function drawHealAuraEffect(
   effect: TransientEffect<HealAuraState>,
   rc: EffectRenderContext,

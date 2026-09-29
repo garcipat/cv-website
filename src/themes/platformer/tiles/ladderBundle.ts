@@ -1,10 +1,10 @@
-﻿import type { LevelDef } from '../level/LevelData';
+import type { LevelDef } from '../level/LevelData';
 import { tileAt } from '../level/Terrain';
 import type { TileModule } from './TileModule';
 
 /**
  * `ladderBundle` — the rolled rope-ladder parcel (`@`). Fogged; rendered by
- * R-008's deployable-item pass, so `drawBand` is `'deployable'` (no terrain
+ * 's deployable-item pass, so `drawBand` is `'deployable'` (no terrain
  * draw).
  */
 
@@ -12,7 +12,7 @@ import type { TileModule } from './TileModule';
  * Whether this cell is a rolled `ladderBundle` standable from above.
  * Deliberately UNCONDITIONAL on the cell above — unlike the ladder-shaft top, a
  * bundle is a solid little parcel the character stands ON regardless of what is
- * overhead (FR-002/FR-009), and it must stay standable throughout its unroll so
+ * overhead, and it must stay standable throughout its unroll so
  * a character standing on it when it deploys does not fall. It is never `solid`
  * (so it blocks nothing horizontally) and never `climbable` (so a rolled bundle
  * cannot be climbed).

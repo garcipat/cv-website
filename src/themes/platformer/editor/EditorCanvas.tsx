@@ -93,25 +93,25 @@ export interface EditorImages {
 }
 
 /** The cells a pending placement would write, in absolute grid coordinates,
- *  and whether it currently fits (`blueprintFit.ts`) — blue when it does, red
- *  when it does not. Each cell carries its own `char` so the preview can draw
- *  a connection point's glyph the same way the level canvas does once it's
- *  actually placed, rather than letting it disappear into the tint. */
+ * and whether it currently fits (`blueprintFit.ts`) — blue when it does, red
+ * when it does not. Each cell carries its own `char` so the preview can draw
+ * a connection point's glyph the same way the level canvas does once it's
+ * actually placed, rather than letting it disappear into the tint. */
 export interface PlacementPreview {
   cells: readonly { row: number; col: number; char: TileChar; marker?: MarkerEntry }[];
   valid: boolean;
 }
 
 /** Everything the canvas needs while a blueprint is armed for placement
- *  (roadmap step 44c). Its non-null-ness IS "a blueprint is armed": while it is
- *  set, clicks preview/place/cancel instead of painting. */
+ * (). Its non-null-ness IS "a blueprint is armed": while it is
+ * set, clicks preview/place/cancel instead of painting. */
 export interface PlacementMode {
   /** `null` until the mouse has hovered over the canvas at least once since
-   *  arming (see `onHover`) — cleared again once it leaves. */
+   * arming (see `onHover`) — cleared again once it leaves. */
   preview: PlacementPreview | null;
   /** Fires on every mouse move over the canvas while armed, reporting the
-   *  cell under the cursor so the preview can follow it live with no click
-   *  required; fires with `null` when the cursor leaves the canvas. */
+   * cell under the cursor so the preview can follow it live with no click
+   * required; fires with `null` when the cursor leaves the canvas. */
   onHover: (cell: { col: number; row: number } | null) => void;
   onPlace: (cell: { col: number; row: number }) => void;
   onCancel: () => void;
@@ -120,39 +120,39 @@ export interface PlacementMode {
 interface EditorCanvasProps {
   grid: TileChar[][];
   /** The active canvas's tile meta layer, aligned 1:1 with `grid`. Optional so
-   *  every existing render site that doesn't care about markers (tests that
-   *  only exercise terrain painting) is unaffected; defaults to no markers. */
+   * every existing render site that doesn't care about markers (tests that
+   * only exercise terrain painting) is unaffected; defaults to no markers. */
   markerGrid?: MarkerGrid;
   selectedTool: EditorTool;
   panOffset: PanOffset;
   images: EditorImages;
   /** The editor-owned appearance. Only `'dark'` draws the cave-lighting
-   *  preview; the default keeps every existing render site unchanged. */
+   * preview; the default keeps every existing render site unchanged. */
   appearance?: EditorAppearance;
   /** True while the blueprint canvas is active. Blueprints carry no spawn
-   *  probe, so they never draw the cave-lighting preview (FR-011). */
+   * probe, so they never draw the cave-lighting preview. */
   isBlueprintMode?: boolean;
   /** Bump this to ask the canvas to re-center itself on the spawn tile (see
-   *  the effect below). It is a request id rather than a boolean so a
-   *  repeated request — Reset pressed twice, say — still fires each time. */
+   * the effect below). It is a request id rather than a boolean so a
+   * repeated request — Reset pressed twice, say — still fires each time. */
   centerRequestId?: number;
   backgroundGrid: BackgroundChar[][];
   activeLayer: 'foreground' | 'background';
   selectedBackgroundMaterial: BackgroundChar | null;
   /** Set while a blueprint is armed for placement; omitted/`null` otherwise, so
-   *  every existing render site is unaffected. */
+   * every existing render site is unaffected. */
   placement?: PlacementMode | null;
-  /** Current zoom level (O-019). Defaults to 100% so every existing caller
-   *  that doesn't pass it renders exactly as it did before this feature. */
+  /** Current zoom level. Defaults to 100% so every existing caller
+   * that doesn't pass it renders exactly as it did before this feature. */
   zoom?: ZoomLevel;
   /** Fires when the wheel or the zoom slider changes the zoom level. Carries
-   *  the fully-anchored new pan alongside the new zoom so the parent applies
-   *  both atomically (EditorZoom.ts's `anchoredPan`). Optional so every
-   *  existing caller that doesn't offer zoom control keeps compiling. */
+   * the fully-anchored new pan alongside the new zoom so the parent applies
+   * both atomically (EditorZoom.ts's `anchoredPan`). Optional so every
+   * existing caller that doesn't offer zoom control keeps compiling. */
   onZoomChange?: (next: ZoomLevel, pan: PanOffset) => void;
   onPaint: (result: PaintResult) => void;
   /** Writes the active canvas's marker grid. Optional (defaults to a no-op)
-   *  for the same reason `markerGrid` is. */
+   * for the same reason `markerGrid` is. */
   onPaintMarker?: (next: MarkerGrid) => void;
   onPaintBackground: (next: BackgroundChar[][]) => void;
   onPan: (offset: PanOffset) => void;
@@ -175,7 +175,7 @@ const GRID_LINE_COLOR = 'rgba(255, 255, 255, 0.25)';
 /**
  * The editor canvas backdrop, read from the editor-owned
  * `--editor-canvas-backdrop` token so it follows the light/dark appearance
- * rather than the site-wide theme's `--background` (O-015 FR-006).
+ * rather than the site-wide theme's `--background`.
  *
  * Exported so its token lookup can be unit-tested directly; it is a pure
  * helper rather than a component, which the fast-refresh heuristic cannot
@@ -221,9 +221,9 @@ function drawGridLines(
 const SIGN_BADGE_FONT_SIZE = 12;
 
 /** Draws each sign marker's hint code (`1`-`6`) in its tile's top-left
- *  corner — lets an author tell apart otherwise-identical signpost sprites
- *  at a glance while placing/cycling them (FR-028). Editor-only: the real
- *  game's own drawSigns never show this. */
+ * corner — lets an author tell apart otherwise-identical signpost sprites
+ * at a glance while placing/cycling them. Editor-only: the real
+ * game's own drawSigns never show this. */
 function drawSignBadges(
   ctx: CanvasRenderingContext2D,
   markers: MarkerGrid,
@@ -254,9 +254,9 @@ function drawSignBadges(
 
 const TORCH_BADGE_FONT_SIZE = 12;
 
-/** Draws each torch's light strength (`0`-`9`) in its tile's top-left corner —
- *  editor-only, exactly like `drawSignBadges`, so an author can read a torch's
- *  strength at a glance. A torch with no marker shows the default. */
+/** Draws each torch's light strength (`0`-`9`) in its tile's top-left corner
+ * editor-only, exactly like `drawSignBadges`, so an author can read a torch's
+ * strength at a glance. A torch with no marker shows the default. */
 function drawTorchBadges(
   ctx: CanvasRenderingContext2D,
   grid: TileChar[][],
@@ -288,11 +288,11 @@ function drawTorchBadges(
 }
 
 /** The character drawn on a patrol tile in the editor — the same one its
- *  palette button shows, so a placed tile is recognizable as the tool that
- *  painted it. */
+ * palette button shows, so a placed tile is recognizable as the tool that
+ * painted it. */
 export const PATROL_MARKER_GLYPH = PATROL_GLYPH;
-/** Same idea for the blueprint connection point (roadmap step 44b): the tile
- *  is invisible in game, so the editor draws its palette glyph on it. */
+/** Same idea for the blueprint connection point (): the tile
+ * is invisible in game, so the editor draws its palette glyph on it. */
 export const CONNECTION_POINT_MARKER_GLYPH = CONNECTION_POINT_GLYPH;
 
 const PATROL_MARKER_TINT = 'rgba(255, 96, 96, 0.35)';
@@ -305,9 +305,9 @@ const CONNECTION_POINT_MARKER_TINT = 'rgba(96, 168, 255, 0.4)';
 const CONNECTION_POINT_MARKER_GLYPH_COLOR = '#0a2a4d';
 const MARKER_FONT_SIZE = 18;
 
-/** Human-readable names for the hover tooltip (FR-029). A sign additionally
- *  shows its hint's own translated text, read from the same `hintText` signal
- *  the in-game bubble uses. */
+/** Human-readable names for the hover tooltip. A sign additionally
+ * shows its hint's own translated text, read from the same `hintText` signal
+ * the in-game bubble uses. */
 const MARKER_TOOLTIP_LABELS: Record<MarkerEntry['kind'], string> = {
   patrolBoundary: 'Patrol boundary',
   connectionPoint: 'Connection point',
@@ -323,8 +323,8 @@ const MARKER_HALO_COLOR = 'rgba(255, 255, 255, 0.9)';
 const MARKER_HALO_WIDTH = 3;
 
 /** Border colour of a placement preview that fits — a saturated stroke around
- *  the whole room, deliberately NOT the pale per-cell blue 44b tints a
- *  connection point with, so the two never read as the same thing. */
+ * the whole room, deliberately NOT the pale per-cell blue 44b tints a
+ * connection point with, so the two never read as the same thing. */
 export const PLACEMENT_VALID_COLOR = '#1d4ed8';
 /** Border colour of a placement that would overlap existing terrain. */
 export const PLACEMENT_INVALID_COLOR = '#b91c1c';
@@ -344,8 +344,8 @@ const PLACEMENT_BORDER_WIDTH = 3;
  * the grid to put it.
  */
 /** Draws `glyph` centered on the tile whose top-left pixel is `(destX, destY)`,
- *  as a dark core inside a light halo (see `MARKER_HALO_COLOR`'s doc comment).
- *  Assumes the caller has already set `ctx.font`/`textAlign`/`textBaseline`. */
+ * as a dark core inside a light halo (see `MARKER_HALO_COLOR`'s doc comment).
+ * Assumes the caller has already set `ctx.font`/`textAlign`/`textBaseline`. */
 function drawMarkerGlyph(
   ctx: CanvasRenderingContext2D,
   destX: number,
@@ -423,10 +423,10 @@ function drawPlacementPreview(
 }
 
 /** Draws a tinted cell with `glyph` on every cell whose marker is `kind`.
- *  Editor-only, exactly like drawSignBadges above: both markers that use this
- *  — the patrol boundary and the blueprint connection point — are invisible
- *  in the real game by design, which would otherwise leave an author painting
- *  markers they cannot see. */
+ * Editor-only, exactly like drawSignBadges above: both markers that use this
+ * — the patrol boundary and the blueprint connection point — are invisible
+ * in the real game by design, which would otherwise leave an author painting
+ * markers they cannot see. */
 function drawTileMarkers(
   ctx: CanvasRenderingContext2D,
   markers: MarkerGrid,
@@ -458,14 +458,14 @@ function drawTileMarkers(
 }
 
 /** A reusable native-size scratch canvas for the editor-only stalactite tint
- *  (O-027). Module-level so tinting many `T` cells in one frame — and across
- *  frames — never allocates a canvas per cell. `null` until first use. */
+ *. Module-level so tinting many `T` cells in one frame — and across
+ * frames — never allocates a canvas per cell. `null` until first use. */
 let tintScratchCanvas: HTMLCanvasElement | null = null;
 
 /** Draws one decorations-sheet crop into `sctx`, scaled to its own rendered
- *  size at `destX` (top-anchored), using the same crop math
- *  `entities/hazards/FallingStalactite.ts` uses at runtime — so the wash lands
- *  on exactly the pixels the editor's `drawHazards` drew. */
+ * size at `destX` (top-anchored), using the same crop math
+ * `entities/hazards/FallingStalactite.ts` uses at runtime — so the wash lands
+ * on exactly the pixels the editor's `drawHazards` drew. */
 function blitCrop(
   sctx: CanvasRenderingContext2D,
   image: HTMLImageElement,
@@ -486,9 +486,9 @@ function blitCrop(
 }
 
 /** Renders the stalactite at `(col, row)` into the scratch canvas and washes
- *  it with `tint` via `source-atop`, so ONLY the art's opaque pixels are
- *  tinted — not the cell's transparent background. Returns `null` when no 2D
- *  context is available. */
+ * it with `tint` via `source-atop`, so ONLY the art's opaque pixels are
+ * tinted — not the cell's transparent background. Returns `null` when no 2D
+ * context is available. */
 function tintedStalactiteSprite(
   image: HTMLImageElement,
   col: number,
@@ -529,7 +529,7 @@ function tintedStalactiteSprite(
 /**
  * Washes every `char` cell's stalactite art with `tint` — the editor-only
  * marker for a camouflage hazard whose in-game art is indistinguishable from
- * a decoration (O-027's falling stalactite `T`). The wash is masked to the
+ * a decoration (the falling stalactite `T`). The wash is masked to the
  * sprite's own opaque pixels (a scratch `source-atop` composite), so the
  * cell's transparent background stays clear instead of turning into a solid
  * red square. Mirrors `drawTileMarkers`' scan/zoom math.
@@ -581,9 +581,9 @@ export const EditorCanvas = ({
   onPan,
 }: EditorCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // The reusable offscreen layer `drawDarkness` punches its light holes into —
+  // The reusable offscreen layer `drawDarkness` punches its light holes into
   // allocated once and resized with the canvas, mirroring PlatformerPage's own
-  // `darknessLayerRef` (O-015 D8).
+  // `darknessLayerRef`.
   const darknessLayerRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   type DragState =
@@ -600,11 +600,9 @@ export const EditorCanvas = ({
   // the fallback leaves the view off by half the difference between the two
   // sizes. Starts true where there is no ResizeObserver to wait for (some
   // test runners), since then the fallback is all there will ever be.
-  const [canvasMeasured, setCanvasMeasured] = useState(
-    () => typeof ResizeObserver === 'undefined',
-  );
+  const [canvasMeasured, setCanvasMeasured] = useState(() => typeof ResizeObserver === 'undefined');
   // The marker hover tooltip's position (canvas-local px) and text, or `null`
-  // when no marker is hovered (FR-029). A plain absolutely-positioned overlay,
+  // when no marker is hovered. A plain absolutely-positioned overlay,
   // like the placement preview — not a shadcn tooltip, which would need a DOM
   // anchor the canvas cells don't have.
   const [hoverTooltip, setHoverTooltip] = useState<{
@@ -659,13 +657,13 @@ export const EditorCanvas = ({
     if (!canvas || !ctx) return;
 
     // The cave-lighting preview is derived from the live grid/background and
-    // drawn only in the dark appearance on the level canvas (FR-008/FR-011).
+    // drawn only in the dark appearance on the level canvas.
     const previewActive = appearance === 'dark' && !isBlueprintMode;
     const preview = previewActive ? caveLightingPreview(grid, markerGrid) : null;
     const showPreview = preview !== null && preview.darknessLevel > 0;
 
     // Every entity/marker preview is produced by the runtime finder + mapper
-    // chain through the one grid→layout adapter (FR-001), not an editor-local
+    // chain through the one grid→layout adapter, not an editor-local
     // synthesizer. CV data only affects each placement's (invisible) fact, so
     // reading it here without a re-render subscription is behaviour-preserving.
     const scene = previewPlacements(grid, markerGrid, currentCV.value);
@@ -701,12 +699,12 @@ export const EditorCanvas = ({
       ctx.restore();
     }
 
-    // While the Background layer is active, the entire foreground scene —
+    // While the Background layer is active, the entire foreground scene
     // terrain plus every entity/marker drawn on top of it — is dimmed
     // (rather than hidden) so the painter can still see where platforms and
     // entities will sit without them obscuring the background pieces being
     // placed underneath. `drawBackgroundTiles` above stays outside this
-    // wrapper always, since it's the layer being emphasized, never dimmed —
+    // wrapper always, since it's the layer being emphasized, never dimmed
     // mid-execution addition to the original design.
     const foregroundAlpha = activeLayer === 'background' ? 0.2 : 1;
     ctx.save();
@@ -848,13 +846,7 @@ export const EditorCanvas = ({
 
       drawDeployableItems(ctx, scene.chests, drawContext, 'afterCrumblingFloors');
 
-      drawCheckpoints(
-        ctx,
-        scene.checkpoints,
-        images.checkpoint,
-        null,
-        drawContext,
-      );
+      drawCheckpoints(ctx, scene.checkpoints, images.checkpoint, null, drawContext);
 
       const player = scene.player;
       if (player && images.player) {
@@ -863,25 +855,16 @@ export const EditorCanvas = ({
 
       // The preview composes the game's own draw passes unchanged, inside the
       // foreground-alpha block so the background-layer dimming applies to it
-      // too. `worldElapsed = 0` keeps it static (FR-013).
+      // too. `worldElapsed = 0` keeps it static.
       // `drawHeldTorch` draws a sprite at `RENDERED_TILE_SIZE`-based internal
       // sizing, so it belongs inside this scaled segment, unlike `drawDarkness`
       // below.
       if (preview && showPreview && player !== null) {
-        drawHeldTorch(
-          ctx,
-          player,
-          images.torch,
-          preview.darknessLevel,
-          originX,
-          originY,
-          0,
-        );
+        drawHeldTorch(ctx, player, images.torch, preview.darknessLevel, originX, originY, 0);
       }
       ctx.restore(); // pop scaled segment 2 — drawDarkness below needs identity transform
 
-      // Editor-only reddish tint over every falling-stalactite cell (O-027
-      // FR-017), drawn here at identity scale over the untinted hazard art
+      // Editor-only reddish tint over every falling-stalactite cell, drawn here at identity scale over the untinted hazard art
       // segment 2 just drew, so an author can tell a `T` from the decorative
       // `⊤`. Masked to the stalactite's own opaque pixels — never a full-cell
       // fill — so only the stone is washed.
@@ -945,9 +928,9 @@ export const EditorCanvas = ({
     }
 
     // Re-draw the editor affordances above the darkness overlay so grid lines,
-    // sign badges and the tile markers stay legible while previewing (FR-012).
+    // sign badges and the tile markers stay legible while previewing.
     // Only when the preview is active, so the light frame is byte-for-byte the
-    // pre-feature frame (FR-007, SC-004).
+    // pre-feature frame.
     if (showPreview) {
       drawGridLines(ctx, canvas.width, canvas.height, panOffset, zoom);
       drawSignBadges(ctx, markerGrid, panOffset.x, panOffset.y, zoom);
@@ -991,7 +974,19 @@ export const EditorCanvas = ({
     // nothing would redraw it until some unrelated state change (a paint
     // or pan) happened to run this effect again — the canvas would sit
     // invisible until the next interaction "fixed" it as a side effect.
-  }, [grid, markerGrid, panOffset, images, canvasSize, backgroundGrid, activeLayer, placement, appearance, isBlueprintMode, zoom]);
+  }, [
+    grid,
+    markerGrid,
+    panOffset,
+    images,
+    canvasSize,
+    backgroundGrid,
+    activeLayer,
+    placement,
+    appearance,
+    isBlueprintMode,
+    zoom,
+  ]);
 
   const cellFromEvent = (clientX: number, clientY: number) => {
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -1004,9 +999,9 @@ export const EditorCanvas = ({
   };
 
   /** Applies `tool` at `(col, row)` through the shared `applyTool` op
-   *  (FR-012): the per-tool placement/marker semantics live in
-   *  `ops/applyTool.ts`, not here. Returns the (post-growth) cell a drag
-   *  should remember. */
+   *: the per-tool placement/marker semantics live in
+   * `ops/applyTool.ts`, not here. Returns the (post-growth) cell a drag
+   * should remember. */
   const applyToolAt = (
     col: number,
     row: number,
@@ -1098,7 +1093,7 @@ export const EditorCanvas = ({
     }
 
     if (!drag) {
-      // Hover tooltip (FR-029): names the marker under the cursor and, for a
+      // Hover tooltip: names the marker under the cursor and, for a
       // sign, shows its hint's own translated text.
       const { col, row } = cellFromEvent(event.clientX, event.clientY);
       const marker = markerGrid[row]?.[col];
@@ -1175,7 +1170,7 @@ export const EditorCanvas = ({
   return (
     // `position: relative` + the canvas absolutely positioned (`inset-0`)
     // takes the canvas out of this container's layout flow entirely, so
-    // the container's size depends only on the surrounding flex layout —
+    // the container's size depends only on the surrounding flex layout
     // never on the canvas's own content/attribute size. Without this, the
     // ResizeObserver below would watch a container whose size the canvas
     // itself helps determine, which is exactly the classic

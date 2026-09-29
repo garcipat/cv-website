@@ -24,6 +24,8 @@ import type { PickupKind } from '../contracts/PickupKind';
 import type { PickupCollisionContext } from '../contracts/Pickup';
 import { strongerBounce, type ContactSide } from '../contracts/Outcome';
 import type { Box } from '../contracts/geometry';
+import type { HitEffect } from '../contracts/HitEffect';
+import { resolveHitEffects } from './HitResolver';
 
 /**
  * The player's collision box — same narrower-than-render-slot box
@@ -33,7 +35,7 @@ import type { Box } from '../contracts/geometry';
  * registers as collected. The top offset and height come from the shared
  * `playerHeadPaddingFor`/`playerBoxHeightFor` pair, so every consumer of this
  * box sees the one-tile crouched height while `player.crouching` is true and
- * the full standing height otherwise (FR-002/SC-008).
+ * the full standing height otherwise.
  */
 export function playerHitbox(player: PlayerState): Box {
   return {
@@ -45,7 +47,7 @@ export function playerHitbox(player: PlayerState): Box {
 }
 
 /** Standard axis-aligned bounding box overlap — touching edges (zero-area
- *  intersection) do not count as overlapping. */
+ * intersection) do not count as overlapping. */
 export function aabbOverlap(a: Box, b: Box): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
 }
@@ -124,39 +126,34 @@ export function checkPickupCollisions(
   return hits;
 }
 
+/** A `velocity` member of a generic hit-effect list. */
+type VelocityEffect = Extract<HitEffect, { type: 'velocity' }>;
+
 export interface EnemyContactResult {
-  /** The enemy array with every contacted enemy's returned `self` merged in.
-   *  Enemies with no contact are returned unchanged, by reference. */
+  /** The enemy array with every contacted enemy's resolved `selfEffects`
+   * applied. Enemies with no contact are returned unchanged, by reference. */
   enemies: EnemyState[];
-  /** Half-hearts. The caller drops this while the player is invulnerable. */
-  damagePlayer: number;
-  /** The strongest (most negative) bounce any contacted enemy asked for, or
-   *  undefined if none did. Most-negative-wins rather than last-wins so the
-   *  result does not depend on enemy array order. */
-  bounceVelocity?: number;
-  knockback: 'none' | 'away' | 'awayAndUp';
-  /** Which way "away" points: -1 pushes the player left, 1 right. Derived from
-   *  the first damaging contact's hitbox centers — the geometry stays here so
-   *  no caller has to re-derive it. Meaningless while `knockback` is 'none'. */
+  /** Unguarded player impulses (a stomp's bounce): velocity-only effects the
+   * caller applies even while invulnerable. */
+  bounceEffects: readonly HitEffect[];
+  /** Guarded player effects (damage + reaction + velocity); empty when no
+   * contact landed a hit. The caller drops this while invulnerable. */
+  hitEffects: readonly HitEffect[];
+  /** Which way "away" points: -1 left, 1 right, from the first damaging
+   * contact — used for the splatter side. */
   knockbackDirection: -1 | 1;
-  /** Ids of every enemy that actually took damage this tick (hit points
-   *  decreased), whether or not that hit defeated it — drives the hit
-   *  splatter effect (S-010), independent of the existing defeat puff.
-   *  Unlike `damagePlayer` (max of one hit per tick, to protect the
-   *  player from a multi-enemy pile-on), there's no "at most one" rule
-   *  here: each contacted enemy is its own event. */
+  /** Ids of every enemy whose hit points decreased this tick. */
   damagedEnemyIds: string[];
 }
 
-const KNOCKBACK_RANK = { none: 0, away: 1, awayAndUp: 2 } as const;
-
 /**
  * Computes contact geometry against every living enemy and asks each one's
- * type what the contact means, then aggregates.
+ * type what the contact means, then aggregates the effect lists.
  *
  * Aggregation rules, owned here and nowhere else: at most one damage applies
- * per tick regardless of how many enemies are touched; the strongest requested
- * bounce applies; 'awayAndUp' wins over 'away', which wins over 'none'.
+ * per tick regardless of how many enemies are touched (the first max-damage
+ * contact supplies the knockback velocity); the strongest (most negative)
+ * bounce applies; `preserveJump` survives if any contributor sets it.
  */
 export function resolveEnemyContacts(
   player: PlayerState,
@@ -165,8 +162,8 @@ export function resolveEnemyContacts(
   const playerBox = playerHitbox(player);
   let merged: EnemyState[] | undefined;
   let damagePlayer = 0;
-  let bounceVelocity: number | undefined;
-  let knockback: 'none' | 'away' | 'awayAndUp' = 'none';
+  let hitVelocity: VelocityEffect | undefined;
+  let bounceY: number | undefined;
   let knockbackDirection: -1 | 1 = 1;
   const damagedEnemyIds: string[] = [];
 
@@ -179,46 +176,66 @@ export function resolveEnemyContacts(
 
     const landsOnUpperHalf = playerBox.y + playerBox.height <= selfBox.y + selfBox.height / 2;
     const side: ContactSide = player.vy > 0 && landsOnUpperHalf ? 'top' : 'side';
+    // Pushes the player away from whichever side of the enemy their own
+    // hitbox centre is on. Compares centres rather than raw x, since each
+    // entity's x is its render-slot top-left, not its visual centre. Handed
+    // to the kind so it can sign its own `velocity.x`.
+    const playerCenterX = playerBox.x + playerBox.width / 2;
+    const selfCenterX = selfBox.x + selfBox.width / 2;
+    const awayDirection: -1 | 1 = playerCenterX <= selfCenterX ? -1 : 1;
     const outcome = enemyType.onPlayerCollide(enemy, player, {
       side,
       playerVx: player.vx,
       playerVy: player.vy,
       playerBox,
       selfBox,
+      awayDirection,
     });
 
-    if (outcome.self) {
-      // A contact that cost hit points is a landed hit, so whatever taking
-      // one costs this type beyond the decrement (a temporary defense, say)
-      // is applied here — the type decides what a touch means, the engine
-      // decides that the resulting hit is a fact and pays for it.
-      const damage = enemy.hitPoints - outcome.self.hitPoints;
-      if (damage > 0) damagedEnemyIds.push(enemy.id);
-      merged ??= [...enemies];
-      merged[i] =
-        damage > 0 && enemyType.onDamaged ? enemyType.onDamaged(outcome.self, damage) : outcome.self;
+    if (outcome.selfEffects && outcome.selfEffects.length > 0) {
+      // The enemy's own hit runs through the shared resolver; the hit-points
+      // delta tells us one landed, and its kind's `onDamaged` is folded in.
+      const hit = resolveHitEffects(enemy, outcome.selfEffects);
+      if (hit.damaged) damagedEnemyIds.push(enemy.id);
+      if (hit.enemy !== enemy) {
+        merged ??= [...enemies];
+        merged[i] = hit.enemy;
+      }
     }
-    bounceVelocity = strongerBounce(bounceVelocity, outcome.bounceVelocity);
-    if (outcome.damagePlayer && outcome.damagePlayer > damagePlayer) {
-      // Max, not sum: touching two enemies in one tick still costs one hit.
-      damagePlayer = outcome.damagePlayer;
-      // Pushes the player back toward whichever side of the enemy their own
-      // hitbox center is already on, i.e. away from it and back the way they
-      // came. Compares hitbox centers rather than raw x, since each entity's
-      // x is its own render-slot top-left, not its visual center.
-      const playerCenterX = playerBox.x + playerBox.width / 2;
-      const selfCenterX = selfBox.x + selfBox.width / 2;
-      knockbackDirection = playerCenterX <= selfCenterX ? -1 : 1;
+
+    const effects: readonly HitEffect[] = outcome.effects ?? [];
+    const damage = effects.find((effect) => effect.type === 'damage');
+    const velocity = effects.find((effect): effect is VelocityEffect => effect.type === 'velocity');
+    if (damage) {
+      // A damaging contact: at most one applies per tick (max, not sum), and
+      // the first to reach the max supplies the knockback velocity.
+      if (damage.amount > damagePlayer) {
+        damagePlayer = damage.amount;
+        knockbackDirection = awayDirection;
+        hitVelocity = velocity;
+      } else if (hitVelocity && velocity?.y !== undefined) {
+        // A later equal-damage contact can still contribute the stronger lift.
+        hitVelocity = { ...hitVelocity, y: strongerBounce(hitVelocity.y, velocity.y) };
+      }
+    } else if (velocity?.y !== undefined) {
+      // A damage-free impulse (a stomp bounce): applied unguarded.
+      bounceY = strongerBounce(bounceY, velocity.y);
     }
-    const requested = outcome.knockback ?? 'none';
-    if (KNOCKBACK_RANK[requested] > KNOCKBACK_RANK[knockback]) knockback = requested;
   }
+
+  const hitEffects: HitEffect[] = [];
+  if (damagePlayer > 0) {
+    hitEffects.push({ type: 'damage', amount: damagePlayer });
+    hitEffects.push({ type: 'reaction' });
+    if (hitVelocity) hitEffects.push(hitVelocity);
+  }
+  const bounceEffects: HitEffect[] =
+    bounceY === undefined ? [] : [{ type: 'velocity', y: bounceY, preserveJump: true }];
 
   return {
     enemies: merged ?? enemies.slice(),
-    damagePlayer,
-    bounceVelocity,
-    knockback,
+    bounceEffects,
+    hitEffects,
     knockbackDirection,
     damagedEnemyIds,
   };
@@ -264,9 +281,9 @@ export interface HazardContactResult {
  * checked only after the broad-phase box overlap already passed.
  *
  * A qualifying `lethal` kind is returned as `lethal` and takes precedence
- * over any ordinary hazard in the same tick (FR-012); otherwise the first
+ * over any ordinary hazard in the same tick; otherwise the first
  * qualifying non-lethal hazard supplies `damage`/`hazard`, so at most one
- * ordinary hit registers per tick (O-005 FR-005). Never mutates its inputs;
+ * ordinary hit registers per tick. Never mutates its inputs;
  * allocates only the result object.
  *
  * Replaces `checkHazardCollisions` (an overlap-only list) as the single
@@ -297,7 +314,7 @@ export function resolveHazardContacts(
 /**
  * Returns the ids of every hazard the player's hitbox currently overlaps a
  * NEW-ARMING trigger rect for — candidates `PlatformerPage.tsx` should arm
- * this tick (spec FR-003: contact starts the cycle exactly once). The
+ * this tick ( contact starts the cycle exactly once). The
  * trigger geometry and the already-armed eligibility gate are the hazard
  * kind's own knowledge (`HazardType.armTriggerRects`): a floor spike returns
  * its trigger band only while at rest, a falling stalactite its detection-zone
@@ -323,7 +340,7 @@ export function checkHazardArmTriggers(
 /**
  * Returns the grid cells of every at-rest crumbling floor tile the player's
  * feet currently overlap — candidates `PlatformerPage.tsx` should arm this
- * tick (spec FR-003). Unlike `checkHazardArmTriggers`, there is no
+ * tick. Unlike `checkHazardArmTriggers`, there is no
  * `HazardPlacement` list to scan: a crumbling floor tile is a plain terrain
  * cell, so this walks the same footRow/column-range the ground-collision
  * branch of `Physics.ts` uses, rather than `overlappingTriggers`' box-list
@@ -341,7 +358,9 @@ export function checkCrumblingFloorTriggers(
   if (!player.grounded) return [];
   const hitboxWidth = PLAYER_RENDERED_SIZE - 2 * PLAYER_SIDE_PADDING;
   const leftCol = Math.floor((player.x + PLAYER_SIDE_PADDING) / RENDERED_TILE_SIZE);
-  const rightCol = Math.floor((player.x + PLAYER_SIDE_PADDING + hitboxWidth - 1) / RENDERED_TILE_SIZE);
+  const rightCol = Math.floor(
+    (player.x + PLAYER_SIDE_PADDING + hitboxWidth - 1) / RENDERED_TILE_SIZE,
+  );
   const feetY = player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
   const footRow = Math.floor(feetY / RENDERED_TILE_SIZE);
 
@@ -353,4 +372,3 @@ export function checkCrumblingFloorTriggers(
   }
   return results;
 }
-

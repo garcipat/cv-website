@@ -4,7 +4,7 @@ import { placeAtMarkers } from './placement';
  * A checkpoint's static position, parsed from a `C` marker (LevelParser.ts's
  * findCheckpointTiles). `col`/`row` are the level-grid cell the marker was
  * read from — kept so the logic layer can check for solid ground directly
- * below it (FR-004) — and `x`/`y` are the rendered-world top-left the flag
+ * below it — and `x`/`y` are the rendered-world top-left the flag
  * draws at.
  */
 export interface CheckpointPlacement {

@@ -1,7 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fallingStalactite } from './FallingStalactite';
 import type { HazardPlacement } from '../../level/HazardMapper';
-import { isStalactiteTwin, stalactiteEntry, TWIN_LEFT_RECT, TWIN_RIGHT_RECT } from '../../tiles/stalactite';
+import {
+  isStalactiteTwin,
+  stalactiteEntry,
+  TWIN_LEFT_RECT,
+  TWIN_RIGHT_RECT,
+} from '../../tiles/stalactite';
 import { DECORATIONS_SHEET } from '../sprites/sheets';
 import { RENDER_SCALE, RENDERED_TILE_SIZE, TILE_SIZE } from '../../level/Terrain';
 import { SIDE_HIT_DAMAGE } from '../Health';
@@ -42,9 +47,15 @@ describe('fallingStalactite hazard type', () => {
   });
 
   it('isContact-isTrueOnlyWhileFalling', () => {
-    expect(fallingStalactite.isContact!(hazard({ fallingStalactitePhase: 'falling' }), PLAYER, HITBOX)).toBe(true);
-    expect(fallingStalactite.isContact!(hazard({ fallingStalactitePhase: 'shaking' }), PLAYER, HITBOX)).toBe(false);
-    expect(fallingStalactite.isContact!(hazard({ fallingStalactitePhase: 'gone' }), PLAYER, HITBOX)).toBe(false);
+    expect(
+      fallingStalactite.isContact!(hazard({ fallingStalactitePhase: 'falling' }), PLAYER, HITBOX),
+    ).toBe(true);
+    expect(
+      fallingStalactite.isContact!(hazard({ fallingStalactitePhase: 'shaking' }), PLAYER, HITBOX),
+    ).toBe(false);
+    expect(
+      fallingStalactite.isContact!(hazard({ fallingStalactitePhase: 'gone' }), PLAYER, HITBOX),
+    ).toBe(false);
     expect(fallingStalactite.isContact!(hazard({}), PLAYER, HITBOX)).toBe(false);
   });
 });
@@ -87,7 +98,12 @@ describe('fallingStalactite.box', () => {
   it('appliesTheFallOffsetAndShakeOffset', () => {
     const cell = findCell(false);
     const box = fallingStalactite.box(
-      hazard({ col: cell.col, row: cell.row, fallingStalactiteOffsetY: 12, fallingStalactiteShakeOffsetX: 3 }),
+      hazard({
+        col: cell.col,
+        row: cell.row,
+        fallingStalactiteOffsetY: 12,
+        fallingStalactiteShakeOffsetX: 3,
+      }),
     );
     expect(box.y).toBe(62);
     expect(box.x).toBe(103);
@@ -114,11 +130,14 @@ function makeDrawContext() {
   return { ctx, dc, image, drawImage, fillRect };
 }
 
-describe('fallingStalactite.draw — camouflage (US2)', () => {
+describe('fallingStalactite.draw — camouflage', () => {
   it('largeVariant-untintedBlitReproducesTheDecorationAtTheCell', () => {
     const cell = findCell(false);
     const { dc, image, drawImage, fillRect } = makeDrawContext();
-    fallingStalactite.draw(hazard({ col: cell.col, row: cell.row, fallingStalactitePhase: 'hanging' }), dc);
+    fallingStalactite.draw(
+      hazard({ col: cell.col, row: cell.row, fallingStalactitePhase: 'hanging' }),
+      dc,
+    );
     const entry = stalactiteEntry(cell.col, cell.row);
     expect(drawImage).toHaveBeenCalledTimes(1);
     expect(drawImage).toHaveBeenCalledWith(
@@ -140,7 +159,10 @@ describe('fallingStalactite.draw — camouflage (US2)', () => {
   it('twinVariant-drawsBothHalvesSoTheHangingArtMatchesTheDecoration', () => {
     const cell = findCell(true, 0);
     const { dc, image, drawImage } = makeDrawContext();
-    fallingStalactite.draw(hazard({ col: cell.col, row: cell.row, fallingStalactitePhase: 'hanging' }), dc);
+    fallingStalactite.draw(
+      hazard({ col: cell.col, row: cell.row, fallingStalactitePhase: 'hanging' }),
+      dc,
+    );
     // Selected (left) half + survivor (right) half.
     expect(drawImage).toHaveBeenCalledWith(
       image,
@@ -171,7 +193,12 @@ describe('fallingStalactite.draw — camouflage (US2)', () => {
     const cell = findCell(true, 0);
     const { dc, drawImage } = makeDrawContext();
     fallingStalactite.draw(
-      hazard({ col: cell.col, row: cell.row, fallingStalactitePhase: 'shaking', fallingStalactiteShakeOffsetX: 4 }),
+      hazard({
+        col: cell.col,
+        row: cell.row,
+        fallingStalactitePhase: 'shaking',
+        fallingStalactiteShakeOffsetX: 4,
+      }),
       dc,
     );
     // The selected (left) half is shifted by the shake; the survivor is not.
@@ -202,14 +229,20 @@ describe('fallingStalactite.draw — camouflage (US2)', () => {
   it('goneLargeVariant-drawsNothing', () => {
     const cell = findCell(false);
     const { dc, drawImage } = makeDrawContext();
-    fallingStalactite.draw(hazard({ col: cell.col, row: cell.row, fallingStalactitePhase: 'gone' }), dc);
+    fallingStalactite.draw(
+      hazard({ col: cell.col, row: cell.row, fallingStalactitePhase: 'gone' }),
+      dc,
+    );
     expect(drawImage).not.toHaveBeenCalled();
   });
 
   it('goneTwinVariant-stillDrawsTheSurvivingHalf', () => {
     const cell = findCell(true, 0);
     const { dc, drawImage } = makeDrawContext();
-    fallingStalactite.draw(hazard({ col: cell.col, row: cell.row, fallingStalactitePhase: 'gone' }), dc);
+    fallingStalactite.draw(
+      hazard({ col: cell.col, row: cell.row, fallingStalactitePhase: 'gone' }),
+      dc,
+    );
     // Only the survivor (right) remains.
     expect(drawImage).toHaveBeenCalledTimes(1);
     expect(drawImage).toHaveBeenCalledWith(
@@ -234,13 +267,14 @@ describe('fallingStalactite.draw — camouflage (US2)', () => {
       originY: 0,
       worldElapsed: 0,
     };
-    expect(() => fallingStalactite.draw(hazard({ fallingStalactitePhase: 'hanging' }), dc)).not.toThrow();
+    expect(() =>
+      fallingStalactite.draw(hazard({ fallingStalactitePhase: 'hanging' }), dc),
+    ).not.toThrow();
     expect(drawImage).not.toHaveBeenCalled();
   });
 });
 
-
-// ---- merged from engine/FallingStalactite.test.ts (R-004 US4) ----
+// ---- merged from engine/FallingStalactite.test.ts ----
 
 import {
   armFallingStalactite,
@@ -488,24 +522,37 @@ describe('fallingStalactitePhaseFor', () => {
   });
 
   it('beforeShakeEnds-isShaking', () => {
-    const states: FallingStalactiteTimerState[] = [{ id: 'h', elapsed: FALLING_STALACTITE_SHAKE_SECONDS / 2 }];
-    expect(fallingStalactitePhaseFor(states, HAZARD, LEVEL, NO_BLOCKS, NO_CRUMBLING)).toBe('shaking');
+    const states: FallingStalactiteTimerState[] = [
+      { id: 'h', elapsed: FALLING_STALACTITE_SHAKE_SECONDS / 2 },
+    ];
+    expect(fallingStalactitePhaseFor(states, HAZARD, LEVEL, NO_BLOCKS, NO_CRUMBLING)).toBe(
+      'shaking',
+    );
   });
 
   it('afterShakeButBeforeLanding-isFalling', () => {
     const states: FallingStalactiteTimerState[] = [
       { id: 'h', elapsed: FALLING_STALACTITE_SHAKE_SECONDS + 0.01 },
     ];
-    expect(fallingStalactitePhaseFor(states, HAZARD, LEVEL, NO_BLOCKS, NO_CRUMBLING)).toBe('falling');
+    expect(fallingStalactitePhaseFor(states, HAZARD, LEVEL, NO_BLOCKS, NO_CRUMBLING)).toBe(
+      'falling',
+    );
   });
 
   it('onceTheOffsetReachesTheRestPosition-isGone', () => {
     const restOffset = fallingStalactiteRestOffsetY(HAZARD, 3)!; // hazard row 0 -> landing row 3
-    const elapsedAtRest = FALLING_STALACTITE_SHAKE_SECONDS + restOffset / FALLING_STALACTITE_FALL_SPEED;
+    const elapsedAtRest =
+      FALLING_STALACTITE_SHAKE_SECONDS + restOffset / FALLING_STALACTITE_FALL_SPEED;
     const justBefore: FallingStalactiteTimerState[] = [
-      { id: 'h', elapsed: FALLING_STALACTITE_SHAKE_SECONDS + (restOffset - 1) / FALLING_STALACTITE_FALL_SPEED },
+      {
+        id: 'h',
+        elapsed:
+          FALLING_STALACTITE_SHAKE_SECONDS + (restOffset - 1) / FALLING_STALACTITE_FALL_SPEED,
+      },
     ];
-    expect(fallingStalactitePhaseFor(justBefore, HAZARD, LEVEL, NO_BLOCKS, NO_CRUMBLING)).toBe('falling');
+    expect(fallingStalactitePhaseFor(justBefore, HAZARD, LEVEL, NO_BLOCKS, NO_CRUMBLING)).toBe(
+      'falling',
+    );
     const atRest: FallingStalactiteTimerState[] = [{ id: 'h', elapsed: elapsedAtRest }];
     expect(fallingStalactitePhaseFor(atRest, HAZARD, LEVEL, NO_BLOCKS, NO_CRUMBLING)).toBe('gone');
   });
@@ -515,11 +562,18 @@ describe('fallingStalactitePhaseFor', () => {
     const states: FallingStalactiteTimerState[] = [
       { id: 'h', elapsed: FALLING_STALACTITE_SHAKE_SECONDS + 0.01 },
     ];
-    expect(fallingStalactitePhaseFor(states, HAZARD, PIT_LEVEL, NO_BLOCKS, NO_CRUMBLING)).toBe('gone');
+    expect(fallingStalactitePhaseFor(states, HAZARD, PIT_LEVEL, NO_BLOCKS, NO_CRUMBLING)).toBe(
+      'gone',
+    );
   });
 
   it('isMonotonicInElapsedForAFixedLanding', () => {
-    const rank: Record<FallingStalactitePhase, number> = { hanging: 0, shaking: 1, falling: 2, gone: 3 };
+    const rank: Record<FallingStalactitePhase, number> = {
+      hanging: 0,
+      shaking: 1,
+      falling: 2,
+      gone: 3,
+    };
     let previous = -1;
     for (let elapsed = 0; elapsed <= 5; elapsed += 0.05) {
       const states: FallingStalactiteTimerState[] = [{ id: 'h', elapsed }];
@@ -536,17 +590,32 @@ describe('fallingStalactitePhaseFor', () => {
     // Just past the broken-floor row, still falling (not gone), because the
     // tile broke and no longer stops the fall.
     const early: FallingStalactiteTimerState[] = [
-      { id: 'h', elapsed: FALLING_STALACTITE_SHAKE_SECONDS + (2 * RENDERED_TILE_SIZE) / FALLING_STALACTITE_FALL_SPEED },
+      {
+        id: 'h',
+        elapsed:
+          FALLING_STALACTITE_SHAKE_SECONDS +
+          (2 * RENDERED_TILE_SIZE) / FALLING_STALACTITE_FALL_SPEED,
+      },
     ];
     const broken: GridTimerState[] = [{ col: 1, row: 2, elapsed: 1.5 }];
-    expect(fallingStalactitePhaseFor(early, HAZARD, CRUMBLING_LEVEL, NO_BLOCKS, broken)).toBe('falling');
+    expect(fallingStalactitePhaseFor(early, HAZARD, CRUMBLING_LEVEL, NO_BLOCKS, broken)).toBe(
+      'falling',
+    );
     const atNewLanding: FallingStalactiteTimerState[] = [{ id: 'h', elapsed: elapsedAtNewRest }];
-    expect(fallingStalactitePhaseFor(atNewLanding, HAZARD, CRUMBLING_LEVEL, NO_BLOCKS, broken)).toBe('gone');
+    expect(
+      fallingStalactitePhaseFor(atNewLanding, HAZARD, CRUMBLING_LEVEL, NO_BLOCKS, broken),
+    ).toBe('gone');
   });
 });
 
-describe('fallingStalactite dispatch hooks (R-007 D3)', () => {
-  const FULL_HAZARD: HazardPlacement = hazard({ id: 'h', col: 1, row: 0, x: RENDERED_TILE_SIZE, y: 0 });
+describe('fallingStalactite dispatch hooks', () => {
+  const FULL_HAZARD: HazardPlacement = hazard({
+    id: 'h',
+    col: 1,
+    row: 0,
+    x: RENDERED_TILE_SIZE,
+    y: 0,
+  });
 
   function hazardCtx(
     timers: readonly FallingStalactiteTimerState[] = [],
@@ -596,12 +665,14 @@ describe('fallingStalactite dispatch hooks (R-007 D3)', () => {
   });
 
   it('armTriggerRects-hangingHazard-returnsItsDetectionZoneCellsAsTileRects', () => {
-    const expected = detectionZoneCells(FULL_HAZARD, LEVEL, NO_BLOCKS, NO_CRUMBLING).map((cell) => ({
-      x: cell.col * RENDERED_TILE_SIZE,
-      y: cell.row * RENDERED_TILE_SIZE,
-      width: RENDERED_TILE_SIZE,
-      height: RENDERED_TILE_SIZE,
-    }));
+    const expected = detectionZoneCells(FULL_HAZARD, LEVEL, NO_BLOCKS, NO_CRUMBLING).map(
+      (cell) => ({
+        x: cell.col * RENDERED_TILE_SIZE,
+        y: cell.row * RENDERED_TILE_SIZE,
+        width: RENDERED_TILE_SIZE,
+        height: RENDERED_TILE_SIZE,
+      }),
+    );
 
     expect(fallingStalactite.armTriggerRects!(FULL_HAZARD, hazardCtx())).toEqual(expected);
   });

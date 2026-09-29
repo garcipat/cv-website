@@ -11,7 +11,7 @@ import type { TileChar } from '../../level/LevelParser';
 import type { EditorTool } from '../editorState';
 
 /**
- * The shared per-tool paint/marker op (FR-012, D8): what a canvas click writes
+ * The shared per-tool paint/marker op: what a canvas click writes
  * for a given tool, expressed once so the canvas and the ops cannot diverge.
  * Pure — it returns the paint result and/or marker grid for the caller to
  * write through `onPaint`/`onPaintMarker`; it never touches React.
@@ -28,8 +28,8 @@ export interface ApplyToolResult {
 }
 
 /** The marker kinds a repaint clears: a marker that describes the tile it
- *  sits on, rather than an independent overlay. `patrolBoundary` and
- *  `connectionPoint` deliberately survive a repaint. */
+ * sits on, rather than an independent overlay. `patrolBoundary` and
+ * `connectionPoint` deliberately survive a repaint. */
 const MARKER_REMOVED_ON_REPAINT: ReadonlySet<MarkerEntry['kind']> = new Set([
   'sign',
   'fallingStalactite',
@@ -42,7 +42,7 @@ export function markerRemovedOnRepaint(kind: MarkerEntry['kind']): boolean {
 }
 
 /** Erases `(col, row)`'s marker only when one is present — preserving the
- *  old "no marker write when there was nothing to clear" no-op. */
+ * old "no marker write when there was nothing to clear" no-op. */
 function eraseMarkerIfPresent(markers: MarkerGrid, col: number, row: number): MarkerGrid | null {
   return markers[row]?.[col] ? eraseMarkerCell(markers, col, row) : null;
 }
@@ -51,15 +51,15 @@ function eraseMarkerIfPresent(markers: MarkerGrid, col: number, row: number): Ma
  * Applies `tool` at `(col, row)`.
  *
  * - Pure marker tools (`patrolBoundary`/`connectionPoint`) write only the
- *   marker grid (never grown) and produce no paint.
+ * marker grid (never grown) and produce no paint.
  * - The sign (`T`) and falling-stalactite tools write their terrain character
- *   plus their own marker at the post-growth coordinates; erasing them clears
- *   the terrain and whatever marker was on the cell.
+ * plus their own marker at the post-growth coordinates; erasing them clears
+ * the terrain and whatever marker was on the cell.
  * - The torch (`¥`) tool lays a default torch on a fresh click and cycles an
- *   already-placed one's strength; erasing clears terrain + marker.
+ * already-placed one's strength; erasing clears terrain + marker.
  * - Every other tool paints its character, and clears a marker on the cell
- *   that describes the tile (sign/fallingStalactite/torch) or any marker on an
- *   erase gesture — a `patrolBoundary`/`connectionPoint` survives a repaint.
+ * that describes the tile (sign/fallingStalactite/torch) or any marker on an
+ * erase gesture — a `patrolBoundary`/`connectionPoint` survives a repaint.
  */
 export function applyTool(
   grid: TileChar[][],

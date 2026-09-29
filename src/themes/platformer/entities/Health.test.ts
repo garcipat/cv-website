@@ -112,7 +112,7 @@ describe('isHealthCritical', () => {
   });
 
   it('zeroHitPoints-returnsFalse', () => {
-    // Dead, not "critical" — the death transition takes over instead (FR-008).
+    // Dead, not "critical" — the death transition takes over instead.
     expect(isHealthCritical(0)).toBe(false);
   });
 

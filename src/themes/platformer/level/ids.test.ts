@@ -7,7 +7,7 @@ describe('slugify', () => {
   });
 
   it('aLabelWithLeadingAndTrailingSeparators-trimsThem', () => {
-    expect(slugify('  Frontend / React  ')).toBe('frontend-react');
+    expect(slugify(' Frontend / React ')).toBe('frontend-react');
   });
 
   it('anEmptyLabel-returnsAnEmptyString', () => {

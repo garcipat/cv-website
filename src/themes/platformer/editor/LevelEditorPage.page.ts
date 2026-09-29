@@ -219,7 +219,7 @@ export const levelEditorPage = {
   },
 
   /** The editor-owned appearance attribute the palette is selected through
-   *  (`<html data-editor-appearance="…">`) — `undefined` once unmounted. */
+   * (`<html data-editor-appearance="…">`) — `undefined` once unmounted. */
   get editorAppearanceAttribute() {
     return document.documentElement.dataset.editorAppearance;
   },
@@ -256,17 +256,17 @@ export const levelEditorPage = {
     await userEvent.click(toolbar.appearanceToggle);
   },
   /** Sets the active canvas's zoom via the slider's keyboard interaction.
-   *  The base-ui Slider (this repo's shadcn style) puts the actual
-   *  keyboard-interactive element on a hidden native `<input type="range">`
-   *  inside the thumb, not on the outer `editor-canvas-zoom` testid
-   *  container (that's the Root, which has no tabIndex of its own) — see
-   *  this file's own "editor zoom (O-019)" describe block and
-   *  EditorCanvas.test.tsx's matching slider tests, both of which target
-   *  that inner input the same way. `ZOOM_LEVELS` (EditorZoom.ts) is
-   *  ascending — [50, 75, 100] as percent — so index 0 is the slider's
-   *  minimum (50%) and index 2 its maximum (100%). "Home" always lands on
-   *  index 0 first, so stepping up with ArrowUp by the target's index is
-   *  deterministic regardless of the slider's current position.
+   * The base-ui Slider (this repo's shadcn style) puts the actual
+   * keyboard-interactive element on a hidden native `<input type="range">`
+   * inside the thumb, not on the outer `editor-canvas-zoom` testid
+   * container (that's the Root, which has no tabIndex of its own) — see
+   * this file's own "editor zoom" describe block and
+   * EditorCanvas.test.tsx's matching slider tests, both of which target
+   * that inner input the same way. `ZOOM_LEVELS` (EditorZoom.ts) is
+   * ascending — [50, 75, 100] as percent — so index 0 is the slider's
+   * minimum (50%) and index 2 its maximum (100%). "Home" always lands on
+   * index 0 first, so stepping up with ArrowUp by the target's index is
+   * deterministic regardless of the slider's current position.
    */
   setZoomViaSlider(percent: 50 | 75 | 100) {
     const slider = screen.getByTestId('editor-canvas-zoom');

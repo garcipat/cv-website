@@ -7,7 +7,7 @@ import type { EnemyPlacement } from '../../level/EnemyMapper';
 import type { PlayerState } from '../Player';
 import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING, PLAYER_HIT_REACTION_SECONDS } from '../Player';
 import type { Contact } from '../../contracts/Outcome';
-import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
+import { DEFAULT_STOMP_BOUNCE_VY } from '../../shared/knockback';
 
 function makePurpleEnemy(overrides: Partial<SlimePurpleState> = {}): SlimePurpleState {
   const placement: EnemyPlacement = { id: 'p1', type: 'slimePurple', x: 5, y: 0 };
@@ -47,6 +47,7 @@ function makeTopContact(): Contact {
     playerVy: 200,
     playerBox: { x: 0, y: 0, width: 24, height: 38 },
     selfBox: { x: 0, y: 0, width: 96, height: 96 },
+    awayDirection: 1,
   };
 }
 
@@ -87,7 +88,10 @@ describe('slimePurple.onTick', () => {
   });
 
   it('onTick-reachesDuration-clearsSpiked', () => {
-    const enemy = makePurpleEnemy({ spiked: true, spikeTimer: SPIKE_COOLDOWN_DURATION_SECONDS - 0.1 });
+    const enemy = makePurpleEnemy({
+      spiked: true,
+      spikeTimer: SPIKE_COOLDOWN_DURATION_SECONDS - 0.1,
+    });
     const next = slimePurple.onTick!(enemy, 0.2);
     expect(next.spiked).toBe(false);
     expect(next.spikeTimer).toBe(0);
@@ -100,8 +104,10 @@ describe('slimePurple.onPlayerCollide top contact', () => {
     // the hit costs the slime is `onDamaged`'s business.
     const enemy = makePurpleEnemy({ hitPoints: 3, spiked: false, spikeTimer: 0 });
     const outcome = slimePurple.onPlayerCollide(enemy, makePlayer(), makeTopContact());
-    expect(outcome.self?.hitPoints).toBe(2);
-    expect(outcome.bounceVelocity).toBe(PHYSICS_CONFIG.stompBounceVelocity);
+    expect(outcome.selfEffects).toEqual([{ type: 'damage', amount: 1 }, { type: 'reaction' }]);
+    expect(outcome.effects).toEqual([
+      { type: 'velocity', y: DEFAULT_STOMP_BOUNCE_VY, preserveJump: true },
+    ]);
   });
 });
 

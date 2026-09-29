@@ -1,15 +1,10 @@
 /**
  * The effect kind → start/tick/draw/expiry registry that makes a new transient
- * effect one module plus one registry line (R-004 FR-002). Declaration order
+ * effect one module plus one registry line. Declaration order
  * is part of the contract: it fixes the intra-layer draw order
  * (`speechBubble` → `flyingText` → `puff` → `debris` → `hitSplatter` → `fadeOutText`).
  */
-import {
-  drawFlyingText,
-  flyingTextExpired,
-  startFlyingText,
-  tickFlyingText,
-} from './flyingText';
+import { drawFlyingText, flyingTextExpired, startFlyingText, tickFlyingText } from './flyingText';
 import {
   drawCounterPopup,
   startCounterPopup,
@@ -22,16 +17,16 @@ import { drawDebrisEffect, startDebrisEffect } from './debris';
 import { drawHitSplatterEffect, startPlayerHitSplatter } from './hitSplatter';
 import { drawFadeOutText, startFadeOutTextEffect } from './fadeOutText';
 import { drawExplosionEffect, startExplosionEffect } from './explosion';
-import { RESET_SCOPE_BY_KIND, type EffectRenderContext, type TransientEffect } from './transientEffect';
 import {
-  drawSpeechBubbleEffect,
-  startSpeechBubble,
-  tickSpeechBubbleEffect,
-} from './speechBubble';
+  RESET_SCOPE_BY_KIND,
+  type EffectRenderContext,
+  type TransientEffect,
+} from './transientEffect';
+import { drawSpeechBubbleEffect, startSpeechBubble, tickSpeechBubbleEffect } from './speechBubble';
 
-/** The shipped effect families. The set was never closed — R-004's original
- *  six have since grown, and R-005 adds `speechBubble` — so a new kind is one
- *  entry here plus its own module. */
+/** The shipped effect families. The set was never closed — 's original
+ * six have since grown, and adds `speechBubble` — so a new kind is one
+ * entry here plus its own module. */
 export type EffectKind =
   | 'speechBubble'
   | 'flyingText'
@@ -43,7 +38,7 @@ export type EffectKind =
   | 'explosion'
   | 'debris';
 
-/** Pipeline depth for the single dispatch (FR-005). */
+/** Pipeline depth for the single dispatch. */
 export type EffectLayer = 'midWorld' | 'worldEffects' | 'aboveWorld' | 'hudLast';
 
 /** `'death'` is cleared by `resetGame()`; `'progress'` only by a full reset. */

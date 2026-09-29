@@ -71,7 +71,7 @@ describe('blueprintFits', () => {
   });
 
   it('markersInTheTargetGrid-neverBlockAPlacement', () => {
-    // Placement validity is terrain-only (FR-019): blueprintFits never sees
+    // Placement validity is terrain-only: blueprintFits never sees
     // the marker grid, so a marker alone can never block a placement.
     expect(blueprintFits(EMPTY_3X3, WALL, 0, 0)).toBe(true);
   });

@@ -19,7 +19,11 @@ describe('BookmarkTabs', () => {
 
   it('render-anySection-showsSectionIconOnEveryTab', () => {
     render(
-      <BookmarkTabs sections={['experience', 'skills']} activeSection="skills" onSelect={() => {}} />,
+      <BookmarkTabs
+        sections={['experience', 'skills']}
+        activeSection="skills"
+        onSelect={() => {}}
+      />,
     );
 
     // Text labels were hard to read rotated on a narrow tab (user feedback)
@@ -31,7 +35,11 @@ describe('BookmarkTabs', () => {
   it('inactiveTabClicked-always-callsOnSelectWithThatSection', () => {
     const onSelect = vi.fn();
     render(
-      <BookmarkTabs sections={['experience', 'skills']} activeSection="skills" onSelect={onSelect} />,
+      <BookmarkTabs
+        sections={['experience', 'skills']}
+        activeSection="skills"
+        onSelect={onSelect}
+      />,
     );
 
     fireEvent.click(bookmarkTabsPage.experience);
@@ -42,7 +50,11 @@ describe('BookmarkTabs', () => {
   it('activeTabClicked-still-callsOnSelectWithSameSection', () => {
     const onSelect = vi.fn();
     render(
-      <BookmarkTabs sections={['experience', 'skills']} activeSection="skills" onSelect={onSelect} />,
+      <BookmarkTabs
+        sections={['experience', 'skills']}
+        activeSection="skills"
+        onSelect={onSelect}
+      />,
     );
 
     fireEvent.click(bookmarkTabsPage.skills);

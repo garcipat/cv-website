@@ -12,7 +12,7 @@ export interface BoundingBox {
  * `emptyValue`, or `null` if the grid has no such cell at all. Shared by
  * `exportLayout` (foreground) and `cropLevelForExport` (which crops the
  * background to the SAME box, see its own doc comment) so the min/max scan
- * exists in exactly one place rather than being duplicated per grid shape —
+ * exists in exactly one place rather than being duplicated per grid shape
  * generic over the cell type for the same reason `growGrid` is.
  */
 export function boundingBoxOfContent<T>(grid: T[][], emptyValue: T): BoundingBox | null {
@@ -36,8 +36,8 @@ export function boundingBoxOfContent<T>(grid: T[][], emptyValue: T): BoundingBox
 }
 
 /** The smallest box containing both `a` and `b`, or whichever is non-null, or
- *  `null` when both are — the tile meta layer's crop shares the foreground's
- *  origin through this (D11/FR-017). */
+ * `null` when both are — the tile meta layer's crop shares the foreground's
+ * origin through this. */
 export function unionBoxes(a: BoundingBox | null, b: BoundingBox | null): BoundingBox | null {
   if (a === null) return b;
   if (b === null) return a;
@@ -57,7 +57,7 @@ export function unionBoxes(a: BoundingBox | null, b: BoundingBox | null): Boundi
  * from a ragged grid read as `emptyValue`, matching `boundingBoxOfContent`'s
  * own tolerance. Generic over the cell type so the foreground (`TileChar`,
  * empty `'.'`) and background (`BackgroundChar`, empty `'.'`) share it — the
- * one grid sub-rectangle → rows serializer (FR-002/FR-010).
+ * one grid sub-rectangle → rows serializer.
  */
 export function cropLayoutToBox<T>(
   grid: T[][],
@@ -81,7 +81,7 @@ export function cropLayoutToBox<T>(
  * Crops `grid` to the tightest rectangle containing every non-`.` cell,
  * then serializes it into the exact `readonly string[]` shape `parseLevel`
  * expects (one string per row, top row first). The stored grid only ever
- * grows (see `growGrid.ts`) and never auto-shrinks when cells are erased —
+ * grows (see `growGrid.ts`) and never auto-shrinks when cells are erased
  * this cropping is what makes the exported layout always reflect only the
  * tiles actually placed, regardless of how large the in-memory array has
  * become. Returns `['.']` if the grid has no non-`.` cell at all, rather

@@ -1,6 +1,10 @@
 import { useSignals } from '@preact/signals-react/runtime';
 import { cn } from '@/lib/utils';
-import { SECTION_BOOKMARK_COLOR, sectionLabel, type BookmarkColor } from '../entities/JournalSections';
+import {
+  SECTION_BOOKMARK_COLOR,
+  sectionLabel,
+  type BookmarkColor,
+} from '../entities/JournalSections';
 import { SECTION_ICON } from '../entities/JournalEntry';
 import type { SectionId } from '../types';
 
@@ -21,7 +25,7 @@ const BOOKMARK_SPRITE: Record<BookmarkColor, string> = {
 
 /**
  * Colored bookmark tabs hanging from the journal's top edge, on the right
- * side of the book — one per non-empty CV section (per FR-013/FR-016). The
+ * side of the book — one per non-empty CV section (per /). The
  * `bookmark_*.png` sprites are cropped from the top (`bg-bottom` keeps the
  * bottom — the ribbon's pointed tip — visible, cropping the plain
  * attachment part off the top) so shorter/inactive tabs still show the

@@ -35,7 +35,7 @@ describe('placeHazards', () => {
 describe('HazardPlacement falling-stalactite merge fields', () => {
   it('acceptsThePhaseFallOffsetAndShakeOffset', () => {
     // Type-level contract: the per-tick merge fields a falling stalactite
-    // carries must be optional members of HazardPlacement (O-027).
+    // carries must be optional members of HazardPlacement.
     const placement: HazardPlacement = {
       id: 'hazard-fallingStalactite-1-2',
       hazardType: 'fallingStalactite',

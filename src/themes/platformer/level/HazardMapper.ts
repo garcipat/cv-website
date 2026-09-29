@@ -10,28 +10,28 @@ export interface HazardPlacement {
   facing: HazardFacing;
   x: number;
   y: number;
-  /** Grid position of the marker. Added (O-027) so a falling stalactite can
-   *  resolve its decoration variant, detection zone and landing column from
-   *  its own cell. Every kind carries it. */
+  /** Grid position of the marker. Added so a falling stalactite can
+   * resolve its decoration variant, detection zone and landing column from
+   * its own cell. Every kind carries it. */
   col: number;
   row: number;
   /** A floor spike's current cycle phase, merged in per-tick by
-   *  PlatformerPage.tsx from `floorSpikeTimerStates` — `undefined` for
-   *  every other hazard kind and for a floor spike before its first
-   *  per-tick merge. `floorSpike.box()`/`.draw()` treat a missing value the
-   *  same as `'atRest'`. */
+   * PlatformerPage.tsx from `floorSpikeTimerStates` — `undefined` for
+   * every other hazard kind and for a floor spike before its first
+   * per-tick merge. `floorSpike.box()`/`.draw()` treat a missing value the
+   * same as `'atRest'`. */
   floorSpikePhase?: FloorSpikePhase;
   /** A floor spike's continuous 0..1 rise/fall ratio for this tick — the
-   *  render-only counterpart to `floorSpikePhase` (see
-   *  `entities/hazards/FloorSpike.ts`'s `floorSpikeExtensionAt`). `undefined`/missing
-   *  is treated as 0 (nothing risen). */
+   * render-only counterpart to `floorSpikePhase` (see
+   * `entities/hazards/FloorSpike.ts`'s `floorSpikeExtensionAt`). `undefined`/missing
+   * is treated as 0 (nothing risen). */
   floorSpikeExtension?: number;
   /** A falling stalactite's current phase, merged in per-tick by
-   *  `hazardPlacementsForTick()` — `undefined` for every other kind and for
-   *  a falling stalactite before its first merge (treated as `'hanging'`). */
+   * `hazardPlacementsForTick()` — `undefined` for every other kind and for
+   * a falling stalactite before its first merge (treated as `'hanging'`). */
   fallingStalactitePhase?: FallingStalactitePhase;
   /** Downward offset in rendered px from the hanging position (0 while
-   *  hanging/shaking). */
+   * hanging/shaking). */
   fallingStalactiteOffsetY?: number;
   /** Horizontal shake offset in rendered px (only non-zero while shaking). */
   fallingStalactiteShakeOffsetX?: number;

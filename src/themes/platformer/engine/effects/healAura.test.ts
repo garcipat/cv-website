@@ -89,7 +89,10 @@ describe('heal aura expiry boundary', () => {
   });
 
   it('pastTheDuration-isExpired', () => {
-    const effect = tickHealAuraEffect(startHealAuraEffect('h'), HEAL_AURA_DURATION_SECONDS + 0.0001);
+    const effect = tickHealAuraEffect(
+      startHealAuraEffect('h'),
+      HEAL_AURA_DURATION_SECONDS + 0.0001,
+    );
     expect(effect.expired(effect)).toBe(true);
   });
 });

@@ -331,7 +331,7 @@ describe('isSolid/isClimbable torch exception', () => {
   it('torch-isNotSolidAndNotClimbable', () => {
     // Decorative tiles are non-solid structurally: 'torch' appears in no
     // predicate at all, which is exactly what makes it walk-through
-    // (FR-008 / research R8). This guards against it ever being added to
+    //. This guards against it ever being added to
     // one by mistake.
     expect(isSolid('torch')).toBe(false);
     expect(isSolidExcludingBridge('torch')).toBe(false);

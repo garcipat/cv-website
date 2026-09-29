@@ -72,7 +72,11 @@ describe('isStandableCell — crumbling floor state', () => {
 
   it('reformingCrumblingFloor-isNotStandable', () => {
     const states: CrumblingFloorTimerState[] = [
-      { col: 0, row: 0, elapsed: CRUMBLING_FLOOR_CRACK_SECONDS + CRUMBLING_FLOOR_BROKEN_SECONDS + 0.1 },
+      {
+        col: 0,
+        row: 0,
+        elapsed: CRUMBLING_FLOOR_CRACK_SECONDS + CRUMBLING_FLOOR_BROKEN_SECONDS + 0.1,
+      },
     ];
     expect(isStandableCell(CRUMBLING, NO_BLOCKS, states, 0, 0)).toBe(false);
   });
@@ -81,7 +85,9 @@ describe('isStandableCell — crumbling floor state', () => {
     const states: CrumblingFloorTimerState[] = [
       { col: 0, row: 0, elapsed: CRUMBLING_FLOOR_CRACK_SECONDS + 0.1 },
     ];
-    expect(isStandableCell(CRUMBLING, NO_BLOCKS, states, 0, 0, { excludeBridge: true })).toBe(false);
+    expect(isStandableCell(CRUMBLING, NO_BLOCKS, states, 0, 0, { excludeBridge: true })).toBe(
+      false,
+    );
   });
 });
 
@@ -135,8 +141,11 @@ describe('isStandableCell — blocks', () => {
 });
 
 describe('findLandingRow', () => {
-  const isSolidPredicate = (level: Parameters<typeof findLandingRow>[0], col: number, row: number) =>
-    isSolid(tileAt(level, col, row));
+  const isSolidPredicate = (
+    level: Parameters<typeof findLandingRow>[0],
+    col: number,
+    row: number,
+  ) => isSolid(tileAt(level, col, row));
 
   it('firstSolidRowBelowFromRow-isReturned', () => {
     // Four rows: solid ground starts at row 2.

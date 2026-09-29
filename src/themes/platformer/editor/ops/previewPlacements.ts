@@ -47,7 +47,7 @@ import { gridToLayout, previewLevelDef } from './gridLayout';
 
 /**
  * The editor preview, produced by the **runtime** finder + mapper chain
- * (FR-001, D1). Every collection below is built by calling the same
+ *. Every collection below is built by calling the same
  * `LevelParser` finders and `*Mapper` place functions the running game uses,
  * fed from the one `gridToLayout` adapter — there is no editor-local finder or
  * placement loop.
@@ -112,7 +112,7 @@ export function padChestDefs(
 /**
  * The static player placeholder at the grid's `S` marker, or `null` if none
  * exists yet. This is the one sanctioned editor-only preview helper
- * (contract §2/D2): it mirrors the state layer's `spawnPlayerState` but must
+ * (contract §2/): it mirrors the state layer's `spawnPlayerState` but must
  * not import it (`state/ → editor/` is the wrong direction), and it gets its
  * spawn from the shared `findOptionalSpawnTile` rather than a local `S` scan.
  * The player's 64px render slot is horizontally centered over the 32px spawn
@@ -162,7 +162,7 @@ export function previewPlayerState(layout: readonly string[]): PlayerState | nul
  * — the runtime's `.map((p, index) => toEnemyState(p, index))` staggers the
  * starting animation frame per enemy, which the editor preview deliberately
  * does NOT do. `.map(toEnemyState)` would forward the map index and stagger
- * the preview, a visible change FR-015/SC-007 forbid.
+ * the preview, a visible change / forbid.
  */
 export function previewPlacements(
   grid: TileChar[][],
@@ -190,10 +190,9 @@ export function previewPlacements(
       potionPot: findPotionPotTiles(layout),
       bombPot: findBombPotTiles(layout),
     }).map(toBlockState),
-    chests: placeChests(
-      padChestDefs(mapCVDataToChests(cv), chestMarkers),
-      chestMarkers,
-    ).map(toChestState),
+    chests: placeChests(padChestDefs(mapCVDataToChests(cv), chestMarkers), chestMarkers).map(
+      toChestState,
+    ),
     checkpoints: placeCheckpoints(findCheckpointTiles(layout)).map(toCheckpointState),
     signs: placeSigns(findSignTiles(layout, markers)),
     hazards: placeHazards(findHazardTiles(layout, markers)),

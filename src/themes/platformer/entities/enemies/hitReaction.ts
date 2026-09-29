@@ -2,7 +2,7 @@ import { typeOf, type EnemyState } from './index';
 
 /**
  * Advances an enemy currently playing its stomp `hit` reaction. No-op
- * (returns the same reference) for an enemy not in its `'hit'` state —
+ * (returns the same reference) for an enemy not in its `'hit'` state
  * movement is the kind's own strategy's job, not this function's; the game
  * loop (PlatformerPage.tsx) picks whichever applies per enemy per tick. Once
  * this type's own `hitReactionSeconds` has elapsed since the stomp (`takeHit`

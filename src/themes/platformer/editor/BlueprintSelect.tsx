@@ -6,7 +6,7 @@ export interface BlueprintSelectProps {
   /** Name of the blueprint currently open — shown on the dropdown's trigger. */
   loadedBlueprintName: string;
   /** Whether the blueprint canvas has unsaved edits, i.e. whether loading has
-   *  to ask first. */
+   * to ask first. */
   isDirty: boolean;
   onLoadBlueprint: (blueprint: Blueprint) => void;
 }
@@ -14,7 +14,7 @@ export interface BlueprintSelectProps {
 /**
  * The editor's blueprint dropdown — a thin adapter over the shared
  * `EditorEntrySelect` supplying the blank entry plus the saved blueprint
- * registry and blueprint wording (FR-021).
+ * registry and blueprint wording.
  *
  * The registry is a build-time glob of `level/blueprints/*.json`, so a
  * blueprint saved moments ago appears once Vite has picked the new file up,

@@ -1,4 +1,4 @@
-﻿import { clamp01 } from '../shared/math';
+import { clamp01 } from '../shared/math';
 import {
   advanceTimedTiles,
   armTimedTile,
@@ -20,8 +20,8 @@ import type { TileDrawContext, TileModule, TileStateDescriptor } from './TileMod
 /**
  * `bouncyMushroom` — the red bouncy mushroom (`§`). Non-solid, non-climbable,
  * fogged; drawn in the terrain band. Owns the squash timer + cap-role art
- * relocated from `entities/blocks/Mushroom.ts` (US4/T038) and its cap
- * `standableAt` (US2/T015).
+ * relocated from `entities/blocks/Mushroom.ts` and its cap
+ * `standableAt`.
  *
  * ## The squash timer
  *
@@ -44,7 +44,11 @@ export interface MushroomSquashState {
   elapsed: number; // seconds since the bounce
 }
 
-/** How long the cap takes to return (FR-010). */
+/** Upward impulse (px/s) on a downward landing on a cap: a super-jump, stronger
+ * than the player's own jump so bouncing is a genuine traversal gain. */
+export const MUSHROOM_BOUNCE_VY = -650;
+
+/** How long the cap takes to return. */
 export const MUSHROOM_SQUASH_DURATION_SECONDS = 0.1;
 
 /** Maximum downward offset of the cap, in rendered px. */
@@ -111,9 +115,9 @@ export interface MushroomSprite {
 }
 
 /** The cap rows of an `only`/`top` mushroom cell (from `mushroom.png`'s 16px
- *  grid); rows 11-15 are the stem/connector. Only the cap sub-rect moves during
- *  the squash dip, so the split height lives here as the single source of truth
- *  the draw reads. */
+ * grid); rows 11-15 are the stem/connector. Only the cap sub-rect moves during
+ * the squash dip, so the split height lives here as the single source of truth
+ * the draw reads. */
 export const MUSHROOM_CAP_SOURCE_HEIGHT = 11;
 
 /**
@@ -135,7 +139,7 @@ export function mushroomEntry(role: VerticalRunRole): MushroomSprite {
 }
 
 /** Whether a run role carries a cap (`only`/`top`) and therefore needs the
- *  cap/stem split the squash dip animates. */
+ * cap/stem split the squash dip animates. */
 export function mushroomHasCap(role: VerticalRunRole): boolean {
   return role === 'only' || role === 'top';
 }
@@ -143,7 +147,7 @@ export function mushroomHasCap(role: VerticalRunRole): boolean {
 /**
  * Whether this cell is the standable, one-way ground cap of a `bouncyMushroom`
  * vertical run — true only for the run's topmost cell, and only when the cell
- * directly above it is not solid (FR-005/FR-006). The mushroom is never `solid`
+ * directly above it is not solid. The mushroom is never `solid`
  * (so it blocks nothing horizontally and nothing from below) and never
  * `climbable`; this is consulted as a one-way ground term. A cap with a solid
  * tile directly above has no room to land, so it is not standable — and
@@ -153,7 +157,9 @@ export function mushroomHasCap(role: VerticalRunRole): boolean {
 function standableAt(level: LevelDef, col: number, row: number): boolean {
   const above = tileAt(level, col, row - 1);
   return (
-    tileAt(level, col, row) === 'bouncyMushroom' && above !== 'bouncyMushroom' && !isSolidTile(above)
+    tileAt(level, col, row) === 'bouncyMushroom' &&
+    above !== 'bouncyMushroom' &&
+    !isSolidTile(above)
   );
 }
 
@@ -175,24 +181,45 @@ function draw(rc: TileDrawContext): void {
     const capH = MUSHROOM_CAP_SOURCE_HEIGHT;
     // Stem/connector first, unshifted, so only the cap moves.
     ctx.drawImage(
-      mushroom, entry.sx, entry.sy + capH, TILE_SIZE, TILE_SIZE - capH,
-      destX, destY + capH * RENDER_SCALE, RENDERED_TILE_SIZE, (TILE_SIZE - capH) * RENDER_SCALE,
+      mushroom,
+      entry.sx,
+      entry.sy + capH,
+      TILE_SIZE,
+      TILE_SIZE - capH,
+      destX,
+      destY + capH * RENDER_SCALE,
+      RENDERED_TILE_SIZE,
+      (TILE_SIZE - capH) * RENDER_SCALE,
     );
     // Cap, dipped.
     ctx.drawImage(
-      mushroom, entry.sx, entry.sy, TILE_SIZE, capH,
-      destX, destY + dip, RENDERED_TILE_SIZE, capH * RENDER_SCALE,
+      mushroom,
+      entry.sx,
+      entry.sy,
+      TILE_SIZE,
+      capH,
+      destX,
+      destY + dip,
+      RENDERED_TILE_SIZE,
+      capH * RENDER_SCALE,
     );
   } else {
     ctx.drawImage(
-      mushroom, entry.sx, entry.sy, TILE_SIZE, TILE_SIZE,
-      destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+      mushroom,
+      entry.sx,
+      entry.sy,
+      TILE_SIZE,
+      TILE_SIZE,
+      destX,
+      destY,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
     );
   }
 }
 
 /**
- * The bouncy mushroom's declared transient state (R-004 owns the lifecycle):
+ * The bouncy mushroom's declared transient state ( owns the lifecycle):
  * key shape, duration, prune/re-arm policy and the dip offset mapping. The
  * module never implements its own arm/advance/prune loop — `shared/timedTile.ts`
  * does, driven from `PlatformerState.ts`'s single signal/tick/reset.

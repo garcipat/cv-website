@@ -52,9 +52,9 @@ export interface CrouchContext {
 
 /**
  * Whether the player's full STANDING box (38 px) fits in clear space — the
- * single gate on standing up (FR-005/FR-006). Deliberately always measures the
+ * single gate on standing up. Deliberately always measures the
  * standing box, crouched or not: a one-tile gap is not enough because the
- * standing box spans more than one tile row (research D5).
+ * standing box spans more than one tile row.
  *
  * Spans every column the hitbox covers and every row between the standing box's
  * top and the (unchanged) feet line, and returns `false` if any cell there is a
@@ -91,22 +91,21 @@ export function canStandUp(
 
 /**
  * Resolves this tick's `crouching` value from the context — the pure rule that
- * composes FR-001 (Down enters a crouch), FR-005/FR-006 (a stuck crouch is kept
- * until headroom returns) and FR-011 (a hit reaction freezes the crouch).
+ * composes (Down enters a crouch), / (a stuck crouch is kept
+ * until headroom returns) and (a hit reaction freezes the crouch).
  *
  * - While a hit reaction is open the previous value is returned unchanged, so
- *   the one-tile box is kept for the whole window (FR-011).
+ * the one-tile box is kept for the whole window.
  * - A voluntary crouch is requested by held Down while grounded (or already
- *   crouched, so a held Down carries through a fall) and not consumed by a
- *   higher-priority Down context (FR-009).
+ * crouched, so a held Down carries through a fall) and not consumed by a
+ * higher-priority Down context.
  * - `!canStand` only *keeps* an existing crouch; it never starts one (a crouch
- *   is always entered via Down, FR-001).
+ * is always entered via Down).
  *
  * Pure; returns a boolean; never throws; no side effects.
  */
 export function resolveCrouching(ctx: CrouchContext): boolean {
   if (ctx.inHitReaction) return ctx.currentlyCrouching;
-  const requested =
-    ctx.downHeld && (ctx.grounded || ctx.currentlyCrouching) && !ctx.downClaimed;
+  const requested = ctx.downHeld && (ctx.grounded || ctx.currentlyCrouching) && !ctx.downClaimed;
   return requested || (!ctx.canStand && ctx.currentlyCrouching);
 }

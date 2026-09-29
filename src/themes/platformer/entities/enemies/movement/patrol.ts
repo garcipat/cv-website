@@ -1,5 +1,10 @@
 import { PHYSICS_CONFIG } from '../../../contracts/PhysicsConfig';
-import { tileSolidRegionAt, markerAt, RENDER_SCALE, RENDERED_TILE_SIZE } from '../../../level/Terrain';
+import {
+  tileSolidRegionAt,
+  markerAt,
+  RENDER_SCALE,
+  RENDERED_TILE_SIZE,
+} from '../../../level/Terrain';
 import type { LevelDef } from '../../../level/LevelData';
 import type { Direction } from '../../../contracts/geometry';
 import type { SpriteDescriptor } from '../../sprites/SpriteSheet';
@@ -17,28 +22,28 @@ export interface HitboxPaddingNative {
 }
 
 /** Everything the shared horizontal helper needs — the same wall/`patrol`-tile
- *  reversal, edge snapping and narrow-lane stand-still `patrol` and `fly`
- *  both use, parameterized on whether the ledge test runs and which world Y
- *  the row test anchors to. */
+ * reversal, edge snapping and narrow-lane stand-still `patrol` and `fly`
+ * both use, parameterized on whether the ledge test runs and which world Y
+ * the row test anchors to. */
 export interface StepHorizontalParams {
   x: number;
   direction: Direction;
   speed: number;
   /** Whether "no solid ground ahead" turns the enemy around. Patrol: true;
-   *  fly: false (FR-005 — the bee crosses gaps). */
+   * fly: false ( the bee crosses gaps). */
   checkLedges: boolean;
   sprite: SpriteDescriptor;
   hitboxPaddingNative: HitboxPaddingNative;
   /** World Y whose tile row the horizontal blocking test anchors on. Patrol
-   *  passes `enemy.y`, fly passes `enemy.homeY` so the bob never changes
-   *  which tiles block it (research D9). */
+   * passes `enemy.y`, fly passes `enemy.homeY` so the bob never changes
+   * which tiles block it. */
   anchorY: number;
   level: LevelDef;
   blockedTiles: readonly { col: number; row: number }[];
   dt: number;
-  /** See `MovementContext`'s own doc comment (O-023) — threaded through so
-   *  an at-rest/cracking crumbling floor tile counts as solid ground here
-   *  exactly like ordinary terrain. */
+  /** See `MovementContext`'s own doc comment — threaded through so
+   * an at-rest/cracking crumbling floor tile counts as solid ground here
+   * exactly like ordinary terrain. */
   crumblingFloorStates?: readonly CrumblingFloorTimerState[];
 }
 
@@ -51,7 +56,7 @@ export interface StepHorizontalResult {
 /**
  * The horizontal half of a patrol/fly step, shared verbatim by both so a
  * slime's turn points stay bit-for-bit what they were before the seam
- * (SC-001). Moves at `speed` in `direction`; reverses (snapping so the
+ *. Moves at `speed` in `direction`; reverses (snapping so the
  * sprite's VISIBLE leading edge exactly touches the obstacle) at a static
  * solid tile, a `patrolBoundary` marker or a live `blockedTiles` cell at any row the
  * silhouette spans from the anchor row; and, when `checkLedges` is true,
@@ -61,7 +66,7 @@ export interface StepHorizontalResult {
  *
  * Geometry (rendered size, tile offsets, insets) is computed here from the
  * passed `sprite` + padding — never imported from Enemy.ts, which depends on
- * this directory through ENEMY_TYPES (research D1).
+ * this directory through ENEMY_TYPES.
  */
 export function stepHorizontal(params: StepHorizontalParams): StepHorizontalResult {
   const {
@@ -89,7 +94,7 @@ export function stepHorizontal(params: StepHorizontalParams): StepHorizontalResu
   const isBlockedTile = (col: number, tileRow: number) =>
     blockedTiles.some((tile) => tile.col === col && tile.row === tileRow);
 
-  // A crumbling floor tile (O-023) counts as solid ground here exactly
+  // A crumbling floor tile counts as solid ground here exactly
   // like ordinary terrain, as long as it isn't currently broken/reforming
   // — otherwise an enemy would treat an intact crumbling floor tile as a
   // wall/ledge edge and reverse in front of it as if it were a pit, even
@@ -100,10 +105,10 @@ export function stepHorizontal(params: StepHorizontalParams): StepHorizontalResu
     tileSolidRegionAt(level, col, tileRow, { transient }) !== null;
 
   /** Tries moving one step in `direction` from `fromX`. `blocked` is whether
-   *  the leading edge would enter a wall or run out of ground; `nextX` is
-   *  where the tile-anchor lands if unblocked; `snapX` is where the
-   *  tile-anchor must land, if blocked, for the sprite's actual leading edge
-   *  to touch the obstacle exactly. */
+   * the leading edge would enter a wall or run out of ground; `nextX` is
+   * where the tile-anchor lands if unblocked; `snapX` is where the
+   * tile-anchor must land, if blocked, for the sprite's actual leading edge
+   * to touch the obstacle exactly. */
   const attempt = (fromX: number, dir: Direction) => {
     const movingRight = dir === 'right';
     const nextX = fromX + (movingRight ? speed : -speed) * dt;
@@ -118,7 +123,7 @@ export function stepHorizontal(params: StepHorizontalParams): StepHorizontalResu
     const rowsSpanned = Math.ceil(visibleHeight / RENDERED_TILE_SIZE);
     // A patrol boundary is invisible and never solid (the player walks right
     // through it), so it has to be read from the tile meta layer rather than
-    // through `isSolid` — it is a boundary for enemies only (FR-021).
+    // through `isSolid` — it is a boundary for enemies only.
     const wallAhead = Array.from({ length: rowsSpanned }, (_, i) => row - i).some(
       (r) =>
         tileIsGroundFor(leadingCol, r) ||
@@ -126,9 +131,7 @@ export function stepHorizontal(params: StepHorizontalParams): StepHorizontalResu
         isBlockedTile(leadingCol, r),
     );
     const noGroundAhead =
-      checkLedges &&
-      !tileIsGroundFor(leadingCol, row + 1) &&
-      !isBlockedTile(leadingCol, row + 1);
+      checkLedges && !tileIsGroundFor(leadingCol, row + 1) && !isBlockedTile(leadingCol, row + 1);
 
     const snapX = movingRight
       ? leadingCol * RENDERED_TILE_SIZE - offsetX - size + sidePadding
@@ -157,7 +160,7 @@ export function stepHorizontal(params: StepHorizontalParams): StepHorizontalResu
 
 export interface PatrolMovementConfig {
   /** Multiplier on PHYSICS_CONFIG.enemyPatrolSpeed (60 px/s). Green 1,
-   *  purple 0.7. */
+   * purple 0.7. */
   speedMultiplier: number;
   /** The kind's own descriptor — size/offsets derive from it. */
   sprite: SpriteDescriptor;
@@ -169,7 +172,7 @@ export interface PatrolMovementConfig {
 /**
  * The existing ground behavior, extracted from the pre-seam
  * `stepEnemyPatrol` — a move, not a rewrite, which is what lets the slimes'
- * results be asserted bit-for-bit (SC-001).
+ * results be asserted bit-for-bit.
  */
 export function patrolMovement<S extends BaseEnemyState>(
   config: PatrolMovementConfig,

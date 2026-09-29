@@ -57,7 +57,11 @@ describe('BlueprintSelect', () => {
     const saved = registerBlueprint(TEST_ROOM);
     const onLoadBlueprint = vi.fn();
     render(
-      <BlueprintSelect loadedBlueprintName="new" isDirty={false} onLoadBlueprint={onLoadBlueprint} />,
+      <BlueprintSelect
+        loadedBlueprintName="new"
+        isDirty={false}
+        onLoadBlueprint={onLoadBlueprint}
+      />,
     );
     openDropdown();
     await userEvent.click(levelEditorPage.entrySelect.option('test-room'));
@@ -69,7 +73,11 @@ describe('BlueprintSelect', () => {
   it('notDirty-selectingTheBlankEntry-loadsTheBlankBlueprint', async () => {
     const onLoadBlueprint = vi.fn();
     render(
-      <BlueprintSelect loadedBlueprintName="Test Room" isDirty={false} onLoadBlueprint={onLoadBlueprint} />,
+      <BlueprintSelect
+        loadedBlueprintName="Test Room"
+        isDirty={false}
+        onLoadBlueprint={onLoadBlueprint}
+      />,
     );
     openDropdown();
     await userEvent.click(levelEditorPage.entrySelect.option('new'));
@@ -80,9 +88,7 @@ describe('BlueprintSelect', () => {
   it('dirty-selectingAnotherBlueprint-doesNotLoadItYet', async () => {
     registerBlueprint(TEST_ROOM);
     const onLoadBlueprint = vi.fn();
-    render(
-      <BlueprintSelect loadedBlueprintName="new" isDirty onLoadBlueprint={onLoadBlueprint} />,
-    );
+    render(<BlueprintSelect loadedBlueprintName="new" isDirty onLoadBlueprint={onLoadBlueprint} />);
     openDropdown();
     await userEvent.click(levelEditorPage.entrySelect.option('test-room'));
 
@@ -93,9 +99,7 @@ describe('BlueprintSelect', () => {
   it('dirty-confirmingTheDialog-loadsTheSelectedBlueprint', async () => {
     const saved = registerBlueprint(TEST_ROOM);
     const onLoadBlueprint = vi.fn();
-    render(
-      <BlueprintSelect loadedBlueprintName="new" isDirty onLoadBlueprint={onLoadBlueprint} />,
-    );
+    render(<BlueprintSelect loadedBlueprintName="new" isDirty onLoadBlueprint={onLoadBlueprint} />);
     openDropdown();
     await userEvent.click(levelEditorPage.entrySelect.option('test-room'));
     await userEvent.click(levelEditorPage.entrySelect.discardConfirm);
@@ -106,9 +110,7 @@ describe('BlueprintSelect', () => {
   it('dirty-cancellingTheDialog-loadsNothing', async () => {
     registerBlueprint(TEST_ROOM);
     const onLoadBlueprint = vi.fn();
-    render(
-      <BlueprintSelect loadedBlueprintName="new" isDirty onLoadBlueprint={onLoadBlueprint} />,
-    );
+    render(<BlueprintSelect loadedBlueprintName="new" isDirty onLoadBlueprint={onLoadBlueprint} />);
     openDropdown();
     await userEvent.click(levelEditorPage.entrySelect.option('test-room'));
     await userEvent.click(levelEditorPage.entrySelect.discardCancel);

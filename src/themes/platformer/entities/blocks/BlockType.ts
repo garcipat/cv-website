@@ -7,9 +7,9 @@ import type { PlayerEffects, RewardEffects } from '../../contracts/Outcome';
 import type { PotKind, PotRenderPlan } from './potTypes';
 
 /** What a registering hit on a block MEANS — the block equivalent of
- *  `CollisionOutcome`. Carries no `self`: block hit counting stays generic
- *  (`maxHits` + `applyBlockHit`), so no kind needs to return replacement
- *  state. */
+ * `CollisionOutcome`. Carries no `self`: block hit counting stays generic
+ * (`maxHits` + `applyBlockHit`), so no kind needs to return replacement
+ * state. */
 export type BlockHitOutcome = PlayerEffects & RewardEffects;
 
 /**
@@ -54,7 +54,7 @@ export interface BlockType extends WorldType<BlockState> {
    */
   hitboxInsetX?: number;
   /** Which frame of `sprite.sheet` to draw for the given hit count — a kind
-   *  whose appearance does not change ignores the argument. */
+   * whose appearance does not change ignores the argument. */
   frameIndex(hitsTaken: number): number;
   draw(block: BlockState, dc: DrawContext<PotRenderPlan>): void;
   /**

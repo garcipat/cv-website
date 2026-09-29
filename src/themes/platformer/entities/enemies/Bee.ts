@@ -2,7 +2,6 @@ import type { EnemyType, BaseEnemyState } from './EnemyType';
 import {
   baseEnemyState,
   baseRevive,
-  takeHit,
   ENEMY_HIT_REACTION_SECONDS,
   type EnemyBaseConfig,
 } from './shared';
@@ -13,15 +12,15 @@ import { drawSpriteSheetEntity } from './drawSpriteSheetEntity';
 import { spriteSheetHitbox } from './spriteSheetHitbox';
 import { flyMovement } from './movement/fly';
 import { RENDER_SCALE } from '../../level/Terrain';
-import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
+import { DEFAULT_HIT_KNOCKBACK, DEFAULT_STOMP_BOUNCE_VY } from '../../shared/knockback';
 
 export interface BeeState extends BaseEnemyState {
   type: 'bee';
 }
 
 /** Row 5 of the 8x7 bee sheet — the neutral flight loop. No `hit` row is
- *  authored: FR-009's resting-state fallback reuses `fly` during the
- *  reaction. */
+ * authored: 's resting-state fallback reuses `fly` during the
+ * reaction. */
 export const BEE_ANIMATIONS: SpriteDescriptor['animations'] = {
   fly: { frames: [32, 33, 34, 35, 36, 37, 38, 39], frameDuration: 0.12 },
 };
@@ -33,14 +32,14 @@ export const BEE_SPRITE: SpriteDescriptor = {
 };
 
 /** Measured from the fly frames (row 5). The full art spans x=3..21 (wings
- *  extended, ~18 px wide) but the **body** is taller than wide — x=7..17
- *  (~10 px) by y=7..18 (~12 px) once the bluish wings are excluded. The insets
- *  hug that body and let the wing tips overhang: `side: 7` trims the wing span
- *  in to the 10 px body, `top: 7`/`bottom: 5` match the art's top/bottom. `side`
- *  is a single symmetric value, so the larger measured side is used (the
- *  left/right asymmetry is not representable, by design). The `bottom` inset
- *  pulls the collision box up to the visible bee and anchors the draw on the
- *  placement row (FR-019/SC-009). */
+ * extended, ~18 px wide) but the **body** is taller than wide — x=7..17
+ * (~10 px) by y=7..18 (~12 px) once the bluish wings are excluded. The insets
+ * hug that body and let the wing tips overhang: `side: 7` trims the wing span
+ * in to the 10 px body, `top: 7`/`bottom: 5` match the art's top/bottom. `side`
+ * is a single symmetric value, so the larger measured side is used (the
+ * left/right asymmetry is not representable, by design). The `bottom` inset
+ * pulls the collision box up to the visible bee and anchors the draw on the
+ * placement row. */
 const HITBOX_PADDING_NATIVE = { side: 7, top: 7, bottom: 5 };
 
 const BEE_HITBOX_BOTTOM_PADDING =
@@ -56,7 +55,7 @@ const BEE_BASE_CONFIG: EnemyBaseConfig = {
 /**
  * The seam's first real consumer and end-to-end validation: a flying enemy
  * that uses `fly`, is stompable like a green slime, drops nothing and counts
- * toward nothing (FR-010/FR-011/FR-012/FR-013).
+ * toward nothing.
  */
 export const bee: EnemyType<BeeState> = {
   key: 'bee',
@@ -96,8 +95,20 @@ export const bee: EnemyType<BeeState> = {
   onPlayerCollide: (enemy, _player, contact) => {
     if (isInvulnerable(enemy, bee.hitReactionSeconds) || enemy.hitPoints <= 0) return {};
     if (contact.side === 'top') {
-      return { self: takeHit(enemy), bounceVelocity: PHYSICS_CONFIG.stompBounceVelocity };
+      return {
+        selfEffects: [{ type: 'damage', amount: 1 }, { type: 'reaction' }],
+        effects: [{ type: 'velocity', y: DEFAULT_STOMP_BOUNCE_VY, preserveJump: true }],
+      };
     }
-    return { damagePlayer: 1, knockback: 'away' };
+    return {
+      effects: [
+        { type: 'damage', amount: 1 },
+        {
+          type: 'velocity',
+          x: contact.awayDirection * DEFAULT_HIT_KNOCKBACK.vx,
+          duration: DEFAULT_HIT_KNOCKBACK.duration,
+        },
+      ],
+    };
   },
 };

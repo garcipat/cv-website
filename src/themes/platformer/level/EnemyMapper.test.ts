@@ -7,9 +7,24 @@ const cv: CVData = {
   experience: [],
   skills: [],
   courses: [
-    { title: 'Advanced React Patterns', provider: 'Frontend Masters', date: '2024-06', category: 'Web Development' },
-    { title: 'Kubernetes Deep Dive', provider: 'Linux Foundation', date: '2023-02', category: 'Infrastructure' },
-    { title: 'System Design Fundamentals', provider: 'Educative', date: '2022-11', category: 'Architecture' },
+    {
+      title: 'Advanced React Patterns',
+      provider: 'Frontend Masters',
+      date: '2024-06',
+      category: 'Web Development',
+    },
+    {
+      title: 'Kubernetes Deep Dive',
+      provider: 'Linux Foundation',
+      date: '2023-02',
+      category: 'Infrastructure',
+    },
+    {
+      title: 'System Design Fundamentals',
+      provider: 'Educative',
+      date: '2022-11',
+      category: 'Architecture',
+    },
   ],
   education: [],
   certificates: [],
@@ -74,9 +89,9 @@ describe('mapCVDataToEnemies (green-only Courses)', () => {
 });
 
 /** Every fact a placement owns, in the same order `placeEnemies` assigns
- *  them: its own `fact` (if any) followed by any `extraFacts` — the flat
- *  form used to check the whole pool was distributed, without caring which
- *  specific placement ended up with which slice. */
+ * them: its own `fact` (if any) followed by any `extraFacts` — the flat
+ * form used to check the whole pool was distributed, without caring which
+ * specific placement ended up with which slice. */
 function factsOf(placement: { fact?: unknown; extraFacts?: unknown[] }): unknown[] {
   return [...(placement.fact ? [placement.fact] : []), ...(placement.extraFacts ?? [])];
 }
@@ -106,7 +121,11 @@ describe('placeEnemies', () => {
     // The example this feature was designed around: with only one enemy on
     // the map, defeating it must reveal every course.
     const defs = mapCVDataToEnemies(cv); // 3 courses
-    const placed = placeEnemies(defs, { slimeGreen: [{ col: 1, row: 0 }], slimePurple: [], bee: [] });
+    const placed = placeEnemies(defs, {
+      slimeGreen: [{ col: 1, row: 0 }],
+      slimePurple: [],
+      bee: [],
+    });
 
     expect(placed).toHaveLength(1);
     expect(factsOf(placed[0])).toEqual(defs.map((d) => d.fact));
@@ -131,7 +150,10 @@ describe('placeEnemies', () => {
 
   it('fewerGreenMarkersThanCourses-someMarkersOwnMoreThanOneCourse', () => {
     const defs = mapCVDataToEnemies(cv); // 3 courses
-    const greenMarkers = [{ col: 1, row: 0 }, { col: 2, row: 0 }]; // 2 markers, 3 courses
+    const greenMarkers = [
+      { col: 1, row: 0 },
+      { col: 2, row: 0 },
+    ]; // 2 markers, 3 courses
     const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: [], bee: [] });
 
     expect(placed.some((p) => (p.extraFacts?.length ?? 0) > 0)).toBe(true);
@@ -158,7 +180,11 @@ describe('placeEnemies', () => {
     // every green/purple marker alike (no more CVData-id vs "plain"-id
     // distinction).
     const defs = mapCVDataToEnemies(cv);
-    const placed = placeEnemies(defs, { slimeGreen: [{ col: 7, row: 4 }], slimePurple: [{ col: 2, row: 0 }], bee: [] });
+    const placed = placeEnemies(defs, {
+      slimeGreen: [{ col: 7, row: 4 }],
+      slimePurple: [{ col: 2, row: 0 }],
+      bee: [],
+    });
 
     expect(placed.find((p) => p.type === 'slimeGreen')?.id).toBe('enemy-slimeGreen-7-4');
     expect(placed.find((p) => p.type === 'slimePurple')?.id).toBe('enemy-slimePurple-2-0');
@@ -171,7 +197,11 @@ describe('placeEnemies', () => {
       { col: 6, row: 2 },
     ];
     const purpleMarkers = [{ col: 8, row: 2 }];
-    const placed = placeEnemies(defs, { slimeGreen: greenMarkers, slimePurple: purpleMarkers, bee: [] });
+    const placed = placeEnemies(defs, {
+      slimeGreen: greenMarkers,
+      slimePurple: purpleMarkers,
+      bee: [],
+    });
 
     const green = placed.filter((p) => p.type === 'slimeGreen');
     const purple = placed.filter((p) => p.type === 'slimePurple');

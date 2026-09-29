@@ -1,4 +1,4 @@
-﻿import { RENDERED_TILE_SIZE, TILE_SIZE, tileAt } from '../level/Terrain';
+import { RENDERED_TILE_SIZE, TILE_SIZE, tileAt } from '../level/Terrain';
 import { isClimbableTile, isSolidTile } from './registry';
 import type { LevelDef } from '../level/LevelData';
 import type { TileDrawContext, TileModule } from './TileModule';
@@ -9,7 +9,7 @@ import type { TileDrawContext, TileModule } from './TileModule';
  */
 
 /**
- * Whether this cell is a ladder shaft's topmost tile with open space above it —
+ * Whether this cell is a ladder shaft's topmost tile with open space above it
  * the one ladder tile the character can actually stand ON. A shaft's top rung
  * is solid from above only: you climb out of the shaft onto it, land on it when
  * falling from above, and can step off it sideways or press Down to climb back
@@ -28,8 +28,15 @@ function standableAt(level: LevelDef, col: number, row: number): boolean {
 function draw(rc: TileDrawContext): void {
   const { ctx, destX, destY, images } = rc;
   ctx.drawImage(
-    images.tileset, 9 * TILE_SIZE, 3 * TILE_SIZE, TILE_SIZE, TILE_SIZE,
-    destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+    images.tileset,
+    9 * TILE_SIZE,
+    3 * TILE_SIZE,
+    TILE_SIZE,
+    TILE_SIZE,
+    destX,
+    destY,
+    RENDERED_TILE_SIZE,
+    RENDERED_TILE_SIZE,
   );
 }
 

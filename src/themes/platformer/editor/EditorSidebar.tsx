@@ -12,9 +12,9 @@ export interface EditorSidebarProps {
 }
 
 /**
- * The editor sidebar: the tiles-only Palette (FR-007). Every command and toggle
+ * The editor sidebar: the tiles-only Palette. Every command and toggle
  * lives in `EditorToolbar`; the Palette keeps its collapsible catalog-derived
- * groups and its layer/canvas-driven contents untouched (FR-008/FR-009).
+ * groups and its layer/canvas-driven contents untouched.
  */
 export const EditorSidebar = ({
   activeLayer,

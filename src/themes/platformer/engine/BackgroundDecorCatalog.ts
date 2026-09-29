@@ -1,8 +1,7 @@
 /**
- * Rock accents scattered across fully-interior background cells (FR-008),
- * scoped to background decor only — a new, small catalog rather than an
- * extension of `StaticObjectsCatalog.ts` (see design.md's "Why rocks are a
- * new small catalog instead of extending `StaticObjectsCatalog`").
+ * Rock accents scattered across fully-interior background cells, scoped to
+ * background decor only — a new, small catalog rather than an extension of
+ * `StaticObjectsCatalog.ts`.
  */
 
 import { pickVariant } from '../shared/variants';
@@ -27,8 +26,8 @@ const ROCK_VARIANTS: BackgroundDecorEntry[] = [{ sx: 51, sy: 17 }];
 
 /**
  * The rock sprite for a fully-interior background cell at `(col, row)`.
- * Deterministic from grid position alone (FR-008's Acceptance Scenario 2) —
- * the same level always renders the same rocks in the same places. The
+ * Deterministic from grid position alone, so the same level always renders the
+ * same rocks in the same places. The
  * caller (`SceneRenderer.ts`'s `drawBackgroundTiles`) only calls this for a cell
  * whose `backgroundNeighbourMask` is 15 (fully interior/middle) — the one
  * shape guaranteed to carry no border art a rock could overlap.

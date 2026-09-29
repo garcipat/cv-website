@@ -56,7 +56,7 @@ describe('ENEMY_TYPES', () => {
   });
 
   it('everyEntry-declaresAMovementAndARestingStateInItsOwnTable', () => {
-    // The seam's registry contract (FR-017/SC-006): every kind owns a
+    // The seam's registry contract: every kind owns a
     // callable movement step and a resting animation state that exists in its
     // own table. The per-kind frames themselves differ (the slimes keep
     // walk/hit; the bee flies), so this only asserts presence.

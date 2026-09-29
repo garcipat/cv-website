@@ -53,7 +53,7 @@ describe('cropLevelForExport', () => {
     expect(result.background).toEqual(['.']);
   });
 
-  it('a background cell missing from a shorter/smaller grid resolves to \'.\' rather than throwing', () => {
+  it("a background cell missing from a shorter/smaller grid resolves to '.' rather than throwing", () => {
     const grid: TileChar[][] = [
       ['.', '.', '.'],
       ['.', 'G', '.'],

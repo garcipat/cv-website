@@ -52,7 +52,7 @@ function projectToBlock(project: Project): BlockDef {
 
 /**
  * Flattens CVData into one crate per Education entry, one per Activity
- * entry, and one per Language entry (spec.md FR-009 — Experience lives on
+ * entry, and one per Language entry ( Experience lives on
  * the chest collectible instead, see ChestMapper.ts), plus one question-mark
  * bonus-fruit def per Certificate and per Project. `placeBlocks` below zips
  * crate/questionMark defs against their respective markers; fragileRock
@@ -73,35 +73,35 @@ export interface BlockPlacement extends BlockDef {
   x: number;
   y: number;
   /** Any Education/Activity/Language facts beyond `fact` itself — populated
-   *  only when this level has fewer crate markers than crate facts, so a
-   *  single crate's position-based slice of the pool (see `placeBlocks`
-   *  below) spans more than one fact. Undefined (not `[]`) when there's
-   *  nothing extra, matching how `fact` itself is undefined rather than
-   *  present-but-empty. Only ever set for `blockKind === 'crate'`. */
+   * only when this level has fewer crate markers than crate facts, so a
+   * single crate's position-based slice of the pool (see `placeBlocks`
+   * below) spans more than one fact. Undefined (not `[]`) when there's
+   * nothing extra, matching how `fact` itself is undefined rather than
+   * present-but-empty. Only ever set for `blockKind === 'crate'`. */
   extraFacts?: CollectedFact[];
 }
 
 /** Hand-authored marker positions for each block kind — see `placeBlocks`
- *  below. */
+ * below. */
 export interface BlockMarkerPositions {
   crate: readonly { col: number; row: number }[];
   questionMark: readonly { col: number; row: number }[];
   fragileRock: readonly { col: number; row: number }[];
   /** Optional so every pre-existing caller (production and test) that
-   *  doesn't yet place coin-pots keeps compiling unchanged — treated as `[]`
-   *  when omitted. */
+   * doesn't yet place coin-pots keeps compiling unchanged — treated as `[]`
+   * when omitted. */
   coinPot?: readonly { col: number; row: number }[];
   /** Optional for the same reason as `coinPot` above — every pre-existing
-   *  caller that doesn't yet place potion-pots keeps compiling unchanged. */
+   * caller that doesn't yet place potion-pots keeps compiling unchanged. */
   potionPot?: readonly { col: number; row: number }[];
   /** Optional for the same reason as `coinPot` above — every pre-existing
-   *  caller that doesn't yet place bomb-pots keeps compiling unchanged. */
+   * caller that doesn't yet place bomb-pots keeps compiling unchanged. */
   bombPot?: readonly { col: number; row: number }[];
 }
 
 /**
  * Places block defs/markers into the level, all through the one
- * `placeAtMarkers` loop (FR-003/FR-005).
+ * `placeAtMarkers` loop.
  *
  * Crates own a fixed, position-based slice of the Education/Activity/Language
  * pool decided by `placeWithFactPool` (proportional across however many crates
@@ -129,8 +129,7 @@ export function placeBlocks(defs: BlockDef[], markers: BlockMarkerPositions): Bl
 
     ...placeAtMarkers<{ col: number; row: number }, BlockPlacement>(markers.questionMark, {
       idPrefix: 'qmark',
-      id: (marker, index) =>
-        questionMarkDefs[index]?.id ?? `qmark-${marker.col}-${marker.row}`,
+      id: (marker, index) => questionMarkDefs[index]?.id ?? `qmark-${marker.col}-${marker.row}`,
       build: (_marker, index) => {
         const def = questionMarkDefs[index];
         return def ? { blockKind: def.blockKind, fact: def.fact } : { blockKind: 'questionMark' };
@@ -170,7 +169,8 @@ export function blockAt(
   row: number,
 ): BlockPlacement | undefined {
   return blockPlacements.find(
-    (b) => Math.floor(b.x / RENDERED_TILE_SIZE) === col && Math.floor(b.y / RENDERED_TILE_SIZE) === row,
+    (b) =>
+      Math.floor(b.x / RENDERED_TILE_SIZE) === col && Math.floor(b.y / RENDERED_TILE_SIZE) === row,
   );
 }
 

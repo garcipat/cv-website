@@ -4,7 +4,7 @@ import type { BackgroundChar } from '../../level/LevelParser';
 /**
  * Paints `char` at `(col, row)`, growing the grid first if the target is out
  * of bounds — a single-cell write, no footprint, no overlap search, mirroring
- * the foreground layer's `paintCell` exactly (FR-010). Reuses `growGrid`
+ * the foreground layer's `paintCell` exactly. Reuses `growGrid`
  * directly rather than a bespoke background-only grow: `BackgroundChar[][]`
  * has the exact same shape (a rectangular grid of a string-union "char" type
  * with `'.'` as its empty value) `TileChar[][]` does, and `growGrid` is

@@ -129,10 +129,7 @@ describe('advancePlayerAnimation walk timing', () => {
   });
 
   it('advancePlayerAnimation-walkStateReachesFrameDuration-advancesFrameAndCarriesRemainder', () => {
-    const next = advancePlayerAnimation(
-      idlePlayer({ animState: 'walk', animTimer: 0.07 }),
-      0.02,
-    );
+    const next = advancePlayerAnimation(idlePlayer({ animState: 'walk', animTimer: 0.07 }), 0.02);
     expect(next.animFrame).toBe(1);
     expect(next.animTimer).toBeCloseTo(0.01);
   });
@@ -331,7 +328,7 @@ describe('applyHitReaction', () => {
   });
 
   it('noKnockback-setsTheRedPoseButLeavesMotionUntouched', () => {
-    // A floor spike, or any hit taken while crouched (FR-011): the same red
+    // A floor spike, or any hit taken while crouched: the same red
     // reaction, but no push of either axis.
     const player = idlePlayer({
       vx: 120,
@@ -422,7 +419,7 @@ describe('player as a damageable', () => {
 describe('spawned player vulnerability', () => {
   it('freshlySpawnedPlayer-isNotInvulnerable', () => {
     // A respawn must leave the player immediately hittable. `hitTimer` counts
-    // UP, so "no recent hit" is a value at or past the reaction duration —
+    // UP, so "no recent hit" is a value at or past the reaction duration
     // seeding it to 0 would instead grant a free 0.8 s after every respawn.
     expect(isInvulnerable(spawnPlayerState(), PLAYER_HIT_REACTION_SECONDS)).toBe(false);
   });
@@ -573,7 +570,7 @@ describe('isPlayerBlinkVisible', () => {
   });
 });
 
-describe('crouch pose (US4)', () => {
+describe('crouch pose', () => {
   it('playerFrameSource-crouchFrame0-returnsFirstColumnAtTheDuckRow', () => {
     expect(playerFrameSource('crouch', 0)).toEqual({ sx: 0, sy: PLAYER_FRAME_SIZE * 8 });
   });
@@ -706,7 +703,7 @@ describe('playerLightSource', () => {
 
   it('heldTorchDrawAndLight-shareOneGeometry', () => {
     // The drawn flame's centre and the light's centre must be the same point,
-    // mirrored identically, so they cannot drift (SC-007). A left-facing
+    // mirrored identically, so they cannot drift. A left-facing
     // player's light sits on the mirrored flame centre, to the left of the
     // render-slot centre.
     const right = idlePlayer({ x: 100, y: 100, direction: 'right' });

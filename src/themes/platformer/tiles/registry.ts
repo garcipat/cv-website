@@ -1,5 +1,5 @@
 /**
- * The tile module registry (R-015): the single source of tile-kind membership
+ * The tile module registry: the single source of tile-kind membership
  * and the single dispatch point for every tile rule and draw.
  *
  * `TILE_MODULES` is one literal key per shipped kind. `level/LevelData.ts`
@@ -135,13 +135,14 @@ export const TERRAIN_CHARS: Readonly<Record<string, TileType | undefined>> = laz
 );
 
 /** Whether cave fog leaves `tile` visible, derived from each module's `fogExempt`. */
-export const TILE_FOG_EXEMPT: Record<TileType, boolean> = lazyObject(() =>
-  Object.fromEntries(
-    (Object.entries(TILE_MODULES) as [TileType, TileModule][]).map(([kind, module]) => [
-      kind,
-      module.fogExempt,
-    ]),
-  ) as Record<TileType, boolean>,
+export const TILE_FOG_EXEMPT: Record<TileType, boolean> = lazyObject(
+  () =>
+    Object.fromEntries(
+      (Object.entries(TILE_MODULES) as [TileType, TileModule][]).map(([kind, module]) => [
+        kind,
+        module.fogExempt,
+      ]),
+    ) as Record<TileType, boolean>,
 );
 
 /** The module owning `tile`, widened to the contract type so optional fields read cleanly. */

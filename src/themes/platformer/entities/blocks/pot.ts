@@ -4,21 +4,24 @@ import type { DrawContext } from '../../contracts/DrawContext';
 import type { SpriteDescriptor } from '../sprites/SpriteSheet';
 import type { PickupKind } from '../../contracts/PickupKind';
 import type { DropPolicy, PotKind, PotRenderPlan } from './potTypes';
-import { PHYSICS_CONFIG } from '../../contracts/PhysicsConfig';
 import { drawClayPotAt } from './clayVariants';
+
+/** Upward impulse (px/s) on destroying a pot by landing on it — weaker than a
+ * stomp bounce but with enough hang-time to see the dropped pickup land. */
+export const POT_BOUNCE_VY = -220;
 
 /**
  * The declaration a pot kind's module writes; `createPotType` consumes it and
  * produces the full `BlockType`. This is the feature's extension point: a
  * kind contributes only its registry key, sprite, the pickup it drops, how
  * often it drops it, whether it is restored on respawn, and how it draws
- * itself alone — every shared behavior comes from the factory (FR-002).
+ * itself alone — every shared behavior comes from the factory.
  */
 export interface PotTypeConfig {
   /** Marker letter / `BLOCK_TYPES` slot; must equal the kind's registry key. */
   key: string;
   /** The kind's sheet (clay pots → `STATIC_OBJECTS_SHEET`, bottle →
-   *  `WORLD_TILESET_SHEET`). */
+   * `WORLD_TILESET_SHEET`). */
   sprite: SpriteDescriptor;
   /** The pickup a break leaves: `'coin'` (coin pot), `'heart'` (potion pot). */
   drop: PickupKind;
@@ -27,14 +30,14 @@ export interface PotTypeConfig {
   /** Whether a death/respawn rebuilds this kind intact. */
   restoredOnRespawn: boolean;
   /** Draws this kind alone at its tile, applying its own bump offset. Must
-   *  not read `dc.potPlan` or draw neighbours — `drawPotBunch` owns run
-   *  iteration. */
+   * not read `dc.potPlan` or draw neighbours — `drawPotBunch` owns run
+   * iteration. */
   drawPot(block: BlockState, dc: DrawContext<PotRenderPlan>): void;
   /** Palette/journal fallback frame for callers outside `draw`; defaults to
-   *  a constant 0. */
+   * a constant 0. */
   frameIndex?(hitsTaken: number): number;
   /** Rendered px to shrink the solid hitbox by on each side, for art
-   *  narrower than its tile (see `BlockType.hitboxInsetX`). */
+   * narrower than its tile (see `BlockType.hitboxInsetX`). */
   hitboxInsetX?: number;
 }
 
@@ -46,9 +49,13 @@ export interface PotTypeConfig {
  *
  * A block absent from the plan (no plan supplied, or a used-up instance
  * mid-bump that the plan already dropped) falls back to drawing itself alone,
- * which keeps a kind's own draw correct in isolation (research D4).
+ * which keeps a kind's own draw correct in isolation.
  */
-export function drawPotBunch(ownKind: PotKind, block: BlockState, dc: DrawContext<PotRenderPlan>): void {
+export function drawPotBunch(
+  ownKind: PotKind,
+  block: BlockState,
+  dc: DrawContext<PotRenderPlan>,
+): void {
   const plan = dc.potPlan;
   const ownerId = plan?.ownerBlockId.get(block.id);
   if (!plan || ownerId === undefined) {
@@ -73,10 +80,10 @@ export function drawPotBunch(ownKind: PotKind, block: BlockState, dc: DrawContex
  * `drawPotBunch` renderer, and the `PotKind` descriptor the render plan
  * reads.
  *
- * The derived `onHit` always returns `PHYSICS_CONFIG.potBounceVelocity`, and
- * includes `spawnPickup` only when the kind's `dropPolicy` allows a drop: an
- * `'everyBreak'` pot always drops, a `'once'` pot only while the instance's
- * `rewardGiven` flag is still `false` (FR-017).
+ * The derived `onHit` always returns the shared landing bounce
+ * (`POT_BOUNCE_VY`), and includes `spawnPickup` only when the kind's
+ * `dropPolicy` allows a drop: an `'everyBreak'` pot always drops, a `'once'`
+ * pot only while the instance's `rewardGiven` flag is still `false`.
  */
 export function createPotType(config: PotTypeConfig): BlockType {
   const pot: PotKind = {
@@ -94,7 +101,9 @@ export function createPotType(config: PotTypeConfig): BlockType {
     hitboxInsetX: config.hitboxInsetX,
     triggerSides: ['top'],
     onHit: (block: BlockState): BlockHitOutcome => {
-      const outcome: BlockHitOutcome = { bounceVelocity: PHYSICS_CONFIG.potBounceVelocity };
+      const outcome: BlockHitOutcome = {
+        effects: [{ type: 'velocity', y: POT_BOUNCE_VY, preserveJump: true }],
+      };
       if (config.dropPolicy === 'everyBreak' || !block.rewardGiven) {
         outcome.spawnPickup = config.drop;
       }

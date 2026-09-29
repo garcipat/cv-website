@@ -209,14 +209,14 @@ function makeEnemyState(
 }
 
 /** Alias kept for the type-owned-rendering tests below, which think in terms
- *  of a draw context rather than raw canvas mock construction. */
+ * of a draw context rather than raw canvas mock construction. */
 function makeMockCtx() {
   return makeMockContext();
 }
 
 /** A `DrawContext` whose `sprites` map gives every sheet a DISTINCT mock
- *  image object (by identity), so `drawImageCallsFor` can tell which sheet a
- *  given `drawImage` call came from. */
+ * image object (by identity), so `drawImageCallsFor` can tell which sheet a
+ * given `drawImage` call came from. */
 function makeDrawContext(
   ctx: CanvasRenderingContext2D,
   overrides: Partial<DrawContext<PotRenderPlan>> = {},
@@ -417,7 +417,7 @@ describe('drawEnemies', () => {
   });
 
   it('keySpriteLoadedBeforeBodySprite-purpleSlimeDrawsNoFloatingKey', () => {
-    // First-mount asset-load race (B-004): the key sheet can resolve before
+    // First-mount asset-load race: the key sheet can resolve before
     // the slime's own body sheet does. The overlay must not draw a key with
     // no body underneath it.
     const ctx = makeMockCtx() as unknown as { drawImage: ReturnType<typeof vi.fn> };
@@ -1488,7 +1488,7 @@ describe('drawTerrain — bush/fence', () => {
     // (col:1, row:0): nothing above, solid to the left -> 'left', run length
     // 1 -> the left cap (sx:99,sy:102,7x12 native -> 14x24 rendered). It's
     // the run's TOP (and only) piece: no horizontal CHAIN_WALL_GAP (its own
-    // art already reads as attached to the wall) — destX = col1*32 = 32 —
+    // art already reads as attached to the wall) — destX = col1*32 = 32
     // but it DOES get the vertical CHAIN_WALL_GAP (4 rendered px), since its
     // hook art has no top-side neck margin: destY = 0 + 4 = 4.
     expect(ctx.drawImage).toHaveBeenCalledWith(fakeStaticObjects, 99, 102, 7, 12, 32, 4, 14, 24);
@@ -2866,7 +2866,7 @@ describe('drawEnemies spike overlay', () => {
     drawEnemies(ctxMidCooldown as unknown as CanvasRenderingContext2D, [midCooldown], dcMid);
     drawEnemies(ctxLate as unknown as CanvasRenderingContext2D, [late], dcLate);
 
-    // The tip vertex is the second lineTo call for the first top spike —
+    // The tip vertex is the second lineTo call for the first top spike
     // its y-coordinate is baseY - length, so a bigger spike means a smaller
     // (more negative) y here. Mid-cooldown (near the peak of the one-shot
     // grow-then-shrink curve) should be the biggest of the three.
@@ -3628,7 +3628,7 @@ function makeLightingLayer(width = 320, height = 180) {
 }
 
 /** A fake offscreen layer for `drawTintedSprite` — a `drawImage`-capable
- *  context with the composite-operation tracking the tint pass needs. */
+ * context with the composite-operation tracking the tint pass needs. */
 
 function makeTintLayer() {
   const layerCtx = {
@@ -3647,7 +3647,7 @@ function makeTintLayer() {
 }
 
 /** A hand-built light — independent of the torch/player adapters, so the pass
- *  is proven generic (Story 1's independent test / SC-003). */
+ * is proven generic (Story 1's independent test / ). */
 
 function makeLightSource(overrides: Partial<LightSource> = {}): LightSource {
   return {
@@ -3663,7 +3663,7 @@ function makeLightSource(overrides: Partial<LightSource> = {}): LightSource {
 }
 
 /** The player's carried light as a hand-built `LightSource` (radius `1.75 × 32`,
- *  softer intensity and mid stop than a torch). */
+ * softer intensity and mid stop than a torch). */
 
 const PLAYER_LIGHT: LightSource = {
   x: 100,
@@ -3795,7 +3795,7 @@ describe('drawDarkness', () => {
   it('thirdArbitraryLight-isDataNotANewBranch', () => {
     // Neither a torch nor the player: one punch loop (2 punching lights → 2
     // holes) and one glow loop (all 3 lights glow), with no per-kind block
-    // (SC-001/SC-003).
+    //.
     const { ctx, raw } = makeLightingContext();
     const { layer, layerCtx } = makeLightingLayer();
     const torch = makeLightSource({ x: 100, y: 100 });
@@ -3815,7 +3815,7 @@ describe('drawDarkness', () => {
     expect(raw.createRadialGradient).toHaveBeenCalledTimes(3);
   });
 
-  // The `zoom` parameter (O-019) lets a caller that runs this at IDENTITY
+  // The `zoom` parameter lets a caller that runs this at IDENTITY
   // transform — the editor canvas — get correct hole positions AND correct
   // full-canvas coverage at once, which is impossible when the composite
   // `drawImage` falls under an ambient `ctx.scale()`.

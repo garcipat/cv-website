@@ -9,7 +9,7 @@ import type { EnemyPlacement } from '../../../level/EnemyMapper';
 import type { CrumblingFloorTimerState } from '../../../tiles/crumblingFloor';
 
 /**
- * The parity proof for SC-001: every case the pre-seam
+ * The parity proof for : every case the pre-seam
  * `engine/EnemyAI.test.ts` pinned, exercised against `patrolMovement`
  * directly with identical reference values. The slimes' declarations wire
  * this same strategy, so these assertions and the unedited
@@ -303,7 +303,9 @@ describe('patrolMovement', () => {
 
   it('slimePurple-wallAtHeadHeightOnly-reversesInsteadOfWalkingThroughIt', () => {
     const width = 10;
-    const aboveRow: TileType[] = Array.from({ length: width }, (_, c) => (c === 7 ? 'wall' : 'empty'));
+    const aboveRow: TileType[] = Array.from({ length: width }, (_, c) =>
+      c === 7 ? 'wall' : 'empty',
+    );
     const entityRow: TileType[] = Array.from({ length: width }, () => 'empty');
     const groundRow: TileType[] = Array.from({ length: width }, () => 'groundRock');
     const level: LevelDef = { terrain: [aboveRow, entityRow, groundRow], width, height: 3 };
@@ -358,7 +360,7 @@ describe('patrolMovement', () => {
     expect(step(GREEN_MOVEMENT, enemy, level, 0)).toBe(enemy);
   });
 
-  describe('mushrooms are non-solid (FR-014)', () => {
+  describe('mushrooms are non-solid', () => {
     const MUSHROOM_TILES: readonly TileType[] = ['bouncyMushroom', 'decorativeMushroom'];
 
     it.each(MUSHROOM_TILES)(
@@ -395,7 +397,7 @@ describe('patrolMovement', () => {
   // Relocated from the removed engine/EnemyAI.test.ts: the pre-seam patrol
   // wrapper's crumbling-floor characterization, exercised against the
   // movement strategy directly (what `typeOf(enemy).movement` resolves to).
-  describe('crumbling floor (O-023)', () => {
+  describe('crumbling floor', () => {
     function makeCrumblingLevel(): LevelDef {
       const entityRow: TileType[] = Array.from({ length: 10 }, () => 'empty');
       const groundRow: TileType[] = Array.from({ length: 10 }, (_, c) =>

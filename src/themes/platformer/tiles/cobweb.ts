@@ -1,4 +1,4 @@
-﻿import { RENDERED_TILE_SIZE, TILE_SIZE, cobwebOrientation } from '../level/Terrain';
+import { RENDERED_TILE_SIZE, TILE_SIZE, cobwebOrientation } from '../level/Terrain';
 import type { StaticObjectEntry } from './spriteRects';
 import type { TileDrawContext, TileModule } from './TileModule';
 
@@ -6,7 +6,7 @@ import type { TileDrawContext, TileModule } from './TileModule';
  * `cobweb` — the corner/flat cave-web decoration (`X`). Non-solid,
  * non-climbable, fogged; drawn in the terrain band. Owns the two web entries +
  * the orientation draw relocated from `engine/StaticObjectsCatalog.ts`/
- * `engine/Renderer.ts` (US4/T032).
+ * `engine/Renderer.ts`.
  */
 
 /**
@@ -27,18 +27,28 @@ function draw(rc: TileDrawContext): void {
   if (!orientation.corner) {
     ctx.drawImage(
       decorations,
-      COBWEB_FLAT_ENTRY.sx, COBWEB_FLAT_ENTRY.sy,
-      COBWEB_FLAT_ENTRY.width ?? TILE_SIZE, COBWEB_FLAT_ENTRY.height ?? TILE_SIZE,
-      destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+      COBWEB_FLAT_ENTRY.sx,
+      COBWEB_FLAT_ENTRY.sy,
+      COBWEB_FLAT_ENTRY.width ?? TILE_SIZE,
+      COBWEB_FLAT_ENTRY.height ?? TILE_SIZE,
+      destX,
+      destY,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
     );
     return;
   }
   if (orientation.rotation === 0) {
     ctx.drawImage(
       decorations,
-      COBWEB_CORNER_ENTRY.sx, COBWEB_CORNER_ENTRY.sy,
-      COBWEB_CORNER_ENTRY.width ?? TILE_SIZE, COBWEB_CORNER_ENTRY.height ?? TILE_SIZE,
-      destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+      COBWEB_CORNER_ENTRY.sx,
+      COBWEB_CORNER_ENTRY.sy,
+      COBWEB_CORNER_ENTRY.width ?? TILE_SIZE,
+      COBWEB_CORNER_ENTRY.height ?? TILE_SIZE,
+      destX,
+      destY,
+      RENDERED_TILE_SIZE,
+      RENDERED_TILE_SIZE,
     );
     return;
   }
@@ -48,9 +58,14 @@ function draw(rc: TileDrawContext): void {
   ctx.rotate((orientation.rotation * Math.PI) / 2);
   ctx.drawImage(
     decorations,
-    COBWEB_CORNER_ENTRY.sx, COBWEB_CORNER_ENTRY.sy,
-    COBWEB_CORNER_ENTRY.width ?? TILE_SIZE, COBWEB_CORNER_ENTRY.height ?? TILE_SIZE,
-    -half, -half, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+    COBWEB_CORNER_ENTRY.sx,
+    COBWEB_CORNER_ENTRY.sy,
+    COBWEB_CORNER_ENTRY.width ?? TILE_SIZE,
+    COBWEB_CORNER_ENTRY.height ?? TILE_SIZE,
+    -half,
+    -half,
+    RENDERED_TILE_SIZE,
+    RENDERED_TILE_SIZE,
   );
   ctx.restore();
 }

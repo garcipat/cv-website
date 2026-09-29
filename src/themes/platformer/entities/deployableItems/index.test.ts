@@ -9,11 +9,7 @@ import { toChestState } from '../chests';
 import type { ChestPlacement } from '../../level/ChestMapper';
 import { parseLevel } from '../../level/LevelParser';
 import { tileAt } from '../../level/Terrain';
-import {
-  PLAYER_RENDERED_SIZE,
-  PLAYER_FOOT_PADDING,
-  PLAYER_HIT_REACTION_SECONDS,
-} from '../Player';
+import { PLAYER_RENDERED_SIZE, PLAYER_FOOT_PADDING, PLAYER_HIT_REACTION_SECONDS } from '../Player';
 import type { PlayerState } from '../Player';
 
 function makePlayer(x: number, y: number, overrides: Partial<PlayerState> = {}): PlayerState {
@@ -114,7 +110,11 @@ describe('proposeDeployableItemInteraction', () => {
   const player = makePlayer(0, 0);
 
   it('bestInteractionPriorityWins-ladderZeroBeatsChestOne', () => {
-    const interaction = proposeDeployableItemInteraction([ladder, chest], { level, player, keys: 3 });
+    const interaction = proposeDeployableItemInteraction([ladder, chest], {
+      level,
+      player,
+      keys: 3,
+    });
     expect(interaction.activate?.id).toBe('ladder-bundle-0-0');
     expect(interaction.hint).toBeUndefined();
   });
@@ -135,7 +135,9 @@ describe('proposeDeployableItemInteraction', () => {
 
   it('nothingMatches-returnsAnEmptyInteraction', () => {
     const airborne = makePlayer(1000, 0, { grounded: false });
-    expect(proposeDeployableItemInteraction([ladder, chest], { level, player: airborne, keys: 3 })).toEqual({});
+    expect(
+      proposeDeployableItemInteraction([ladder, chest], { level, player: airborne, keys: 3 }),
+    ).toEqual({});
     expect(proposeDeployableItemInteraction([], { level, player, keys: 3 })).toEqual({});
   });
 

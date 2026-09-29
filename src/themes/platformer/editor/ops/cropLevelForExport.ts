@@ -11,18 +11,18 @@ export interface CroppedLevel {
 /**
  * Pairs the foreground's crop with the matching sub-region of `background` and
  * the tile meta layer, serialized the same `readonly string[]`/`MarkerPlacement[]`
- * shapes `layout` and the stored `markers` field have (O-014's
+ * shapes `layout` and the stored `markers` field have ('s
  * storage-unification revision, extended by the tile meta layer) — so the
  * three layers never drift apart across export/save/try.
  *
- * This is a **wrapper** over the one generic crop primitive (FR-010/SC-004):
+ * This is a **wrapper** over the one generic crop primitive:
  * both `layout` and `background` come from `cropLayoutToBox`, differing only in
  * their grid and their row shape. The only loop left here is the sparse marker
  * walk (which reads `markers` and shifts coordinates; it serializes no
  * character/background rows itself).
  *
  * The crop box is the tightest rectangle over every non-`.` terrain cell
- * **and** every non-null marker cell (FR-017), so an isolated marker on an
+ * **and** every non-null marker cell, so an isolated marker on an
  * empty cell expands the box and survives the save. `background` is cropped to
  * that same box, and `markers` are serialized relative to its origin.
  *

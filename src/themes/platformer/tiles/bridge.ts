@@ -11,11 +11,19 @@ function draw(rc: TileDrawContext): void {
   const { ctx, level, col, row, destX, destY, images } = rc;
   const position = bridgeRunPosition(level, col, row);
   let sx = 10 * TILE_SIZE; // low (middle, or a lone single tile)
-  if (position === 'left') sx = 9 * TILE_SIZE; // ramp down
+  if (position === 'left')
+    sx = 9 * TILE_SIZE; // ramp down
   else if (position === 'right') sx = 11 * TILE_SIZE; // ramp up
   ctx.drawImage(
-    images.tileset, sx, 2 * TILE_SIZE, TILE_SIZE, TILE_SIZE,
-    destX, destY, RENDERED_TILE_SIZE, RENDERED_TILE_SIZE,
+    images.tileset,
+    sx,
+    2 * TILE_SIZE,
+    TILE_SIZE,
+    TILE_SIZE,
+    destX,
+    destY,
+    RENDERED_TILE_SIZE,
+    RENDERED_TILE_SIZE,
   );
 }
 

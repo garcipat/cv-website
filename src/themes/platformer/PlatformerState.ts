@@ -3,10 +3,7 @@ import { tileToPixel, RENDERED_TILE_SIZE, markerAt } from './level/Terrain';
 import { DEFAULT_TORCH_STRENGTH, type TorchLight } from './tiles/torch';
 import { createRopeLadderState } from './entities/deployableItems/RopeLadder';
 import type { RopeLadderState } from './entities/deployableItems/RopeLadder';
-import {
-  DEPLOYABLE_ITEM_TYPES,
-  applyDeployableItemTerrain,
-} from './entities/deployableItems';
+import { DEPLOYABLE_ITEM_TYPES, applyDeployableItemTerrain } from './entities/deployableItems';
 import type {
   BlastRequest,
   DeployableItemTickContext,
@@ -116,10 +113,10 @@ import { hintText } from './state/hintText';
 /**
  * The player's state standing in an arbitrary level cell — full health,
  * motion cleared, `lastGroundedX/Y` seeded to the position, and `hitTimer` at
- * the end of the refractory window (immediately vulnerable, FR-014). The cell
+ * the end of the refractory window (immediately vulnerable). The cell
  * is treated exactly as `spawnPlayerState` treats the spawn cell: the
  * character is horizontally centred over it and its feet land on the cell's
- * bottom edge (the ground surface FR-004 guarantees for a checkpoint). Pure
+ * bottom edge (the ground surface guarantees for a checkpoint). Pure
  * and not reactive on its own; `respawnPlayerState` below composes it with
  * the active checkpoint.
  */
@@ -191,12 +188,12 @@ export const cameraPositionY = signal(0);
 
 /**
  * How dark the view currently is — `0` (fully bright) to `MAX_DARKNESS`
- * (FR-005). The only new stored value this feature adds: it is eased every
+ *. The only new stored value this feature adds: it is eased every
  * `playing` tick from the cell under the player's feet toward either
  * `MAX_DARKNESS` (that cell is covered by a cave-family background piece) or
  * `0` (it is not), so entering/leaving a cave fades rather than snapping
- * (FR-002/FR-003). Because the tick only runs in the `playing` phase, the
- * value freezes with the world during pause/death (research D2/D8).
+ *. Because the tick only runs in the `playing` phase, the
+ * value freezes with the world during pause/death.
  */
 export const darknessLevel = signal(0);
 
@@ -222,7 +219,7 @@ export function tickDarkness(dt: number): void {
  * from the same cell
  * `darknessLevel` reads, toward `MAX_DARKNESS` when that cell is NOT
  * cave-family or `0` when it is — the inverse of `darknessLevel`'s target,
- * which is what keeps the two mutually exclusive (O-028 FR-003). Because the
+ * which is what keeps the two mutually exclusive. Because the
  * tick only runs in the `playing` phase, the value freezes with the world
  * during pause/death, matching `darknessLevel`.
  */
@@ -230,7 +227,7 @@ export const fogLevel = signal(0);
 
 /**
  * One game-loop tick of the fog value — the mirror of `tickDarkness` with
- * the target inverted (O-028 FR-003/FR-004). Reads the same cell under the
+ * the target inverted. Reads the same cell under the
  * player's feet and eases the current value toward `MAX_DARKNESS` (outside a
  * cave) or `0` (inside one) over the same `DARKNESS_FADE_SECONDS`, so the
  * two transitions read as one continuous effect. `resetGame()` returns it to
@@ -249,7 +246,7 @@ export function tickFog(dt: number): void {
  * strength is its `torch` marker's value, or `DEFAULT_TORCH_STRENGTH` when it
  * carries none. This is the light-source list the render pass reads for both
  * the darkness overlay's holes and the enemy-eye pass's local-darkness check
- * (research D4).
+ *.
  */
 export const torchPositions = computed<TorchLight[]>(() =>
   TORCH_TILES.value.map(({ col, row }) => {
@@ -303,7 +300,9 @@ export const baseCoinPlacements = signal<CollectiblePlacement[]>(
  * across every coin the level has, not "the next entry in order" — for both
  * a walk-over coin and a coin dropped by a broken coin-pot.
  */
-export const skillFactPool = computed<CollectedFact[]>(() => mapCVDataToSkillFactPool(currentCV.value));
+export const skillFactPool = computed<CollectedFact[]>(() =>
+  mapCVDataToSkillFactPool(currentCV.value),
+);
 
 /**
  * Coins dropped by a destroyed coin-pot this session — starts empty. Unlike
@@ -390,15 +389,15 @@ export const chestPlacements = computed<ChestPlacement[]>(() =>
  * Two constraints that must survive later edits:
  *
  * 1. It reads base `collectiblePlacements`, NOT `allCollectiblePlacements`.
- *    Every coin-pot WILL drop a coin eventually, so counting placed coins plus
- *    every pot up front makes the coin total a fixed session constant by
- *    construction — and keeps this computed invalidated only by
- *    `currentLayout`/`currentCV` changes. Reading `allCollectiblePlacements`
- *    would invalidate it on every pot drop, mid-play.
+ * Every coin-pot WILL drop a coin eventually, so counting placed coins plus
+ * every pot up front makes the coin total a fixed session constant by
+ * construction — and keeps this computed invalidated only by
+ * `currentLayout`/`currentCV` changes. Reading `allCollectiblePlacements`
+ * would invalidate it on every pot drop, mid-play.
  * 2. ONE combined computed, not five. Every input derives from `currentLayout`
- *    + `currentCV`, so no event invalidates one total without invalidating all
- *    of them; splitting per field would skip zero work and re-scatter the
- *    single source of truth this exists to create.
+ * + `currentCV`, so no event invalidates one total without invalidating all
+ * of them; splitting per field would skip zero work and re-scatter the
+ * single source of truth this exists to create.
  *
  * `skillFactPool` deliberately stays separate: every total here is
  * level-dependent by construction (COIN_TILES/CRATE_TILES/etc. are all
@@ -412,7 +411,7 @@ export const levelTotals = computed<LevelTotals>(() => ({
     collectiblePlacements.value.filter((p) => p.kind === 'coin').length +
     blockPlacements.value.filter((b) => b.blockKind === 'coinPot').length,
   fruits: blockPlacements.value.filter((b) => b.blockKind === 'questionMark' && b.fact).length,
-  // Every green slime placed, not just the ones that happen to have a fact —
+  // Every green slime placed, not just the ones that happen to have a fact
   // a green slime's fact(s) are now assigned proportionally by position
   // among every green marker (see EnemyMapper.ts's placeGreenSlimes), so the
   // denominator must be every instance of the type, not a fixed
@@ -473,7 +472,7 @@ export const blockStates = signal<BlockState[]>(blockPlacements.value.map(toBloc
  * as much as one still present with `isBlockUsedUp` true (mid-shatter), so
  * both must count immediately, not just the latter; and (2) `blockStates`
  * can carry EXTRA crate-kind entries beyond the level's real placements
- * (test helpers inject synthetic ones, id-distinct from any real crate) —
+ * (test helpers inject synthetic ones, id-distinct from any real crate)
  * counting by placement id ignores those rather than corrupting the total.
  */
 export const cratesDestroyed = computed<number>(
@@ -489,7 +488,7 @@ export const cratesDestroyed = computed<number>(
  * How many green slimes have been defeated this session — read by
  * `PlatformerPage.tsx`'s enemies counter popup and `Journal.tsx`'s summary
  * row, so the two can never disagree. Unlike `cratesDestroyed` above, a
- * defeated enemy is never removed from `enemyStates` (it stays, revivable —
+ * defeated enemy is never removed from `enemyStates` (it stays, revivable
  * see `Enemy.ts`'s `reviveEnemy`), so filtering by the permanent
  * `rewardGiven` flag is exact with no analogous undercount risk.
  */
@@ -504,9 +503,7 @@ export const enemiesDefeated = computed<number>(
  * block, is progress that persists across a death, and is rebuilt closed only
  * by resetGameProgress() (the Reset Game button / editor Try).
  */
-export const chestStates = computed<ChestState[]>(() =>
-  deployableItems.value.filter(isChestState),
-);
+export const chestStates = computed<ChestState[]>(() => deployableItems.value.filter(isChestState));
 
 /**
  * Every checkpoint in the level, placed from `currentLayout`'s `C` markers
@@ -522,7 +519,7 @@ export const checkpointPlacements = computed<CheckpointPlacement[]>(() =>
 /**
  * Live per-instance checkpoint state — seeded dormant from
  * `checkpointPlacements`. Unlike blocks/chests, a raised flag survives a
- * death/respawn (`resetGame()` leaves this untouched, FR-015); only Reset
+ * death/respawn (`resetGame()` leaves this untouched); only Reset
  * Game (`resetGameProgress()`) rebuilds it dormant.
  */
 export const checkpointStates = signal<CheckpointState[]>(
@@ -534,8 +531,8 @@ export const checkpointStates = signal<CheckpointState[]>(
  * level's own spawn point is used. At most one id: set by the tick resolver
  * (engine/CheckpointLogic.ts) to the winning checkpoint — the first dormant
  * one entered this tick, else the first already-raised one entered
- * (FR-007/FR-009). Persists across death/respawn; cleared only by
- * `resetGameProgress()` (FR-015/FR-016).
+ *. Persists across death/respawn; cleared only by
+ * `resetGameProgress()`.
  */
 export const activeCheckpointId = signal<string | null>(null);
 
@@ -554,7 +551,7 @@ export const activeRespawnPlacement = computed<CheckpointPlacement | null>(() =>
 
 /**
  * Where a death restarts the character: the active checkpoint's tile, or the
- * level's own spawn point when there is none (FR-010/SC-003). A `computed` so
+ * level's own spawn point when there is none. A `computed` so
  * `resetGame()` and the camera snap always see the current target.
  */
 export const respawnPlayerState = computed<PlayerState>(() => {
@@ -563,7 +560,7 @@ export const respawnPlayerState = computed<PlayerState>(() => {
 });
 
 /** World-space visual centre of `respawnPlayerState` — what the restart/debug/
- *  Reset Game iris is centered on (FR-012). */
+ * Reset Game iris is centered on. */
 export const respawnCenter = computed<{ x: number; y: number }>(() => {
   const state = respawnPlayerState.value;
   return {
@@ -626,11 +623,11 @@ export const endingScreenShown = signal(false);
 export const endingScreenOpen = signal(false);
 
 /**
- * One-shot latch (spec.md FR-036): true once the visitor
+ * One-shot latch: true once the visitor
  * has dismissed the controls overlay (i.e. walked far enough from where it
  * appeared — see ControlsOverlay.tsx) this browser session. Unlike
  * `endingScreenShown` above, this is NEVER reset by
- * `resetGame()` or `resetGameProgress()` — FR-036 requires the overlay to
+ * `resetGame()` or `resetGameProgress()` — requires the overlay to
  * not reappear "for the remainder of the session", and a visitor clicking
  * Reset Game is still the same session, not a new one. Module-level (not a
  * component-local `useState`) for the same reason `endingScreenShown` is:
@@ -670,18 +667,18 @@ export const keyPickupStates = signal<KeyPickupState[]>([]);
 
 /**
  * Count of keys currently held, spent one at a time to open a chest
- * (spec.md FR-020e/FR-023). Persists across a death/respawn, same as
+ *. Persists across a death/respawn, same as
  * keyPickupStates above — cleared only by resetGameProgress().
  */
 export const collectedKeys = signal<number>(0);
 
-/** The maximum number of bombs the character can carry (FR-008). */
+/** The maximum number of bombs the character can carry. */
 export const MAX_BOMBS = 5;
 
 /**
  * How many bombs the character is carrying — always an integer in
  * `[0, MAX_BOMBS]`. Collecting a bomb pickup increments this by one while
- * below the cap (FR-007); placing consumes exactly one (FR-013). A `signal`
+ * below the cap; placing consumes exactly one. A `signal`
  * like `collectedKeys`.
  */
 export const carriedBombs = signal<number>(0);
@@ -691,19 +688,19 @@ export const carriedBombs = signal<number>(0);
  * lifecycle as `heartPickupStates`: appended when a bomb-pot breaks, retained
  * and flagged `collected` when collected, and cleared by `resetGame()` (a
  * dropped bomb is tied to its now-restored pot). A pickup at the cap is left
- * in the world, still bobbing, until the count drops below the cap (FR-009) —
+ * in the world, still bobbing, until the count drops below the cap
  * the bomb kind's `maxPerTick` yields nothing at the cap.
  */
 export const bombPickupStates = signal<BombPickupState[]>([]);
 
 /** One kind's live array adapter — the kind→store seam the generic applier
- *  and spawn path use without naming a kind. `items` is the live read view. */
+ * and spawn path use without naming a kind. `items` is the live read view. */
 export interface PickupStore {
   readonly items: readonly Pickup[];
   /** Appends a freshly spawned pickup to this kind's live array. */
   append(item: Pickup): void;
   /** The shared applier's ONE collect-once action: flags every id `collected`,
-   *  retaining the entry. */
+   * retaining the entry. */
   markCollected(ids: ReadonlySet<string>): void;
 }
 
@@ -719,7 +716,7 @@ const coinStore: PickupStore = {
     spawnedCoinPlacements.value = [...spawnedCoinPlacements.value, item as CollectiblePlacement];
   },
   markCollected(ids) {
-    // A coin id may live in the base set or in this session's pot drops —
+    // A coin id may live in the base set or in this session's pot drops
     // flag both so `allCollectiblePlacements` (their union) sees it.
     baseCoinPlacements.value = markCollectedIn(baseCoinPlacements.value, ids);
     spawnedCoinPlacements.value = markCollectedIn(spawnedCoinPlacements.value, ids);
@@ -788,7 +785,7 @@ export const pickupStores: Record<PickupKind, PickupStore> = {
 };
 
 /** The single per-kind groups value the page passes to both
- *  `checkPickupCollisions` and `drawPickups`. */
+ * `checkPickupCollisions` and `drawPickups`. */
 export const pickupGroups = computed<PickupGroups>(() => ({
   coin: allCollectiblePlacements.value,
   fruit: fruitStates.value,
@@ -798,14 +795,14 @@ export const pickupGroups = computed<PickupGroups>(() => ({
 }));
 
 /**
- * Facts discovered so far this session (see spec.md FR-032). Starts empty;
+ * Facts discovered so far this session. Starts empty;
  * populated via real coin/fruit collection, enemy defeat, block hits, and
  * chest opens.
  */
 export const collectedFacts = signal<CollectedFact[]>([]);
 
 /**
- * THE one collection of live transient effects (R-004 FR-003). Every effect
+ * THE one collection of live transient effects. Every effect
  * family — flying text, counter popups, puffs, heal auras, hit splatters,
  * fade-out labels, explosions, debris — lives here; no family keeps a parallel
  * store. Effects are appended by `spawnEffect` below, advanced by the single
@@ -819,7 +816,7 @@ export const activeEffects = signal<TransientEffect<unknown>[]>([]);
  * Appends a transient effect to `activeEffects`, replacing in place when the
  * kind declares a keyed slot (`counterPopup`, keyed by `labelKey`) so a fresh
  * collect of the same type refreshes that slot rather than queuing a second
- * popup (FR-016). State-owned, so `engine/effects` keeps no `engine/ → state/`
+ * popup. State-owned, so `engine/effects` keeps no `engine/ → state/`
  * import.
  */
 export function spawnEffect(effect: TransientEffect<unknown>): void {
@@ -832,7 +829,7 @@ export function spawnEffect(effect: TransientEffect<unknown>): void {
  * differs (the pure `withSpeechBubbleText` identity check). Called by the
  * render loop each frame, so a live bubble follows a language switch in the
  * same frame while a steady-state frame performs no collection write
- * (FR-005/FR-020). State-owned, like `spawnEffect`, so `engine/effects` keeps
+ *. State-owned, like `spawnEffect`, so `engine/effects` keeps
  * no `engine/ → state/` import.
  */
 export function refreshSpeechBubbleText(): void {
@@ -872,9 +869,7 @@ export function spawnCenter(): { x: number; y: number } {
  * `intro` (circle growing open) centered on the spawned player, the same as
  * what a restart transitions back to.
  */
-export const lifecycleState = signal<LifecycleState>(
-  introState(spawnCenter().x, spawnCenter().y),
-);
+export const lifecycleState = signal<LifecycleState>(introState(spawnCenter().x, spawnCenter().y));
 
 /**
  * Every deployable rope-ladder bundle in the level, from `currentLayout`'s `@`
@@ -893,7 +888,7 @@ export type DeployableItem = PlacedBombState | RopeLadderState | ChestState;
 
 /**
  * THE one collection of live player-affected objects — a placed bomb, a live
- * rope ladder and a chest — discriminated by `kind` (R-008 FR-002). Seeded at
+ * rope ladder and a chest — discriminated by `kind`. Seeded at
  * module load from the authored ladder bundles (rolled) and chest placements
  * (closed), and rebuilt only by `resetGameProgress()` (Reset Game / editor Try
  * / theme-switch remount). `resetGame()` (death/respawn) filters out only the
@@ -906,10 +901,8 @@ export const deployableItems = signal<DeployableItem[]>([
 ]);
 
 /** Open-chest count for the HUD — derived, so the page never imports a chest
- *  helper to count them. */
-export const chestsOpened = computed<number>(
-  () => chestStates.value.filter(isChestOpen).length,
-);
+ * helper to count them. */
+export const chestsOpened = computed<number>(() => chestStates.value.filter(isChestOpen).length);
 
 /**
  * The effective terrain grid the physics simulation reads: the raw level with
@@ -970,7 +963,7 @@ export function applyDeployableItemConsequences(): readonly BlastRequest[] {
  * The transient cosmetic dips of recently-bounced bouncy-mushroom caps — one
  * entry per cap cell, each carrying how long ago it was hit. The only mutable
  * state the mushroom feature introduces; purely visual, never consulted by
- * collision or standability (FR-011/FR-015). Advanced/pruned by
+ * collision or standability. Advanced/pruned by
  * `tickMushroomSquashes` and cleared by `resetGame()`.
  */
 export const mushroomSquashStates = signal<MushroomSquashState[]>([]);
@@ -987,7 +980,7 @@ export function tickMushroomSquashes(dt: number): void {
 /**
  * Live per-instance cycle timers for floor spikes — one entry per tile that
  * has been triggered at least once, pruned back out once its cycle
- * completes (spec FR-009). Same "presence means in progress" convention as
+ * completes. Same "presence means in progress" convention as
  * `mushroomSquashStates`/`deployableItems`. Advanced by `tickFloorSpikes` and
  * cleared by `resetGame()`.
  */
@@ -999,10 +992,10 @@ interface HazardTimerStore {
 }
 
 /**
- * Kind→arming-action registry (R-007 D3). A brand-new armed-then-cycle hazard
+ * Kind→arming-action registry. A brand-new armed-then-cycle hazard
  * kind declares its timer signal and one entry here (where signals live) — the
  * detection (`Collision.ts`), the per-tick merge (`hazardPlacementsForTick`),
- * and the page's damage/knockback block need no edit, exactly as R-006 records
+ * and the page's damage/knockback block need no edit, exactly as records
  * for a new pickup family.
  */
 const hazardTimerStores: Partial<Record<HazardKind, HazardTimerStore>> = {
@@ -1021,10 +1014,10 @@ const hazardTimerStores: Partial<Record<HazardKind, HazardTimerStore>> = {
   },
 };
 
-/** Arms the hazard `id`'s cycle if it isn't already running (spec FR-003) —
- *  the caller (PlatformerPage.tsx) calls this once per tick for every id
- *  `checkHazardArmTriggers` returns; the dispatched store's own presence check
- *  makes a repeat call during an already-running cycle a no-op. */
+/** Arms the hazard `id`'s cycle if it isn't already running
+ * the caller (PlatformerPage.tsx) calls this once per tick for every id
+ * `checkHazardArmTriggers` returns; the dispatched store's own presence check
+ * makes a repeat call during an already-running cycle a no-op. */
 export function armHazardTrigger(id: string): void {
   const hazard = hazardPlacements.value.find((h) => h.id === id);
   if (!hazard) return;
@@ -1032,8 +1025,8 @@ export function armHazardTrigger(id: string): void {
 }
 
 /** Advances every running floor spike cycle by `dt` — called once per
- *  game-loop tick in the `playing` phase, alongside `tickMushroomSquashes`,
- *  so cycles freeze with the rest of the world during pause/death. */
+ * game-loop tick in the `playing` phase, alongside `tickMushroomSquashes`,
+ * so cycles freeze with the rest of the world during pause/death. */
 export function tickFloorSpikes(dt: number): void {
   floorSpikeTimerStates.value = advanceFloorSpikes(floorSpikeTimerStates.value, dt);
 }
@@ -1041,23 +1034,23 @@ export function tickFloorSpikes(dt: number): void {
 /**
  * Live per-instance cycle timers for crumbling floor tiles — one entry per
  * cell that has been stepped on at least once, pruned back out once its
- * full cycle completes (spec FR-010). Keyed by grid position, unlike
+ * full cycle completes. Keyed by grid position, unlike
  * `floorSpikeTimerStates`' placement ids, since a crumbling floor tile has
- * no separate placement list (O-023). Advanced by `tickCrumblingFloors` and
+ * no separate placement list. Advanced by `tickCrumblingFloors` and
  * cleared by `resetGame()`.
  */
 export const crumblingFloorTimerStates = signal<CrumblingFloorTimerState[]>([]);
 
-/** Arms `(col, row)`'s cycle if it isn't already running (spec FR-003/FR-007)
- *  — called once per tick for every cell `checkCrumblingFloorTriggers`
- *  returns. */
+/** Arms `(col, row)`'s cycle if it isn't already running
+ * — called once per tick for every cell `checkCrumblingFloorTriggers`
+ * returns. */
 export function armCrumblingFloorTrigger(col: number, row: number): void {
   crumblingFloorTimerStates.value = armCrumblingFloor(crumblingFloorTimerStates.value, col, row);
 }
 
 /** Advances every running crumbling floor cycle by `dt` — called once per
- *  game-loop tick in the `playing` phase, alongside `tickFloorSpikes`, so
- *  cycles freeze with the rest of the world during pause/death. */
+ * game-loop tick in the `playing` phase, alongside `tickFloorSpikes`, so
+ * cycles freeze with the rest of the world during pause/death. */
 export function tickCrumblingFloors(dt: number): void {
   crumblingFloorTimerStates.value = advanceCrumblingFloors(crumblingFloorTimerStates.value, dt);
 }
@@ -1066,16 +1059,19 @@ export function tickCrumblingFloors(dt: number): void {
  * Live per-instance timer states for falling stalactites — one entry per
  * hazard that has been armed at least once. Unlike the floor spike's cycle,
  * entries are NEVER pruned: a `gone` (shattered) stalactite must stay gone for
- * the rest of the attempt (FR-013), so its entry persists until `resetGame()`
- * clears the whole array (FR-014).
+ * the rest of the attempt, so its entry persists until `resetGame()`
+ * clears the whole array.
  */
 export const fallingStalactiteTimerStates = signal<FallingStalactiteTimerState[]>([]);
 
 /** Advances every running falling-stalactite timer by `dt` — called once per
- *  game-loop tick in the `playing` phase, so timers freeze with the rest of
- *  the world during pause/death. Never prunes (FR-013). */
+ * game-loop tick in the `playing` phase, so timers freeze with the rest of
+ * the world during pause/death. Never prunes. */
 export function tickFallingStalactites(dt: number): void {
-  fallingStalactiteTimerStates.value = advanceFallingStalactites(fallingStalactiteTimerStates.value, dt);
+  fallingStalactiteTimerStates.value = advanceFallingStalactites(
+    fallingStalactiteTimerStates.value,
+    dt,
+  );
 }
 
 /**
@@ -1126,7 +1122,7 @@ export function hazardPlacementsForTick(): HazardPlacement[] {
  *
  * This is the single reset seam a full "Reset Game" button extends: enemies
  * are reset here; `resetGameProgress()` additionally clears collected facts
- * and respawns coins/blocks (FR-018b).
+ * and respawns coins/blocks.
  *
  * Blocks whose kind declares `restoredOnRespawn` (today only the potion pot)
  * are the one exception to "blocks persist across a death/respawn": every
@@ -1137,7 +1133,7 @@ export function hazardPlacementsForTick(): HazardPlacement[] {
  * player collect a heal the pot itself is about to offer again. Every other
  * block kind (crate/questionMark/fragileRock/coinPot) is left untouched, same
  * as before. The flag is read from the registry (`restoredOnRespawnForBlock`)
- * so a future restored kind needs no edit here (FR-002/FR-014).
+ * so a future restored kind needs no edit here.
  */
 export function resetGame(): void {
   playerState.value = respawnPlayerState.value;
@@ -1145,21 +1141,21 @@ export function resetGame(): void {
   cameraPositionY.value = 0;
   darknessLevel.value = 0;
   fogLevel.value = 0;
-  // An in-progress cap dip must not survive a death/respawn (FR-015).
+  // An in-progress cap dip must not survive a death/respawn.
   mushroomSquashStates.value = [];
   // An in-progress floor spike cycle must not survive a death/respawn
-  // (FR-014), same convention as the mushroom cap squash above it.
+  //, same convention as the mushroom cap squash above it.
   floorSpikeTimerStates.value = [];
   // An in-progress crumbling floor cycle must not survive a death/respawn
-  // (FR-013 — the spec's death/respawn reset requirement), same convention
+  // ( the spec's death/respawn reset requirement), same convention
   // as the floor spike cycle above it.
   crumblingFloorTimerStates.value = [];
   // Every shattered falling stalactite returns to hanging on death/respawn
-  // (FR-014) — same convention as the floor spike/crumbling floor cycles
+  // — same convention as the floor spike/crumbling floor cycles
   // above. Transient effects are deliberately NOT all cleared here: only the
   // `'death'`-scoped kinds (the fade-out labels) are, so puffs, heal auras,
   // hit splatters, debris, explosions, flying text and counter popups — which
-  // survive a death today — keep fading on their own duration (FR-006).
+  // survive a death today — keep fading on their own duration.
   fallingStalactiteTimerStates.value = [];
   enemyStates.value = enemyStates.value.map(reviveEnemy);
   // A label fading when the death/respawn happened must not survive it — it
@@ -1173,8 +1169,8 @@ export function resetGame(): void {
       .map((p) => {
         const restored = toBlockState(p);
         // Carry the drop-once flag over from the prior instance with the same
-        // id — the block analog of `reviveEnemy` preserving `rewardGiven` —
-        // so a restored 'once' pot never drops a second pickup (FR-017).
+        // id — the block analog of `reviveEnemy` preserving `rewardGiven`
+        // so a restored 'once' pot never drops a second pickup.
         const prior = blockStates.value.find((b) => b.id === p.id);
         return prior ? { ...restored, rewardGiven: prior.rewardGiven } : restored;
       }),
@@ -1195,7 +1191,7 @@ export function resetGame(): void {
 }
 
 /**
- * The "Reset Game" button's full reset (FR-018b) — unlike
+ * The "Reset Game" button's full reset — unlike
  * `resetGame()`, this is a deliberate action the visitor takes, not a
  * death/respawn, so it also clears everything `resetGame()` leaves alone:
  * collected facts, the collected pickup flags (re-deriving the base coins
@@ -1217,12 +1213,12 @@ export function resetGame(): void {
  */
 export function resetGameProgress(): void {
   // Clear checkpoint memory FIRST, so the `resetGame()` below sees no active
-  // checkpoint and returns the character to the level spawn (FR-016).
+  // checkpoint and returns the character to the level spawn.
   activeCheckpointId.value = null;
   checkpointStates.value = checkpointPlacements.value.map(toCheckpointState);
   resetGame();
   // A full Reset Game empties the whole unified effect collection, whatever
-  // each kind's reset scope (FR-006) — only a death/respawn preserves the
+  // each kind's reset scope — only a death/respawn preserves the
   // non-`'death'`-scoped kinds.
   activeEffects.value = [];
   collectedFacts.value = [];
@@ -1250,5 +1246,7 @@ export function resetGameProgress(): void {
     ...ropeLadderPlacements.value.map((state) => ({ ...state })),
     ...chestPlacements.value.map(toChestState),
   ];
-  enemyStates.value = enemyPlacements.value.map((placement, index) => toEnemyState(placement, index));
+  enemyStates.value = enemyPlacements.value.map((placement, index) =>
+    toEnemyState(placement, index),
+  );
 }

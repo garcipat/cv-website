@@ -15,38 +15,41 @@ import {
 } from '../../shared/timedTile';
 
 /**
- * The floor-spike hazard kind (R-004 US4): its view, timer state, constants,
+ * The floor-spike hazard kind: its view, timer state, constants,
  * phase vocabulary, and cycle/extension functions in one self-contained
  * module, matching the enemy/block "one kind, one module" pattern. The
  * arm/advance/presence scaffolding delegates to `shared/timedTile.ts`; this
  * module keeps only its durations and phase/extension mapping.
  */
 
-/** Seconds between first contact and the warning pose appearing (FR-003/004). */
+/** Seconds between first contact and the warning pose appearing (/004). */
 export const FLOOR_SPIKE_DELAY_SECONDS = 0.6;
-/** Seconds the partial-rise warning pose is shown (FR-004). */
+/** Seconds the partial-rise warning pose is shown. */
 export const FLOOR_SPIKE_WARNING_SECONDS = 0.25;
-/** Seconds the spike stays fully extended and hazardous (FR-005/FR-007). */
+/** Seconds the spike stays fully extended and hazardous. */
 export const FLOOR_SPIKE_FULL_EXTEND_SECONDS = 0.6;
-/** Seconds the retract animation takes before re-arming (FR-007/FR-009). */
+/** Seconds the retract animation takes before re-arming. */
 export const FLOOR_SPIKE_RETRACT_SECONDS = 0.3;
 /** Total cycle length — once elapsed reaches this, the tile is at rest again. */
 export const FLOOR_SPIKE_CYCLE_SECONDS =
-  FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + FLOOR_SPIKE_FULL_EXTEND_SECONDS + FLOOR_SPIKE_RETRACT_SECONDS;
+  FLOOR_SPIKE_DELAY_SECONDS +
+  FLOOR_SPIKE_WARNING_SECONDS +
+  FLOOR_SPIKE_FULL_EXTEND_SECONDS +
+  FLOOR_SPIKE_RETRACT_SECONDS;
 
 /**
  * A floor spike's cycle phase (spec.md's Key Entities). `'atRest'` is the
  * only phase with no tracked timer entry at all — everything else is driven
  * by elapsed time since arming. `'delay'` and `'atRest'` render identically
  * (the ground tell only) but are distinct states so a second contact during
- * the delay is a no-op rather than a fresh trigger (spec FR-008).
- * `'fullExtend'` covers both the spec's "full-extend" and "holding" phases —
+ * the delay is a no-op rather than a fresh trigger.
+ * `'fullExtend'` covers both the spec's "full-extend" and "holding" phases
  * both are hazardous and render identically.
  */
 export type FloorSpikePhase = 'atRest' | 'delay' | 'warning' | 'fullExtend' | 'retracting';
 
 /** One floor spike's live timer. Presence in the states array means its
- *  cycle is running; absence means at rest and triggerable. */
+ * cycle is running; absence means at rest and triggerable. */
 export interface FloorSpikeTimerState {
   id: string;
   /** Seconds since this tile was armed. */
@@ -61,9 +64,9 @@ const CONFIG: TimedTileConfig<FloorSpikeTimerState, string> = {
 };
 
 /** Arms `id`'s cycle if it isn't already running — a no-op re-contact during
- *  an in-progress cycle (spec FR-008), matching the mushroom's "replace an
- *  in-progress entry" shape except here a running cycle is left untouched
- *  rather than restarted. */
+ * an in-progress cycle, matching the mushroom's "replace an
+ * in-progress entry" shape except here a running cycle is left untouched
+ * rather than restarted. */
 export function armFloorSpike(
   states: readonly FloorSpikeTimerState[],
   id: string,
@@ -72,9 +75,9 @@ export function armFloorSpike(
 }
 
 /** Advances every running cycle by `dt` and drops any that reached the full
- *  cycle duration — the tile is at rest again the instant it's dropped
- *  (spec FR-009). `dt <= 0` leaves elapsed unchanged but still prunes
- *  already-expired entries. */
+ * cycle duration — the tile is at rest again the instant it's dropped
+ *. `dt <= 0` leaves elapsed unchanged but still prunes
+ * already-expired entries. */
 export function advanceFloorSpikes(
   states: readonly FloorSpikeTimerState[],
   dt: number,
@@ -86,7 +89,10 @@ export function advanceFloorSpikes(
 export function floorSpikePhaseAt(elapsed: number): FloorSpikePhase {
   if (elapsed < FLOOR_SPIKE_DELAY_SECONDS) return 'delay';
   if (elapsed < FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS) return 'warning';
-  if (elapsed < FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + FLOOR_SPIKE_FULL_EXTEND_SECONDS) {
+  if (
+    elapsed <
+    FLOOR_SPIKE_DELAY_SECONDS + FLOOR_SPIKE_WARNING_SECONDS + FLOOR_SPIKE_FULL_EXTEND_SECONDS
+  ) {
     return 'fullExtend';
   }
   return 'retracting';
@@ -102,7 +108,7 @@ export function floorSpikePhaseFor(
 }
 
 /** Whether `id` has a running cycle at all — the eligibility gate for
- *  trigger detection (only an unarmed tile can start a new cycle). */
+ * trigger detection (only an unarmed tile can start a new cycle). */
 export function isFloorSpikeArmed(states: readonly FloorSpikeTimerState[], id: string): boolean {
   return timedTileHas(states, id, CONFIG);
 }
@@ -131,8 +137,11 @@ export function floorSpikeExtensionAt(elapsed: number): number {
 }
 
 /** `id`'s current extension ratio — 0 when no timer entry exists for it
- *  (at rest, nothing rising). */
-export function floorSpikeExtensionFor(states: readonly FloorSpikeTimerState[], id: string): number {
+ * (at rest, nothing rising). */
+export function floorSpikeExtensionFor(
+  states: readonly FloorSpikeTimerState[],
+  id: string,
+): number {
   const state = timedTileStateFor(states, id, CONFIG);
   return state ? floorSpikeExtensionAt(state.elapsed) : 0;
 }
@@ -142,8 +151,8 @@ export function floorSpikeExtensionFor(states: readonly FloorSpikeTimerState[], 
 // ---------------------------------------------------------------------------
 
 /** Same visible-band convention as Spike.ts's BAND_NATIVE for the 'up'
- *  facing — a floor spike is floor-only (FR-013), so it only ever needs
- *  that one band. */
+ * facing — a floor spike is floor-only, so it only ever needs
+ * that one band. */
 const BAND_NATIVE = 5;
 
 /**
@@ -152,7 +161,7 @@ const BAND_NATIVE = 5;
  * dimensions today (both are floor-only, both use that same visible band)
  * but conceptually answer different questions — "can this tile arm?" vs.
  * "is this tile hazardous right now?" — so they stay separate functions.
- * Moved here from `engine/Collision.ts` (R-007 D3), where the kind-switched
+ * Moved here from `engine/Collision.ts`, where the kind-switched
  * detection lived.
  */
 function floorSpikeTriggerBox(hazard: HazardPlacement): Rect {
@@ -186,18 +195,18 @@ function floorSpikeBox(hazard: HazardPlacement): Rect {
 }
 
 /** `hazard.floorSpikePhase` is only meaningful once PlatformerPage.tsx has
- *  merged the live timer state in for this tick (see PlatformerState.ts's
- *  `hazardPlacementsForTick`); missing/`'atRest'` and every non-hazardous
- *  phase all fail this check, matching FR-005 (only full-extend is
- *  hazardous). */
+ * merged the live timer state in for this tick (see PlatformerState.ts's
+ * `hazardPlacementsForTick`); missing/`'atRest'` and every non-hazardous
+ * phase all fail this check, matching (only full-extend is
+ * hazardous). */
 function floorSpikeIsContact(hazard: HazardPlacement): boolean {
   return hazard.floorSpikePhase === 'fullExtend';
 }
 
-/** Native px per frame, read from the sheet itself rather than hardcoded —
- *  FLOOR_SPIKE_SHEET's frames are a couple px taller than a tile, so a
- *  frame drawn at a hazard's own tile-aligned position always bleeds its
- *  bottom rows onto the tile below. */
+/** Native px per frame, read from the sheet itself rather than hardcoded
+ * FLOOR_SPIKE_SHEET's frames are a couple px taller than a tile, so a
+ * frame drawn at a hazard's own tile-aligned position always bleeds its
+ * bottom rows onto the tile below. */
 const FRAME_W = FLOOR_SPIKE_SHEET.frameWidth;
 const FRAME_H = FLOOR_SPIKE_SHEET.frameHeight;
 
@@ -247,14 +256,14 @@ export const floorSpike: HazardType<HazardPlacement> = {
   box: floorSpikeBox,
   isContact: floorSpikeIsContact,
   /** Merges the live cycle phase/extension — the exact per-kind branch the
-   *  state layer's `hazardPlacementsForTick` used to inline. */
+   * state layer's `hazardPlacementsForTick` used to inline. */
   withTickState: (placement, timers) => ({
     ...placement,
     floorSpikePhase: floorSpikePhaseFor(timers.floorSpikeTimers, placement.id),
     floorSpikeExtension: floorSpikeExtensionFor(timers.floorSpikeTimers, placement.id),
   }),
   /** The trigger band, returned only while the spike is still at rest (an
-   *  already-running cycle is not re-eligible, FR-008). */
+   * already-running cycle is not re-eligible). */
   armTriggerRects: (hazard, timers) =>
     isFloorSpikeArmed(timers.floorSpikeTimers, hazard.id) ? [] : [floorSpikeTriggerBox(hazard)],
   draw: (hazard, dc) => {

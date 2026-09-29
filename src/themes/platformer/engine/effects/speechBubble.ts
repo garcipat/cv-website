@@ -1,11 +1,11 @@
 /**
- * The one reusable player-overhead speech bubble (R-005): a registered
+ * The one reusable player-overhead speech bubble: a registered
  * transient effect kind driven identically by the sign-hint trigger, the
  * locked-chest message and the transient no-bombs message. It carries its own
  * resolved localized text in `state.text` — resolved by the page at spawn from
  * the derived `state/hintText.ts` signal and refreshed by the page when the
  * language changes — so the registered draw reads only the effect's own state
- * and the effect subsystem never imports app/i18n state (FR-005/FR-020).
+ * and the effect subsystem never imports app/i18n state.
  */
 import type { BubbleMessageId } from '../../level/HintCatalog';
 import { RESTART_PROMPT_FONT_FAMILY } from '../textDraw';
@@ -16,8 +16,8 @@ export type SpeechBubblePhase = 'entering' | 'shown' | 'exiting';
 export interface SpeechBubbleState {
   messageId: BubbleMessageId;
   /** The resolved localized message, stored at spawn from the page's
-   *  `hintText` signal and refreshed by the page on a language change. The
-   *  registered draw reads this field — never state or i18n. */
+   * `hintText` signal and refreshed by the page on a language change. The
+   * registered draw reads this field — never state or i18n. */
   text: string;
   phase: SpeechBubblePhase;
   /**
@@ -41,19 +41,19 @@ export const SPEECH_BUBBLE_FADE_IN_SECONDS = 0.2;
 export const SPEECH_BUBBLE_FADE_OUT_SECONDS = 0.25;
 
 /** How long a transient (keypress-triggered) bubble stays fully shown before
- *  it begins its own exit — long enough to read a short sentence. */
+ * it begins its own exit — long enough to read a short sentence. */
 export const SPEECH_BUBBLE_TRANSIENT_DWELL_SECONDS = 1.5;
 
 /** The bubble never expires on `elapsed` (the phase machine's `null` sentinel
- *  ends it); this bound only satisfies the base shape. */
+ * ends it); this bound only satisfies the base shape. */
 export const SPEECH_BUBBLE_DURATION_SECONDS =
   SPEECH_BUBBLE_FADE_IN_SECONDS + SPEECH_BUBBLE_FADE_OUT_SECONDS;
 
 /** Starts a fresh bubble in its 'entering' phase — called once the player
- *  presses Up/`W` while overlapping a sign, or presses the place-bomb input
- *  with no bombs. Pass `{ transient: true }` for the latter, so the bubble
- *  dismisses itself (see `tickSpeechBubbleEffect`). The page passes the already
- *  resolved localized `text`. */
+ * presses Up/`W` while overlapping a sign, or presses the place-bomb input
+ * with no bombs. Pass `{ transient: true }` for the latter, so the bubble
+ * dismisses itself (see `tickSpeechBubbleEffect`). The page passes the already
+ * resolved localized `text`. */
 export function startSpeechBubble(
   messageId: BubbleMessageId,
   text: string,
@@ -74,7 +74,7 @@ export function startSpeechBubble(
 /**
  * Returns the effect unchanged when its stored text already matches `text`,
  * otherwise a copy carrying the new text. Backs the page's language-change
- * refresh, so the steady state performs no collection write (FR-005).
+ * refresh, so the steady state performs no collection write.
  */
 export function withSpeechBubbleText(
   effect: TransientEffect<SpeechBubbleState>,
@@ -85,8 +85,8 @@ export function withSpeechBubbleText(
 }
 
 /** Switches an already-active bubble into its 'exiting' phase, resetting
- *  elapsed. Called as soon as the player leaves the sign's overlap zone,
- *  regardless of whether Up was ever pressed while they were on it. */
+ * elapsed. Called as soon as the player leaves the sign's overlap zone,
+ * regardless of whether Up was ever pressed while they were on it. */
 export function beginSpeechBubbleExit(
   effect: TransientEffect<SpeechBubbleState>,
 ): TransientEffect<SpeechBubbleState> {
@@ -94,7 +94,7 @@ export function beginSpeechBubbleExit(
 }
 
 /** Restarts an already-active bubble into its 'entering' phase, resetting
- *  elapsed — the restart-on-exit rule when interact is pressed again mid-exit. */
+ * elapsed — the restart-on-exit rule when interact is pressed again mid-exit. */
 export function beginSpeechBubbleEnter(
   effect: TransientEffect<SpeechBubbleState>,
 ): TransientEffect<SpeechBubbleState> {
@@ -144,9 +144,10 @@ export function tickSpeechBubbleEffect(
  * [0, 1] so a stale `elapsed` past either duration still returns a sane
  * (fully collapsed, not negative) result.
  */
-export function speechBubbleGrowthAndOpacity(
-  effect: TransientEffect<SpeechBubbleState>,
-): { growth: number; opacity: number } {
+export function speechBubbleGrowthAndOpacity(effect: TransientEffect<SpeechBubbleState>): {
+  growth: number;
+  opacity: number;
+} {
   if (effect.state.phase === 'entering') {
     const progress = Math.min(1, effect.elapsed / SPEECH_BUBBLE_FADE_IN_SECONDS);
     return { growth: progress, opacity: progress };
@@ -159,7 +160,7 @@ export function speechBubbleGrowthAndOpacity(
 }
 
 /** The single live bubble (kind-filtered) or `undefined`, for the trigger
- *  site's phase/message comparison (FR-003). */
+ * site's phase/message comparison. */
 export function activeSpeechBubble(
   effects: readonly TransientEffect<unknown>[],
 ): TransientEffect<SpeechBubbleState> | undefined {
@@ -173,26 +174,26 @@ const BUBBLE_PADDING_X = 10;
 const BUBBLE_PADDING_Y = 6;
 const BUBBLE_BORDER_WIDTH = 2;
 /** Extra vertical gap between wrapped lines, on top of BUBBLE_FONT_SIZE
- *  (the `lines.length - 1` term below). */
+ * (the `lines.length - 1` term below). */
 const BUBBLE_LINE_SPACING = 4;
 /** Corner radius for the bubble's rounded rect (both the border and the
- *  inset fill), drawn via `ctx.roundRect` — a smooth curve, not a pixel-art
- *  chamfer (a chamfer's cut-corner notches read as just cutting away the
- *  corners, not as a rounded shape). A curved corner is always
- *  anti-aliased regardless of `imageSmoothingEnabled` (that flag only
- *  affects `drawImage` scaling), so it reads slightly softer than this
- *  game's pixel-art tileset — an accepted, deliberate tradeoff here. */
+ * inset fill), drawn via `ctx.roundRect` — a smooth curve, not a pixel-art
+ * chamfer (a chamfer's cut-corner notches read as just cutting away the
+ * corners, not as a rounded shape). A curved corner is always
+ * anti-aliased regardless of `imageSmoothingEnabled` (that flag only
+ * affects `drawImage` scaling), so it reads slightly softer than this
+ * game's pixel-art tileset — an accepted, deliberate tradeoff here. */
 const BUBBLE_CORNER_RADIUS = 6;
 /** Nudges the text down from dead-center by a couple px — a purely visual
- *  correction: centered text reads as sitting slightly high against the
- *  box, likely due to font metrics' cap-height vs. middle-baseline not
- *  perfectly bisecting the box. */
+ * correction: centered text reads as sitting slightly high against the
+ * box, likely due to font metrics' cap-height vs. middle-baseline not
+ * perfectly bisecting the box. */
 const BUBBLE_TEXT_VERTICAL_NUDGE = 2;
 /** Vertical gap between the bubble tail's tip and its anchor point
- *  (anchorBottomY), so it floats just above the character's head rather
- *  than overlapping it. Kept small — this is the gap ABOVE the anchor, which
- *  itself is already the head's own position, not extra breathing room on top
- *  of that. */
+ * (anchorBottomY), so it floats just above the character's head rather
+ * than overlapping it. Kept small — this is the gap ABOVE the anchor, which
+ * itself is already the head's own position, not extra breathing room on top
+ * of that. */
 const BUBBLE_GAP_ABOVE_ANCHOR = 16;
 const BUBBLE_TAIL_HALF_WIDTH = 6;
 const BUBBLE_TAIL_HEIGHT = 8;
@@ -201,10 +202,10 @@ const BUBBLE_BORDER_COLOR = '#241a0e';
 const BUBBLE_TEXT_COLOR = '#241a0e';
 
 /** Clamps a corner radius so `roundRect` never receives a radius bigger than
- *  half the shape's own width/height — exceeding that throws a RangeError in
- *  real browsers. The bubble's box/tail height shrinks toward 0 during the
- *  grow/shrink animation, so this matters at low `growth`, not just as a
- *  theoretical edge case. */
+ * half the shape's own width/height — exceeding that throws a RangeError in
+ * real browsers. The bubble's box/tail height shrinks toward 0 during the
+ * grow/shrink animation, so this matters at low `growth`, not just as a
+ * theoretical edge case. */
 function clampedCornerRadius(width: number, height: number, radius: number): number {
   return Math.max(0, Math.min(radius, width / 2, height / 2));
 }
@@ -247,9 +248,12 @@ export function drawSpeechBubble(
   // extra line. A single-line text (the common case) reduces to exactly the
   // old single-line formula: `lines.length - 1` is 0, so no extra spacing.
   const lines = text.split('\n');
-  const boxWidth = Math.max(...lines.map((line) => ctx.measureText(line).width)) + BUBBLE_PADDING_X * 2;
+  const boxWidth =
+    Math.max(...lines.map((line) => ctx.measureText(line).width)) + BUBBLE_PADDING_X * 2;
   const fullBoxHeight =
-    lines.length * BUBBLE_FONT_SIZE + BUBBLE_PADDING_Y * 2 + (lines.length - 1) * BUBBLE_LINE_SPACING;
+    lines.length * BUBBLE_FONT_SIZE +
+    BUBBLE_PADDING_Y * 2 +
+    (lines.length - 1) * BUBBLE_LINE_SPACING;
   const boxHeight = fullBoxHeight * growth;
   const tailHeight = BUBBLE_TAIL_HEIGHT * growth;
   // Tail WIDTH is not scaled by growth — per the plan's explicit constraint,
@@ -286,7 +290,13 @@ export function drawSpeechBubble(
   ctx.fill();
   ctx.fillStyle = BUBBLE_BG_COLOR;
   ctx.beginPath();
-  ctx.roundRect(boxLeft, boxTop, boxWidth, boxHeight, clampedCornerRadius(boxWidth, boxHeight, BUBBLE_CORNER_RADIUS));
+  ctx.roundRect(
+    boxLeft,
+    boxTop,
+    boxWidth,
+    boxHeight,
+    clampedCornerRadius(boxWidth, boxHeight, BUBBLE_CORNER_RADIUS),
+  );
   ctx.fill();
 
   ctx.fillStyle = BUBBLE_BORDER_COLOR;
@@ -319,12 +329,19 @@ export function drawSpeechBubble(
 }
 
 /** The `speechBubble` kind's registered draw: reads the bubble's own stored
- *  text and anchors at the render context's live player position — never a
- *  render-context text lookup (FR-004/FR-005). */
+ * text and anchors at the render context's live player position — never a
+ * render-context text lookup. */
 export function drawSpeechBubbleEffect(
   effect: TransientEffect<SpeechBubbleState>,
   rc: EffectRenderContext,
 ): void {
   const { growth, opacity } = speechBubbleGrowthAndOpacity(effect);
-  drawSpeechBubble(rc.ctx, effect.state.text, rc.playerAnchor.centerX, rc.playerAnchor.headBottomY, growth, opacity);
+  drawSpeechBubble(
+    rc.ctx,
+    effect.state.text,
+    rc.playerAnchor.centerX,
+    rc.playerAnchor.headBottomY,
+    growth,
+    opacity,
+  );
 }

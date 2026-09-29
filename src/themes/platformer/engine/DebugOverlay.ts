@@ -45,7 +45,12 @@ export function drawDebugOverlay(
 
   // Full render slot (red) — where the sprite is drawn, not the hitbox.
   ctx.strokeStyle = 'red';
-  ctx.strokeRect(player.x + originX, player.y + originY, PLAYER_RENDERED_SIZE, PLAYER_RENDERED_SIZE);
+  ctx.strokeRect(
+    player.x + originX,
+    player.y + originY,
+    PLAYER_RENDERED_SIZE,
+    PLAYER_RENDERED_SIZE,
+  );
 
   // Narrower collision hitbox (yellow) — used by ALL collision checks
   // (horizontal, vertical, and world bounds).
@@ -60,7 +65,7 @@ export function drawDebugOverlay(
   );
 
   // Head-collision row line (cyan) — at the shared box's top offset, so it
-  // matches the crouched box while crouching (SC-008).
+  // matches the crouched box while crouching.
   const headY = player.y + playerHeadPaddingFor(player.crouching) + originY;
   ctx.strokeStyle = 'cyan';
   ctx.beginPath();

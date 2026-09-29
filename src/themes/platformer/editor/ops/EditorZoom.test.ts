@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  ZOOM_LEVELS,
-  DEFAULT_ZOOM,
-  stepZoom,
-  anchoredPan,
-  sliderZoomIndex,
-} from './EditorZoom';
+import { ZOOM_LEVELS, DEFAULT_ZOOM, stepZoom, anchoredPan, sliderZoomIndex } from './EditorZoom';
 
 describe('ZOOM_LEVELS', () => {
   it('isExactlyTheThreeSpecifiedLevelsInAscendingOrder', () => {

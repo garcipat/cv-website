@@ -52,7 +52,7 @@ export function applyDeployableItemTerrain(
 }
 
 /** A resolved activation the page's one generic applier writes: the matching
- *  live item's id, its new state, and any key cost / fact reveal. */
+ * live item's id, its new state, and any key cost / fact reveal. */
 export interface DeployableItemActivation {
   id: string;
   next: DeployableItemState;

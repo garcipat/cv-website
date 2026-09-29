@@ -1,6 +1,6 @@
 /**
  * The one transient-effect base every platformer effect family is expressed in
- * (R-004 FR-001/FR-003/FR-004). It carries the issue's named fields — `id`,
+ *. It carries the issue's named fields — `id`,
  * `elapsed`, `duration`, `tick`, `draw`, `expired` — plus the per-family
  * `state` payload and the `kind`/`duration` metadata the unified collection
  * needs. `advanceEffects` is the one advance; per-kind modules own their
@@ -25,7 +25,7 @@ export interface PopupIcon {
 export type PopupIconLookup = Partial<Record<CounterPopupLabelKey, PopupIcon>>;
 
 /**
- * The render context every registered `draw` receives (FR-017), so no family
+ * The render context every registered `draw` receives, so no family
  * loses information in the move. `ctx` doubles as `dc.ctx`; `dc` carries the
  * sprite lookup and camera origin for world-space families.
  */
@@ -35,14 +35,14 @@ export interface EffectRenderContext {
   canvasWidth: number;
   canvasHeight: number;
   /** Live player screen-space points for player-anchored effects: the visual
-   *  centre (the position-less heal aura) and the visible-head bottom edge (the
-   *  speech bubble's tail). Re-derived each frame so anchored effects track the
-   *  moving player. */
+   * centre (the position-less heal aura) and the visible-head bottom edge (the
+   * speech bubble's tail). Re-derived each frame so anchored effects track the
+   * moving player. */
   playerAnchor: { centerX: number; centerY: number; headBottomY: number; width: number };
   /** Page-resolved popup icons, keyed by `CounterPopupLabelKey`. */
   popupIcons: PopupIconLookup;
   /** The live unified collection this frame, so a kind whose layout depends on
-   *  its siblings (the counter-popup row) can compute its own slot. */
+   * its siblings (the counter-popup row) can compute its own slot. */
   effects: readonly TransientEffect<unknown>[];
 }
 
@@ -74,7 +74,7 @@ export function defaultExpired<S>(effect: TransientEffect<S>): boolean {
 }
 
 /**
- * Per-kind reset scope (FR-006). `fadeOutText` and `speechBubble` are
+ * Per-kind reset scope. `fadeOutText` and `speechBubble` are
  * `'death'`-scoped, so a death/respawn clears exactly the labels and the bubble
  * it clears today; every other kind is `'progress'`-scoped and survives until a
  * full Reset Game. The registry reads this map so the policy lives with the
@@ -95,9 +95,9 @@ export const RESET_SCOPE_BY_KIND: Record<EffectKind, EffectResetScope> = {
 /**
  * Advance the whole collection (or only the filtered kinds) through each
  * effect's registered `tick`, dropping `null`/expired results. This is the one
- * advance (FR-004/FR-007): the six byte-identical per-kind bodies collapse to
+ * advance: the six byte-identical per-kind bodies collapse to
  * the readers' `defaultTick`. Filtering ticks/prunes only the named kinds and
- * leaves every other effect's `elapsed` frozen (the dying lead-in, US5-3).
+ * leaves every other effect's `elapsed` frozen (the dying lead-in, -3).
  */
 export function advanceEffects(
   effects: readonly TransientEffect<unknown>[],
@@ -121,7 +121,7 @@ export function advanceEffects(
 
 /**
  * Remove effects whose kind's reset scope matches; omitting `scope` clears the
- * whole collection (the full Reset Game, FR-006).
+ * whole collection (the full Reset Game).
  */
 export function clearEffectsByResetScope(
   effects: readonly TransientEffect<unknown>[],
@@ -133,7 +133,7 @@ export function clearEffectsByResetScope(
 
 /**
  * Remove every effect of one kind, leaving the others by reference (the
- * immediate death-time bubble clear, FR-013).
+ * immediate death-time bubble clear).
  */
 export function clearEffectsOfKind(
   effects: readonly TransientEffect<unknown>[],
@@ -146,7 +146,7 @@ export function clearEffectsOfKind(
  * Insert an effect: append it, or — when it declares a keyed slot via `keyOf`
  * — replace any existing effect with the same `(kind, key)` so a fresh collect
  * of the same type refreshes that slot rather than queuing a second one
- * (FR-016). The state module owns the signal write; this is the pure part.
+ *. The state module owns the signal write; this is the pure part.
  */
 export function upsertEffect(
   effects: readonly TransientEffect<unknown>[],
@@ -156,15 +156,16 @@ export function upsertEffect(
   const key = keyOf(effect);
   if (key === undefined) return [...effects, effect];
   return [
-    ...effects.filter(
-      (existing) => !(existing.kind === effect.kind && keyOf(existing) === key),
-    ),
+    ...effects.filter((existing) => !(existing.kind === effect.kind && keyOf(existing) === key)),
     effect,
   ];
 }
 
 /** Live count of one kind (e.g. flying-text effects seed the slot allocator). */
-export function effectCount(effects: readonly TransientEffect<unknown>[], kind: EffectKind): number {
+export function effectCount(
+  effects: readonly TransientEffect<unknown>[],
+  kind: EffectKind,
+): number {
   let count = 0;
   for (const effect of effects) {
     if (effect.kind === kind) count += 1;

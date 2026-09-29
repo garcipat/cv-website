@@ -1,6 +1,6 @@
 /** Which collectible counters exist — the HUD's transient popups
- *  (`CounterPopupLabelKey`, which omits `chests`: chests have a permanent HUD
- *  counter instead) plus the journal's summary rows, which do include it. */
+ * (`CounterPopupLabelKey`, which omits `chests`: chests have a permanent HUD
+ * counter instead) plus the journal's summary rows, which do include it. */
 export type CounterKey = 'coins' | 'fruits' | 'enemies' | 'crates' | 'chests';
 
 /**

@@ -5,22 +5,22 @@ import { drawBlockTile } from './drawBlockTile';
 import { createPotType } from './pot';
 
 /** Row 8, column 1 of `world_tileset.png` — the purple potion bottle
- *  (16px tiles, 16 columns; see this step's brainstorming for how it was
- *  located among the sheet's four bottle-color variants). */
+ * (16px tiles, 16 columns; see this step's brainstorming for how it was
+ * located among the sheet's four bottle-color variants). */
 const POTION_POT_FRAME = 8 * 16 + 1;
 
 /** Rendered px to shrink the solid hitbox by on each side (see
- *  `BlockType.hitboxInsetX`). The bottle art is only 8px wide in its 16px
- *  tile (x=4..11, measured from `world_tileset.png`), leaving 4px transparent
- *  on each side; without this the player is stopped at the full tile edge, 8
- *  rendered px short of the visible bottle. Same convention as
- *  `CoinPot.ts`'s `HITBOX_INSET_X`. */
+ * `BlockType.hitboxInsetX`). The bottle art is only 8px wide in its 16px
+ * tile (x=4..11, measured from `world_tileset.png`), leaving 4px transparent
+ * on each side; without this the player is stopped at the full tile edge, 8
+ * rendered px short of the visible bottle. Same convention as
+ * `CoinPot.ts`'s `HITBOX_INSET_X`. */
 const HITBOX_INSET_X = 4 * RENDER_SCALE;
 
 /**
  * The potion pot: a fixed-sprite bottle destroyed by landing on it, dropping
  * a heart on every break (including after a respawn). It is never assigned a
- * clay size variant (FR-008) — its `drawPot` always draws its one bottle
+ * clay size variant — its `drawPot` always draws its one bottle
  * frame. Declares only its kind-specific facts and inherits everything
  * shared from `createPotType`.
  */
@@ -29,7 +29,7 @@ export const potionPot: BlockType = createPotType({
   sprite: { sheet: WORLD_TILESET_SHEET, renderScale: 1, animations: {} },
   drop: 'heart',
   // A potion pot drops a fresh heart on every destruction, so it stays a
-  // repeatable heal across respawns (FR-014/FR-017).
+  // repeatable heal across respawns.
   dropPolicy: 'everyBreak',
   restoredOnRespawn: true,
   hitboxInsetX: HITBOX_INSET_X,

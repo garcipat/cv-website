@@ -151,7 +151,10 @@ describe('effectCount', () => {
   });
 
   it('unrelatedKind-inACollectionOfOtherKindsIsZero', () => {
-    const collection = [startPlayerHitSplatter('s', 0, 0, 1), startPlayerHitSplatter('s2', 0, 0, 1)];
+    const collection = [
+      startPlayerHitSplatter('s', 0, 0, 1),
+      startPlayerHitSplatter('s2', 0, 0, 1),
+    ];
     expect(effectCount(collection, 'debris')).toBe(0);
   });
 });

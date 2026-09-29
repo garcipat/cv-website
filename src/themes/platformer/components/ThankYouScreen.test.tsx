@@ -17,7 +17,9 @@ describe('ThankYouScreen', () => {
     // doubly-nested requestAnimationFrame flips it to its revealed position
     // — otherwise there's nothing for the transition to animate from.
     render(<ThankYouScreen onDismiss={() => {}} />);
-    expect(screen.getByTestId('platformer-thank-you-screen').className).toContain('-translate-y-full');
+    expect(screen.getByTestId('platformer-thank-you-screen').className).toContain(
+      '-translate-y-full',
+    );
   });
 
   it('afterOneAnimationFrame-staysOffScreen-onlyFlipsAfterTheSecond', () => {
@@ -29,7 +31,9 @@ describe('ThankYouScreen', () => {
     act(() => {
       vi.advanceTimersToNextFrame();
     });
-    expect(screen.getByTestId('platformer-thank-you-screen').className).toContain('-translate-y-full');
+    expect(screen.getByTestId('platformer-thank-you-screen').className).toContain(
+      '-translate-y-full',
+    );
 
     act(() => {
       vi.advanceTimersToNextFrame();
@@ -41,7 +45,9 @@ describe('ThankYouScreen', () => {
 
   it('render-shows-thankYouMessage', () => {
     render(<ThankYouScreen onDismiss={() => {}} />);
-    expect(screen.getByTestId('platformer-thank-you-screen')).toHaveTextContent('Thank you for playing!');
+    expect(screen.getByTestId('platformer-thank-you-screen')).toHaveTextContent(
+      'Thank you for playing!',
+    );
   });
 
   it('render-shows-continuePrompt', () => {
@@ -58,7 +64,7 @@ describe('ThankYouScreen', () => {
   });
 
   it('render-does-notShowContactWebsite', () => {
-    // D8: contact.website is redundant with email/GitHub/LinkedIn and was
+    // : contact.website is redundant with email/GitHub/LinkedIn and was
     // dropped entirely — real cv.en.json's contact.website is
     // 'https://pgarcia.dev', which must not appear anywhere on the screen.
     render(<ThankYouScreen onDismiss={() => {}} />);
@@ -66,11 +72,13 @@ describe('ThankYouScreen', () => {
   });
 
   it('render-showsLinkedinAndGithub-asRealClickableLinks', () => {
-    // D8: LinkedIn/GitHub are URLs meant to be followed, so they render as
+    // : LinkedIn/GitHub are URLs meant to be followed, so they render as
     // real target="_blank" anchors (with the required rel="noopener
     // noreferrer"), unlike the plain-text email/phone/location lines.
     render(<ThankYouScreen onDismiss={() => {}} />);
-    const linkedinLink = screen.getByRole('link', { name: 'https://www.linkedin.com/in/garcipat/en-US' });
+    const linkedinLink = screen.getByRole('link', {
+      name: 'https://www.linkedin.com/in/garcipat/en-US',
+    });
     expect(linkedinLink).toHaveAttribute('href', 'https://www.linkedin.com/in/garcipat/en-US');
     expect(linkedinLink).toHaveAttribute('target', '_blank');
     expect(linkedinLink).toHaveAttribute('rel', 'noopener noreferrer');

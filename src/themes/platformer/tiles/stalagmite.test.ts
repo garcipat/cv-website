@@ -11,7 +11,9 @@ describe('stalagmiteEntry', () => {
       for (let row = 0; row < 8; row++) {
         const entry = stalagmiteEntry(col, row);
         expect(entry.sx + (entry.width ?? TILE_SIZE)).toBeLessThanOrEqual(DECORATIONS_SHEET_WIDTH);
-        expect(entry.sy + (entry.height ?? TILE_SIZE)).toBeLessThanOrEqual(DECORATIONS_SHEET_HEIGHT);
+        expect(entry.sy + (entry.height ?? TILE_SIZE)).toBeLessThanOrEqual(
+          DECORATIONS_SHEET_HEIGHT,
+        );
       }
     }
   });

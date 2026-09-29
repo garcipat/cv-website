@@ -9,8 +9,8 @@ const PLAYING_PHASE = { phase: 'playing' as const, elapsed: 0, centerX: 0, cente
 const DISMISS_TRAVEL_DISTANCE_PX = RENDERED_TILE_SIZE * 2;
 
 /** Flushes the component's double-rAF reveal (see ControlsOverlay.tsx's doc
- *  comment on `revealed`) so tests that need the baseline translucent/
- *  resting state don't have to re-derive the two-frame flush every time. */
+ * comment on `revealed`) so tests that need the baseline translucent/
+ * resting state don't have to re-derive the two-frame flush every time. */
 const flushReveal = () => {
   act(() => {
     vi.advanceTimersToNextFrame();
@@ -133,7 +133,10 @@ describe('ControlsOverlay', () => {
     flushReveal();
 
     act(() => {
-      playerState.value = { ...playerState.value, x: playerState.value.x + DISMISS_TRAVEL_DISTANCE_PX - 1 };
+      playerState.value = {
+        ...playerState.value,
+        x: playerState.value.x + DISMISS_TRAVEL_DISTANCE_PX - 1,
+      };
     });
 
     expect(controlsOverlayDismissed.value).toBe(false);
@@ -147,7 +150,10 @@ describe('ControlsOverlay', () => {
     flushReveal();
 
     act(() => {
-      playerState.value = { ...playerState.value, x: playerState.value.x + DISMISS_TRAVEL_DISTANCE_PX };
+      playerState.value = {
+        ...playerState.value,
+        x: playerState.value.x + DISMISS_TRAVEL_DISTANCE_PX,
+      };
     });
 
     // Immediately starts fading/sliding right, but the permanent latch
@@ -172,7 +178,10 @@ describe('ControlsOverlay', () => {
     flushReveal();
 
     act(() => {
-      playerState.value = { ...playerState.value, x: playerState.value.x - DISMISS_TRAVEL_DISTANCE_PX };
+      playerState.value = {
+        ...playerState.value,
+        x: playerState.value.x - DISMISS_TRAVEL_DISTANCE_PX,
+      };
     });
 
     expect(screen.getByTestId('platformer-controls-overlay').className).toContain('opacity-0');

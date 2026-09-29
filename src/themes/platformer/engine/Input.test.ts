@@ -59,7 +59,7 @@ describe('createKeyboardInput', () => {
 
   it('keydown-forKeyB-preventsDefault', () => {
     // The place-bomb key is a game key, so its browser default is suppressed
-    // (O-012 FR-012).
+    //.
     const input = createKeyboardInput();
     const event = dispatchKey('keydown', 'KeyB');
     expect(event.defaultPrevented).toBe(true);

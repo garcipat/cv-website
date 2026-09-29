@@ -7,13 +7,13 @@ import type { PlayerState } from '../Player';
 import { spearTipSweepHits, getSpearTipMask } from './SpearArt';
 
 /** The character's visible feet line — the bottom of its hitbox, excluding
- *  the transparent foot-padding rows below the sprite. */
+ * the transparent foot-padding rows below the sprite. */
 function feetOf(player: PlayerState): number {
   return player.y + PLAYER_RENDERED_SIZE - PLAYER_FOOT_PADDING;
 }
 
 /**
- * The floor spear (O-020): a static, non-solid, floor-mounted tile of uneven
+ * The floor spear: a static, non-solid, floor-mounted tile of uneven
  * blood-tipped spear points. Lethal only to a character that falls onto it
  * from above the spear's own height — `isContact` combines the downward-motion
  * predicate with the tile-top-crossing test (`SpearArt.ts`), so a walk-through,

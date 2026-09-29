@@ -5,9 +5,9 @@ import type { EffectAnchor } from './Enemy';
 import type { SpriteSheet } from './sprites/SpriteSheet';
 
 /** Native size of one frame in `checkpoint-flag-strip.png` (64x24: four
- *  16x24 frames). A checkpoint is a single tile cell, but its art is taller
- *  than wide — the flag pole — so the height is deliberately not
- *  `RENDERED_TILE_SIZE`'s source (16). */
+ * 16x24 frames). A checkpoint is a single tile cell, but its art is taller
+ * than wide — the flag pole — so the height is deliberately not
+ * `RENDERED_TILE_SIZE`'s source (16). */
 export const CHECKPOINT_FRAME_COUNT = 4;
 export const CHECKPOINT_FRAME_WIDTH = 16;
 export const CHECKPOINT_FRAME_HEIGHT = 24;
@@ -16,12 +16,12 @@ export const CHECKPOINT_FRAME_HEIGHT = 24;
 export const CHECKPOINT_RAISED_FRAME = 3;
 
 /** Seconds the four-frame raise plays for — frame 3 is reached exactly here
- *  (see `checkpointFrameIndex`). */
+ * (see `checkpointFrameIndex`). */
 export const CHECKPOINT_RAISE_DURATION_SECONDS = 0.4;
 
 /** Seconds between successive raise frames — the frames are spread evenly
- *  across the raise, so `CHECKPOINT_FRAME_COUNT - 1` steps land on the last
- *  frame at the duration. */
+ * across the raise, so `CHECKPOINT_FRAME_COUNT - 1` steps land on the last
+ * frame at the duration. */
 export const CHECKPOINT_FRAME_STEP_SECONDS =
   CHECKPOINT_RAISE_DURATION_SECONDS / (CHECKPOINT_FRAME_COUNT - 1);
 
@@ -34,8 +34,8 @@ export const CHECKPOINT_FLAG_SHEET: SpriteSheet = {
 };
 
 /** Rendered size of one frame. The flag is taller than a tile (48 vs 32), so
- *  it is drawn bottom-anchored and horizontally centred on its cell — the
- *  pole reads as standing on the ground with the banner rising above it. */
+ * it is drawn bottom-anchored and horizontally centred on its cell — the
+ * pole reads as standing on the ground with the banner rising above it. */
 export const CHECKPOINT_RENDERED_WIDTH = CHECKPOINT_FRAME_WIDTH * RENDER_SCALE;
 export const CHECKPOINT_RENDERED_HEIGHT = CHECKPOINT_FRAME_HEIGHT * RENDER_SCALE;
 
@@ -52,14 +52,14 @@ export interface CheckpointState extends CheckpointPlacement {
 }
 
 /** Converts a placed-but-static `CheckpointPlacement` into its initial live
- *  state — always dormant, with no activation time. */
+ * state — always dormant, with no activation time. */
 export function toCheckpointState(placement: CheckpointPlacement): CheckpointState {
   return { ...placement, activated: false, activatedAt: null };
 }
 
 /** A checkpoint's trigger box — exactly one rendered tile, mirroring
- *  `signBox` (level/SignMapper.ts). The flag art is taller than a tile, but
- *  the footprint the player steps on is the cell itself. */
+ * `signBox` (level/SignMapper.ts). The flag art is taller than a tile, but
+ * the footprint the player steps on is the cell itself. */
 export function checkpointBox(state: CheckpointState): Box {
   return { x: state.x, y: state.y, width: RENDERED_TILE_SIZE, height: RENDERED_TILE_SIZE };
 }
@@ -75,10 +75,7 @@ export function checkpointBox(state: CheckpointState): Box {
  * boundaries against IEEE-754 rounding (e.g. `2 * step / step` coming out
  * fractionally below 2).
  */
-export function checkpointFrameIndex(
-  state: CheckpointState,
-  worldElapsed: number,
-): 0 | 1 | 2 | 3 {
+export function checkpointFrameIndex(state: CheckpointState, worldElapsed: number): 0 | 1 | 2 | 3 {
   if (state.activatedAt === null) return 0;
   const elapsed = worldElapsed - state.activatedAt;
   if (elapsed <= 0) return 0;
@@ -88,17 +85,17 @@ export function checkpointFrameIndex(
 }
 
 /** Raises a dormant checkpoint, stamping `now` (the shared world clock) as
- *  the activation instant. A no-op (same reference) once activated — the
- *  activation instant is written exactly once (FR-006/FR-008), mirroring
- *  `Chest.ts`'s `openChest`. */
+ * the activation instant. A no-op (same reference) once activated — the
+ * activation instant is written exactly once, mirroring
+ * `Chest.ts`'s `openChest`. */
 export function activateCheckpoint(state: CheckpointState, now: number): CheckpointState {
   if (state.activated) return state;
   return { ...state, activated: true, activatedAt: now };
 }
 
 /** A world-space anchor + unit scale for the activation burst at this
- *  checkpoint's tile — mirrors `blockEffectAnchor` (a checkpoint is a single
- *  tile, so there is no per-instance size variance). */
+ * checkpoint's tile — mirrors `blockEffectAnchor` (a checkpoint is a single
+ * tile, so there is no per-instance size variance). */
 export function checkpointEffectAnchor(state: CheckpointState): EffectAnchor {
   return {
     x: state.x + RENDERED_TILE_SIZE / 2,

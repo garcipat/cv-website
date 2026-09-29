@@ -5,8 +5,8 @@ import { RENDERED_TILE_SIZE } from '../../level/Terrain';
  * How many drawn rows below each spear run's own top are kept as its lethal
  * tip — pinned to 4 from the actual art (`spears.png`'s three runs top out at
  * rows 8, 0 and 8, and each pointed tip tapers over roughly four rows before
- * the shaft begins). See research D4 in
- * `specs/O-020-floor-spear-hazard/research.md`.
+ * the shaft begins). See in
+ * `specs/-floor-spear-hazard/research.md`.
  */
 export const SPEAR_TIP_ROWS = 4;
 
@@ -14,7 +14,7 @@ export const SPEAR_TIP_ROWS = 4;
  * A row-major 1-bit bitmap over one rendered tile: `pixels[y * width + x]` is
  * 1 for a lethal tip pixel. The spear's alpha channel is reduced to this mask
  * so only the drawn tips — never the side, shaft or transparent margin — can
- * ever be lethal (O-020 FR-003).
+ * ever be lethal.
  */
 export interface SpearMask {
   width: number;
@@ -96,7 +96,7 @@ export function tipMaskFromMask(mask: SpearMask, tipRows = SPEAR_TIP_ROWS): Spea
  * The tile-top crossing is what makes "only a landing from above kills"
  * correct: a jump from inside the tile that clears a shorter side spear's tip
  * but never rises above the spear's own top does not cross this edge, so it is
- * harmless (O-020 FR-003). Because the spear tile is non-solid, once the feet
+ * harmless. Because the spear tile is non-solid, once the feet
  * have entered from above the player falls through the tips regardless of how
  * far they got in the same step, so a fast fall that skips the whole tip band
  * still registers. Pure; no DOM.
@@ -122,7 +122,7 @@ export function spearTipSweepHits(
 }
 
 /** The empty mask — what `getSpearTipMask` returns until the art loads, so an
- *  unloaded spear is inert (and also renders nothing). */
+ * unloaded spear is inert (and also renders nothing). */
 const EMPTY_SPEAR_MASK: SpearMask = {
   width: RENDERED_TILE_SIZE,
   height: RENDERED_TILE_SIZE,

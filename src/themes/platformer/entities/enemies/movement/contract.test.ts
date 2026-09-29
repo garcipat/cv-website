@@ -5,7 +5,12 @@ import { advanceEnemyAnimation } from '../../Enemy';
 import { chaseMovement } from './chase';
 import { resolveAnimation, enemyFrameIndex } from '../EnemyAnimation';
 import { drawSpriteSheetEntity } from '../drawSpriteSheetEntity';
-import { baseEnemyState, baseRevive, ENEMY_HIT_REACTION_SECONDS, type EnemyBaseConfig } from '../shared';
+import {
+  baseEnemyState,
+  baseRevive,
+  ENEMY_HIT_REACTION_SECONDS,
+  type EnemyBaseConfig,
+} from '../shared';
 import { SLIME_GREEN_SHEET } from '../../sprites/sheets';
 import { frameSource } from '../../sprites/SpriteSheet';
 import type { SpriteDescriptor } from '../../sprites/SpriteSheet';
@@ -14,7 +19,7 @@ import type { EnemyPlacement } from '../../../level/EnemyMapper';
 import type { LevelDef } from '../../../level/LevelData';
 
 /**
- * The seam's automated proof (SC-005/SC-006, FR-017/FR-018): every registered
+ * The seam's automated proof: every registered
  * kind declares its own movement + resting state, and a brand-new kind with
  * its own movement and animation works end-to-end through the shared pipeline
  * with no shared file changed.
@@ -74,8 +79,8 @@ const fixture: EnemyType<FixtureState> = {
 };
 
 /** Registers the fixture in the live registry for the duration of `run`, so
- *  the shared `typeOf`-based dispatch can find it, then removes it — the
- *  fixture is never part of `ENEMY_TYPES` outside this test. */
+ * the shared `typeOf`-based dispatch can find it, then removes it — the
+ * fixture is never part of `ENEMY_TYPES` outside this test. */
 function withRegisteredFixture<T>(run: () => T): T {
   const registry = ENEMY_TYPES as unknown as Record<string, EnemyType<BaseEnemyState>>;
   registry[FIXTURE_KEY] = fixture as unknown as EnemyType<BaseEnemyState>;
@@ -86,7 +91,7 @@ function withRegisteredFixture<T>(run: () => T): T {
   }
 }
 
-describe('movement seam — registry contract (SC-006 / FR-017)', () => {
+describe('movement seam — registry contract', () => {
   it('everyRegisteredKind-declaresACallableMovementAndARestingStateInItsOwnTable', () => {
     for (const type of Object.values(ENEMY_TYPES)) {
       expect(typeof type.movement.step).toBe('function');
@@ -95,7 +100,7 @@ describe('movement seam — registry contract (SC-006 / FR-017)', () => {
   });
 });
 
-describe('movement seam — fixture kind end-to-end (SC-005 / FR-018)', () => {
+describe('movement seam — fixture kind end-to-end', () => {
   it('aFixtureKind-withItsOwnMovementAndAnimation-worksThroughTheSharedPipeline', () => {
     withRegisteredFixture(() => {
       const placement: EnemyPlacement = {
@@ -154,7 +159,7 @@ describe('movement seam — fixture kind end-to-end (SC-005 / FR-018)', () => {
   });
 });
 
-describe('movement seam — missing-state fallback (FR-009)', () => {
+describe('movement seam — missing-state fallback', () => {
   it('aFixtureMissingTheRequestedState-resolvesToItsDefaultStateWithoutThrowing', () => {
     expect(resolveAnimation(FIXTURE_SPRITE, 'hit', 'idle')).toEqual(FIXTURE_SPRITE.animations.idle);
     expect(enemyFrameIndex(FIXTURE_SPRITE, 'hit', 0, 'idle')).toBe(0);
