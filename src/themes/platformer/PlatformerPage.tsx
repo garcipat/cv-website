@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FloatingControls } from '@/components/FloatingControls';
-import { loadImage } from './engine/SpriteLoader';
-import { loadFont } from './engine/FontLoader';
+import { createPlatformerSession } from './PlatformerSession';
+import type { PhaseGates, PlatformerSession } from './PlatformerSession';
 import {
   drawTerrain,
   drawPlayer,
@@ -20,33 +20,16 @@ import {
   drawDeployableItems,
   drawCrumblingFloors,
 } from './engine/render/SceneRenderer';
-import {
-  drawHearts,
-  drawHudCounter,
-  drawIrisOverlay,
-  drawRestartPrompt,
-  hudCounterX,
-  scaledImageCounter,
-  RESTART_PROMPT_FONT_URL,
-  BOMB_COUNTER_ICON_HEIGHT,
-  CHEST_COUNTER_ICON_HEIGHT,
-  CHEST_COUNTER_TEXT_GAP,
-  CHEST_COUNTER_X,
-  CHEST_COUNTER_Y,
-  HEARTS_START_X,
-  KEY_COUNTER_ICON_HEIGHT,
-  KEY_COUNTER_Y,
-  drawLowHealthGlow,
-} from './engine/render/HudRenderer';
-import { RESTART_PROMPT_FONT_FAMILY } from './engine/textDraw';
+import { drawIrisOverlay, drawRestartPrompt, drawLowHealthGlow } from './engine/render/HudRenderer';
+import { drawHud, layoutHud } from './engine/render/HudLayout';
+import { buildHudModel } from './state/hudModel';
 import type { CounterPopupLabelKey } from './contracts/counters';
-import { drawBackgroundLayers, backgroundBandGeometry } from './engine/BackgroundLayers';
-import { createCloudField, stepCloudField, drawAmbientClouds } from './engine/AmbientClouds';
+import { drawBackgroundLayers } from './engine/BackgroundLayers';
+import { createCloudField, drawAmbientClouds } from './engine/AmbientClouds';
 import type { CloudField } from './engine/AmbientClouds';
 import type { DrawContext } from './contracts/DrawContext';
 import type { HitEffect } from './contracts/HitEffect';
 import { drawDebugOverlay, drawCameraDeadZoneOverlay } from './engine/DebugOverlay';
-import { createGameLoop } from './engine/GameLoop';
 import {
   stepPlayerPhysics,
   checkPitFall,
@@ -59,21 +42,8 @@ import { resolveHitEffects } from './engine/HitResolver';
 import type { BlockHitResult } from './engine/HitResolver';
 import { DEFAULT_HIT_KNOCKBACK } from './shared/knockback';
 import { stepEnemyHitReaction } from './entities/enemies/hitReaction';
-import { updateCamera, updateCameraY, initialCameraX, initialCameraY } from './engine/Camera';
-import { createKeyboardInput } from './engine/Input';
-import type { KeyboardInput } from './engine/Input';
-import {
-  tickLifecycle,
-  startDeath,
-  introState,
-  currentIrisRadius,
-  pauseForJournal,
-  resumeFromJournal,
-  showEndingScreen,
-  dismissEndingScreen,
-  DEATH_ANIM_SECONDS,
-} from './engine/GameLifecycle';
-import { maxIrisRadius } from './engine/GameLifecycle';
+import { updateCamera, updateCameraY } from './engine/Camera';
+import { currentIrisRadius, maxIrisRadius } from './engine/GameLifecycle';
 import { currentLevel, currentLayout, currentBackgroundLayout } from './state/levelSession';
 import { findLevel } from './level/levelRegistry';
 import {
@@ -88,26 +58,11 @@ import type { PickupHit } from './engine/Collision';
 import type { PickupContext } from './contracts/Pickup';
 import type { PickupKind } from './contracts/PickupKind';
 import { bombDeployableItem } from './entities/deployableItems/Bomb';
-import {
-  proposeDeployableItemInteraction,
-  DEPLOYABLE_ITEM_TYPES,
-} from './entities/deployableItems';
+import { proposeDeployableItemInteraction } from './entities/deployableItems';
 import { resolveCheckpointContacts } from './engine/CheckpointLogic';
-import {
-  allChestsOpen,
-  chestDeployableItem,
-  CHEST_CLOSED_WIDTH,
-  CHEST_CLOSED_HEIGHT,
-} from './entities/chests';
-import { KEY_FRAME_WIDTH, KEY_FRAME_HEIGHT } from './entities/pickups/Key';
+import { allChestsOpen } from './entities/chests';
 import { stepBlockAnimation } from './engine/BlockAI';
-import {
-  isBlockUsedUp,
-  isBlockRemoved,
-  blockFrameSource,
-  BLOCK_FRAME_SIZE,
-  blockEffectAnchor,
-} from './entities/Block';
+import { isBlockUsedUp, isBlockRemoved, blockEffectAnchor } from './entities/Block';
 import type { BlockState } from './entities/Block';
 import { computePotRenderPlan } from './entities/blocks/potRenderPlan';
 import type { PotRenderPlan } from './entities/blocks/potTypes';
@@ -135,7 +90,7 @@ import {
   startSpeechBubble,
   crumbleDebrisLayers,
 } from './engine/effects';
-import type { EffectRenderContext, PopupIconLookup } from './engine/effects';
+import type { EffectRenderContext } from './engine/effects';
 import {
   fallingStalactiteLandingRow,
   fallingStalactiteOffsetYAt,
@@ -145,8 +100,6 @@ import {
 import { typeOf as hazardTypeOf } from './entities/hazards';
 import type { HazardTickContext } from './entities/hazards/HazardType';
 import { crumblingFloorPhaseFor, CRUMBLING_FLOOR_CRACK_SECONDS } from './tiles/crumblingFloor';
-import { COIN_FRAME_SIZE } from './entities/pickups/Coin';
-import { fruitFrameSource, FRUIT_FRAME_SIZE } from './entities/pickups/Fruit';
 import { createRewardReveal } from './state/rewards';
 import { applyEnemyDefeats } from './state/enemyRewards';
 import { RENDERED_TILE_SIZE, tileToPixel } from './level/Terrain';
@@ -170,9 +123,6 @@ import { strongerBounce } from './contracts/Outcome';
 import { isInvulnerable } from './contracts/capabilities';
 import { advanceEnemyAnimation, enemyEffectAnchor } from './entities/Enemy';
 import {
-  SLIME_GREEN_SHEET,
-  KEY_SHEET,
-  CRACK_OVERLAY_SHEET,
   GROUND_ATLAS_SHEET,
   BACKGROUND_TILES_SHEET,
   STATIC_OBJECTS_SHEET,
@@ -182,21 +132,13 @@ import {
   AMBIENT_CLOUDS_SHEET,
   DECORATIONS_SHEET,
   TORCH_SHEET,
-  COIN_SHEET,
   MUSHROOM_SHEET,
-  BOMB_SHEET,
-  EXPLOSION_SHEET,
-  SPEAR_SHEET,
-  FLOOR_SPIKE_SHEET,
-  CRUMBLE_FLOOR_SHEET,
-  CRUMBLE_CRACKS_SHEET,
+  WORLD_TILESET_SHEET,
 } from './entities/sprites/sheets';
-import { frameSource, collectSheetSources } from './entities/sprites/SpriteSheet';
 import type { SpriteLookup } from './contracts/SpriteLookup';
-import { ENEMY_TYPES, typeOf } from './entities/enemies';
+import { typeOf } from './entities/enemies';
 import type { MovementContext } from './entities/enemies/movement/MovementStrategy';
 import type { EnemyTypeKey } from './entities/enemies';
-import { spearTipMaskFromImage, setSpearTipMask } from './entities/hazards/SpearArt';
 import { PICKUP_TYPES } from './entities/pickups';
 import { BLOCK_TYPES } from './entities/blocks';
 import { CHECKPOINT_FLAG_SHEET, checkpointEffectAnchor } from './entities/Checkpoint';
@@ -221,7 +163,6 @@ import {
   spawnEffect,
   refreshSpeechBubbleText,
   chestStates,
-  chestsOpened,
   endingScreenShown,
   endingScreenOpen,
   signPlacements,
@@ -233,7 +174,6 @@ import {
   checkpointPlacements,
   checkpointStates,
   activeCheckpointId,
-  respawnPlayerState,
   respawnCenter,
   darknessLevel,
   tickDarkness,
@@ -264,7 +204,6 @@ import { navigateTo } from '@/state/navigation';
 import { currentUI } from '@/state/locale';
 import { hintText } from './state/hintText';
 import type { CollectedFact } from './types';
-import { playCanvasSize } from './engine/CanvasSize';
 
 export const PlatformerPage = () => {
   // Subscribes this component's render to any signal `.value` read during
@@ -274,52 +213,22 @@ export const PlatformerPage = () => {
   // already uses.
   useSignals();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const tilesetRef = useRef<HTMLImageElement | null>(null);
-  const backgroundLayersRef = useRef<HTMLImageElement | null>(null);
-  const backgroundLayerGrassRef = useRef<HTMLImageElement | null>(null);
-  const backgroundLayerRiverRef = useRef<HTMLImageElement | null>(null);
-  // The ambient cloud sheet — loaded alongside the other backdrop
-  // sheets and drawn as a camera-independent layer just above the backdrop.
-  const ambientCloudsRef = useRef<HTMLImageElement | null>(null);
-  const groundAtlasRef = useRef<HTMLImageElement | null>(null);
-  const backgroundAtlasRef = useRef<HTMLImageElement | null>(null);
-  const staticObjectsRef = useRef<HTMLImageElement | null>(null);
-  const decorationsRef = useRef<HTMLImageElement | null>(null);
-  // The torch animation strip — loaded alongside the other decorative sheets
-  // and threaded into drawTerrain with the shared world clock (see the render
-  // call below), since a torch's frame animates over time.
-  const torchRef = useRef<HTMLImageElement | null>(null);
-  // The mushroom sheet — loaded alongside the other decorative sheets and
-  // threaded into drawTerrain's mushroom branch.
-  const mushroomRef = useRef<HTMLImageElement | null>(null);
-  // Reusable offscreen canvas the darkness/torch pass draws its overlay onto
-  // before compositing it over the world. Created and sized alongside the main
-  // canvas in `resize()` below, so it is never reallocated per frame.
+  // Mirrors of the two scratch canvases the session owns and sizes (the
+  // darkness/torch overlay layer and the 64×64 crouched-hit tint layer),
+  // refreshed at the top of every frame so the draw pipeline reads them
+  // directly.
   const darknessLayerRef = useRef<HTMLCanvasElement | null>(null);
-  // Reusable 64×64 offscreen canvas the crouched-hit red tint draws onto
-  // — caller-owned and created once in `resize()` beside
-  // `darknessLayerRef`, so the tint allocates nothing per frame.
   const hitTintLayerRef = useRef<HTMLCanvasElement | null>(null);
-  const playerSpriteRef = useRef<HTMLImageElement | null>(null);
-  const playerJumpSpriteRef = useRef<HTMLImageElement | null>(null);
-  const heartsSpriteRef = useRef<HTMLImageElement | null>(null);
-  const coinSpriteRef = useRef<HTMLImageElement | null>(null);
-  const fruitSpriteRef = useRef<HTMLImageElement | null>(null);
-  // Enemy sprite sheets (and the key sheet, for a purple slime's held-key
-  // shine-through), discovered from the type registry rather than loaded via
-  // individual refs — see the mount effect below.
+  // THE single sprite lookup: the live, path-keyed map the `AssetLoader` fills
+  // from `SPRITE_MANIFEST`. Every image consumer — the render path through
+  // `DrawContext.sprites` and the directly-read consumers below — indexes it by
+  // source path; a key absent (not yet resolved, or failed) simply draws
+  // nothing.
   const spritesRef = useRef<SpriteLookup>({});
-  // Kept alongside spritesRef: the HUD chest counter descriptor reads this
-  // directly, unlike the chest's own draw, which reads the closed/open sprites
-  // from spritesRef via the chest kind's `draw`.
-  const chestClosedSpriteRef = useRef<HTMLImageElement | null>(null);
-  const keySpriteRef = useRef<HTMLImageElement | null>(null);
-  const checkpointSpriteRef = useRef<HTMLImageElement | null>(null);
-  // Ref to the game loop's KeyboardInput, set once inside the mount effect
-  // below right after createKeyboardInput() runs. Needed by
-  // handleDismissEndingScreen (defined outside that effect) so it can drain
-  // the dismiss keypress itself — see that handler's doc comment.
-  const inputRef = useRef<KeyboardInput | null>(null);
+  // THE one lifecycle controller. Created by the mount effect; the React
+  // handlers below ask it for phase preconditions and transitions rather than
+  // reading `lifecycleState` inline.
+  const sessionRef = useRef<PlatformerSession | null>(null);
   const journalButtonRef = useRef<HTMLButtonElement>(null);
   // `?debug`/`?level` are dev-only conveniences and only take effect when
   // this page is reached via the dedicated `/platformer` route — not e.g.
@@ -397,8 +306,9 @@ export const PlatformerPage = () => {
     }
     resetGameProgress();
     controlsOverlayDismissed.value = false;
-    const center = respawnCenter.value;
-    lifecycleState.value = introState(center.x, center.y);
+    // The 'intro' phase is seeded by the session when it starts (FR-016):
+    // `lifecycleState` is the session's to write, so this effect only prepares
+    // state and leaves the phase to `PlatformerSession.start()`.
     // mount-only by design (see the doc comment above); testLevelParam is
     // read once here, not tracked across future renders.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -413,13 +323,14 @@ export const PlatformerPage = () => {
    * `J`, and Journal's own in-book × button) closes the same animated way.
    */
   const handleJournalToggle = () => {
-    const phase = lifecycleState.value.phase;
+    const session = sessionRef.current;
+    if (!session) return;
     if (!journalOpenRef.current) {
-      if (phase !== 'playing') return;
-      lifecycleState.value = pauseForJournal(lifecycleState.value);
+      if (!session.canPause()) return;
+      session.pauseForJournal();
       setJournalOpen(true);
     } else {
-      if (phase !== 'paused') return;
+      if (!session.canResume()) return;
       setJournalClosing(true);
     }
   };
@@ -430,7 +341,7 @@ export const PlatformerPage = () => {
   // callback there would clear and reschedule the animation timer on every
   // render.
   const handleJournalReallyClosed = useCallback(() => {
-    lifecycleState.value = resumeFromJournal(lifecycleState.value);
+    sessionRef.current?.resumeFromJournal();
     setJournalOpen(false);
     setJournalClosing(false);
   }, []);
@@ -443,13 +354,14 @@ export const PlatformerPage = () => {
    * nothing else is still the reason the game is paused.
    */
   const handleFloatingControlsOpenChange = (open: boolean) => {
-    const phase = lifecycleState.value.phase;
+    const session = sessionRef.current;
+    if (!session) return;
     if (open) {
-      if (phase !== 'playing') return;
-      lifecycleState.value = pauseForJournal(lifecycleState.value);
+      if (!session.canPause()) return;
+      session.pauseForJournal();
     } else {
-      if (phase !== 'paused' || journalOpenRef.current || endingScreenOpen.value) return;
-      lifecycleState.value = resumeFromJournal(lifecycleState.value);
+      if (!session.canResume() || journalOpenRef.current || endingScreenOpen.value) return;
+      session.resumeFromJournal();
     }
   };
 
@@ -457,9 +369,9 @@ export const PlatformerPage = () => {
   // handleJournalReallyClosed above) since ThankYouScreen depends on it for
   // its own keydown-listener effect.
   //
-  // Also drains the game loop's KeyboardInput (`inputRef.current`) here: the
+  // Also drains the session's KeyboardInput here (`clearPendingInput()`): the
   // same physical keydown that dismisses this screen (e.g. Space) is also
-  // seen by `createKeyboardInput`'s own listener and buffered as a pending
+  // seen by the session's own input listener and buffered as a pending
   // press. Flipping `gamePhase` to 'playing' happens synchronously above, so
   // the very next game-loop tick already skips the 'ending-screen' phase's
   // own `input.clearPending()` early-return — without this call, that
@@ -467,40 +379,11 @@ export const PlatformerPage = () => {
   // same class of bug the 'paused' phase's `input.clearPending()` guards
   // against, just reappearing through this exit path.
   const handleDismissEndingScreen = useCallback(() => {
-    lifecycleState.value = dismissEndingScreen(lifecycleState.value);
+    const session = sessionRef.current;
+    session?.dismissEndingScreen();
     endingScreenOpen.value = false;
-    inputRef.current?.clearPending();
+    session?.clearPendingInput();
   }, []);
-
-  /**
-   * One-time camera snap for spawn/respawn/restart — both axes, so a death
-   * after a checkpoint frames the character already standing on it.
-   * See `initialCameraX`/`initialCameraY`'s own doc comments for why this
-   * can't just be left to the per-frame dead-zone tracking (a fresh spawn can
-   * land anywhere inside the band with no correction at all). Reads
-   * `respawnPlayerState` (the active checkpoint's tile, else the level spawn).
-   * No-ops if the canvas hasn't sized itself yet (`canvas.width`/`height`
-   * start at 0 before the mount effect's first `resize()` call).
-   */
-  const snapCameraToRespawn = () => {
-    const canvas = canvasRef.current;
-    if (!canvas || canvas.height === 0) return;
-    const levelPixelHeight = currentLevel.value.height * RENDERED_TILE_SIZE;
-    const levelPixelWidth = currentLevel.value.width * RENDERED_TILE_SIZE;
-    const respawn = respawnPlayerState.value;
-    cameraPositionX.value = initialCameraX(
-      respawn.x,
-      PLAYER_RENDERED_SIZE,
-      canvas.width,
-      levelPixelWidth,
-    );
-    cameraPositionY.value = initialCameraY(
-      respawn.y,
-      PLAYER_RENDERED_SIZE,
-      canvas.height,
-      levelPixelHeight,
-    );
-  };
 
   /**
    * Reset Game (journal button): clears collected progress and
@@ -521,9 +404,9 @@ export const PlatformerPage = () => {
     // reachable while the ending screen is showing today, but costs nothing
     // to keep in sync regardless).
     endingScreenOpen.value = false;
-    snapCameraToRespawn();
-    const center = respawnCenter.value;
-    lifecycleState.value = introState(center.x, center.y);
+    const session = sessionRef.current;
+    session?.snapCameraToRespawn();
+    if (session) session.beginIntro(respawnCenter.value);
   };
 
   const handleDebugKill = () => {
@@ -536,23 +419,21 @@ export const PlatformerPage = () => {
       animTimer: 0,
     };
     const p = playerState.value;
-    lifecycleState.value = startDeath(
-      p.x + PLAYER_RENDERED_SIZE / 2,
-      p.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
-    );
-    // Death immediately halts the effect-advance block below (the game loop
-    // skips it entirely for the 'dying'/'awaitingRestart' phases), so without
-    // this a bubble revealed just before dying would otherwise freeze on
-    // screen through the whole death animation and the restart-prompt wait
-    // see this same comment at the other `startDeath()` call site below.
+    sessionRef.current?.beginDeath({
+      x: p.x + PLAYER_RENDERED_SIZE / 2,
+      y: p.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
+    });
+    // Death immediately halts the effect-advance block in the frame, so
+    // without this a bubble revealed just before dying would otherwise freeze
+    // on screen through the whole death animation and the restart-prompt wait.
     activeEffects.value = clearEffectsOfKind(activeEffects.value, 'speechBubble');
   };
 
   const handleDebugRespawn = () => {
     resetGame();
-    snapCameraToRespawn();
-    const center = respawnCenter.value;
-    lifecycleState.value = introState(center.x, center.y);
+    const session = sessionRef.current;
+    session?.snapCameraToRespawn();
+    if (session) session.beginIntro(respawnCenter.value);
   };
 
   /**
@@ -571,66 +452,11 @@ export const PlatformerPage = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Cached across frames: only recomputed on mount and on actual window
-    // resize, since neither the canvas dimensions nor the CSS custom
-    // property change on any other frame.
+    // Read-only mirrors of the session's loop-owned values, refreshed at the
+    // top of every frame so the draw pipeline below reads plain locals.
     let backgroundColor = '#000';
-
-    // Shared spin/idle-loop timer for coins (see Coin.ts's coinFrameIndex)
-    // a plain variable, not a signal, since nothing outside this render loop
-    // needs to read or react to it. Enemies track their own animation timers
-    // independently.
     let worldAnimElapsed = 0;
-
-    // Cycles through fruit.png's icon frames (see Fruit.ts's
-    // FRUIT_ICON_COUNT) so successive question-mark bonus fruits look
-    // visibly different from each other — "just keep incrementing, let
-    // spawnFruit wrap it".
-    let nextFruitIcon = 0;
-
-    // Whether the visitor has asked for reduced motion — read once on mount
-    // (same precedent as SpacePage.tsx) and threaded into the ambient-cloud
-    // step, so the clouds are drawn but never drift.
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    // The ambient cloud field — a loop-local value like
-    // `worldAnimElapsed` above, rebuilt from scratch on every resize and
-    // stepped only inside the 'playing' branch, so it freezes with the world
-    // during pause/death/restart. Starts empty until the first `resize()`.
     let cloudField: CloudField = createCloudField(0, 0, 0);
-
-    const resize = () => {
-      const { width, height } = playCanvasSize(window.innerWidth, window.innerHeight);
-      canvas.width = width;
-      canvas.height = height;
-
-      // The darkness/torch overlay's own canvas, kept the same size as the
-      // play canvas and reused every frame (never reallocated in the loop).
-      if (!darknessLayerRef.current) {
-        darknessLayerRef.current = document.createElement('canvas');
-      }
-      darknessLayerRef.current.width = width;
-      darknessLayerRef.current.height = height;
-
-      // The crouched-hit tint's scratch layer — one 64×64 tile-sized canvas
-      // (the player's rendered size), created once and reused every frame
-      //. Sized only on creation: it never depends on the viewport.
-      if (!hitTintLayerRef.current) {
-        hitTintLayerRef.current = document.createElement('canvas');
-        hitTintLayerRef.current.width = PLAYER_RENDERED_SIZE;
-        hitTintLayerRef.current.height = PLAYER_RENDERED_SIZE;
-      }
-
-      // Rebuild the ambient cloud field for the new play-area width and open
-      // sky region. `cloudsTop` is the painted clouds/hills
-      // band's top edge — the open sky's bottom (see contracts/rendering.md).
-      const geometry = backgroundBandGeometry(canvas.height);
-      cloudField = createCloudField(width, geometry.skyTop, geometry.cloudsTop);
-
-      backgroundColor =
-        getComputedStyle(document.documentElement).getPropertyValue('--background').trim() ||
-        '#000';
-    };
 
     const render = () => {
       const ctx = canvas.getContext('2d');
@@ -650,17 +476,16 @@ export const PlatformerPage = () => {
       const originY = canvas.height - levelPixelHeight + cameraPositionY.value;
       const originX = -cameraPositionX.value;
 
-      if (
-        backgroundLayersRef.current &&
-        backgroundLayerGrassRef.current &&
-        backgroundLayerRiverRef.current
-      ) {
+      const backdropLayers = spritesRef.current[BACKGROUND_LAYERS_SHEET.src];
+      const backdropGrass = spritesRef.current[BACKGROUND_LAYER_GRASS_SHEET.src];
+      const backdropRiver = spritesRef.current[BACKGROUND_LAYER_RIVER_SHEET.src];
+      if (backdropLayers && backdropGrass && backdropRiver) {
         drawBackgroundLayers(
           ctx,
           {
-            layers: backgroundLayersRef.current,
-            grass: backgroundLayerGrassRef.current,
-            river: backgroundLayerRiverRef.current,
+            layers: backdropLayers,
+            grass: backdropGrass,
+            river: backdropRiver,
           },
           canvas.width,
           canvas.height,
@@ -673,7 +498,12 @@ export const PlatformerPage = () => {
       // small camera-linked parallax shift at the painted clouds/hills band's
       // factor, drawn immediately above the backdrop and behind everything
       // else.
-      drawAmbientClouds(ctx, ambientCloudsRef.current, cloudField, cameraPositionX.value);
+      drawAmbientClouds(
+        ctx,
+        spritesRef.current[AMBIENT_CLOUDS_SHEET.src],
+        cloudField,
+        cameraPositionX.value,
+      );
 
       // Built before the 'terrain' band (it used to be built after the ladder
       // draw): the deployable-item draw dispatch needs it at every band, and
@@ -687,37 +517,45 @@ export const PlatformerPage = () => {
         potPlan: computePotRenderPlan(blockStates.value),
       };
 
-      if (tilesetRef.current) {
-        if (backgroundAtlasRef.current) {
+      const tileset = spritesRef.current[WORLD_TILESET_SHEET.src];
+      const groundAtlas = spritesRef.current[GROUND_ATLAS_SHEET.src];
+      const backgroundTiles = spritesRef.current[BACKGROUND_TILES_SHEET.src];
+      const staticObjects = spritesRef.current[STATIC_OBJECTS_SHEET.src];
+      const decorations = spritesRef.current[DECORATIONS_SHEET.src];
+      const torchSheet = spritesRef.current[TORCH_SHEET.src];
+      const mushroomSheet = spritesRef.current[MUSHROOM_SHEET.src];
+
+      if (tileset) {
+        if (backgroundTiles) {
           drawBackgroundTiles(
             ctx,
             currentLevel.value,
-            backgroundAtlasRef.current,
+            backgroundTiles,
             originX,
             originY,
-            decorationsRef.current,
+            decorations,
           );
         }
-        if (groundAtlasRef.current) {
+        if (groundAtlas) {
           drawTerrain(
             ctx,
             currentLevel.value,
-            tilesetRef.current,
-            groundAtlasRef.current,
+            tileset,
+            groundAtlas,
             originX,
             originY,
-            staticObjectsRef.current,
-            decorationsRef.current,
-            torchRef.current,
+            staticObjects,
+            decorations,
+            torchSheet,
             worldAnimElapsed,
-            mushroomRef.current,
+            mushroomSheet,
             mushroomSquashStates.value,
           );
         }
         // Terrain-level band: the rope ladder's rolled bundle and deployed
         // shaft, drawn over the terrain it was placed on.
         drawDeployableItems(ctx, deployableItems.value, drawContext, 'terrain');
-        drawSigns(ctx, signPlacements.value, tilesetRef.current, originX, originY);
+        drawSigns(ctx, signPlacements.value, tileset, originX, originY);
       }
 
       // Read once per frame: the page never names a pickup kind, it just
@@ -725,47 +563,10 @@ export const PlatformerPage = () => {
       const pickupGroupValues = pickupGroups.value;
 
       // One render context per frame, shared by the four `drawEffects` layer
-      // invocations below. `popupIcons` is resolved once here from the sprite
-      // refs (the former render-loop popupOrder), so the counter-popup draw
-      // needs no image refs of its own.
-      const popupIconSources: Array<{
-        labelKey: CounterPopupLabelKey;
-        icon: HTMLImageElement | null;
-        iconFrame: { sx: number; sy: number; size: number };
-        iconYOffset?: number;
-      }> = [
-        {
-          labelKey: 'coins',
-          icon: coinSpriteRef.current,
-          iconFrame: { ...frameSource(COIN_SHEET, 0), size: COIN_FRAME_SIZE },
-        },
-        {
-          labelKey: 'fruits',
-          icon: fruitSpriteRef.current,
-          iconFrame: { ...fruitFrameSource(0), size: FRUIT_FRAME_SIZE },
-        },
-        {
-          labelKey: 'enemies',
-          icon: spritesRef.current[SLIME_GREEN_SHEET.src],
-          iconFrame: { ...frameSource(SLIME_GREEN_SHEET, 2), size: SLIME_GREEN_SHEET.frameWidth },
-          iconYOffset: -6,
-        },
-        {
-          labelKey: 'crates',
-          icon: tilesetRef.current,
-          iconFrame: { ...blockFrameSource('crate'), size: BLOCK_FRAME_SIZE },
-        },
-      ];
-      const popupIcons: PopupIconLookup = {};
-      for (const source of popupIconSources) {
-        if (source.icon) {
-          popupIcons[source.labelKey] = {
-            icon: source.icon,
-            iconFrame: source.iconFrame,
-            iconYOffset: source.iconYOffset,
-          };
-        }
-      }
+      // invocations below. The whole HUD is built once here as data (FR-013);
+      // the counter popups read its resolved `popupIcons` and the same model
+      // is drawn as the HUD row at the end of the frame.
+      const hudModel = buildHudModel(spritesRef.current);
       const effectRenderContext: EffectRenderContext = {
         ctx,
         dc: drawContext,
@@ -781,7 +582,7 @@ export const PlatformerPage = () => {
           // the bubble noticeably higher than the character.
           headBottomY: playerState.value.y + PLAYER_HEAD_PADDING + originY,
         },
-        popupIcons,
+        popupIcons: hudModel.popupIcons,
         effects: activeEffects.value,
       };
 
@@ -807,12 +608,13 @@ export const PlatformerPage = () => {
       drawCheckpoints(
         ctx,
         checkpointStates.value,
-        checkpointSpriteRef.current,
+        spritesRef.current[CHECKPOINT_FLAG_SHEET.src],
         activeCheckpointId.value,
         drawContext,
       );
 
-      if (playerSpriteRef.current) {
+      const playerSprite = spritesRef.current['/sprites/knight.png'];
+      if (playerSprite) {
         // A directional hit (enemy/hazard, both knock the player back) is
         // always visible — its `hit` animState (3rd frame red-tinted) IS the
         // "just got hurt" signal. `death` is likewise always visible — it's
@@ -830,10 +632,10 @@ export const PlatformerPage = () => {
         drawPlayer(
           ctx,
           playerState.value,
-          playerSpriteRef.current,
+          playerSprite,
           originX,
           originY,
-          playerJumpSpriteRef.current,
+          spritesRef.current['/sprites/knight2.png'],
           playerVisible,
           hitTintLayerRef.current,
         );
@@ -843,7 +645,7 @@ export const PlatformerPage = () => {
           drawHeldTorch(
             ctx,
             playerState.value,
-            torchRef.current,
+            torchSheet,
             darknessLevel.value,
             originX,
             originY,
@@ -865,11 +667,11 @@ export const PlatformerPage = () => {
       // the viewport) — drawn after every world entity so it sits in front
       // of the player/enemies, same camera-scroll originX/originY as
       // drawTerrain so it stays attached to the level rather than the screen.
-      if (tilesetRef.current) {
+      if (tileset) {
         drawWaterForeground(
           ctx,
           currentLevel.value,
-          tilesetRef.current,
+          tileset,
           canvas.width,
           canvas.height,
           originX,
@@ -958,59 +760,13 @@ export const PlatformerPage = () => {
         drawCameraDeadZoneOverlay(ctx, canvas.width, canvas.height);
       }
 
-      if (heartsSpriteRef.current) {
-        drawHearts(ctx, playerState.value.hitPoints, heartsSpriteRef.current, HEARTS_START_X);
-      }
-
-      // Persistent HUD counters (chest → key → bomb) are declared as
-      // descriptors and drawn through the one generic drawer; the chest
-      // descriptor is built even while its group is hidden so the X-chain
-      // position is unchanged.
-      const chestDescriptor = scaledImageCounter({
-        image: chestClosedSpriteRef.current,
-        sourceWidth: CHEST_CLOSED_WIDTH,
-        sourceHeight: CHEST_CLOSED_HEIGHT,
-        height: CHEST_COUNTER_ICON_HEIGHT,
-        count: chestsOpened.value,
-        total: levelTotals.value.chests,
-        textGap: CHEST_COUNTER_TEXT_GAP,
-      });
-      const keyX = hudCounterX(ctx, chestDescriptor, CHEST_COUNTER_X);
-
-      if (chestClosedSpriteRef.current && levelTotals.value.chests > 0) {
-        drawHudCounter(ctx, chestDescriptor, CHEST_COUNTER_X, CHEST_COUNTER_Y);
-      }
-
-      const keyDescriptor = scaledImageCounter({
-        image: keySpriteRef.current,
-        sourceWidth: KEY_FRAME_WIDTH,
-        sourceHeight: KEY_FRAME_HEIGHT,
-        height: KEY_COUNTER_ICON_HEIGHT,
-        count: collectedKeys.value,
-        textGap: CHEST_COUNTER_TEXT_GAP,
-      });
-      if (keySpriteRef.current && collectedKeys.value > 0) {
-        drawHudCounter(ctx, keyDescriptor, keyX, KEY_COUNTER_Y);
-      }
-
-      // The bomb HUD group is hidden while the carried count is 0;
-      // a hidden key group does not advance the bomb group's X.
-      const bombSprite = spritesRef.current[BOMB_SHEET.src];
-      const bombX = collectedKeys.value > 0 ? hudCounterX(ctx, keyDescriptor, keyX) : keyX;
-      if (bombSprite && carriedBombs.value > 0) {
-        const bombDescriptor = scaledImageCounter({
-          image: bombSprite,
-          sourceWidth: BOMB_SHEET.frameWidth,
-          sourceHeight: BOMB_SHEET.frameHeight,
-          height: BOMB_COUNTER_ICON_HEIGHT,
-          count: carriedBombs.value,
-          textGap: CHEST_COUNTER_TEXT_GAP,
-        });
-        drawHudCounter(ctx, bombDescriptor, bombX, KEY_COUNTER_Y);
-      }
+      // The HUD is one model + one layout + one drawer (FR-013/SC-003): the
+      // page names no sprite frame, chains no counter X and reads no
+      // per-kind counter state here.
+      drawHud(ctx, hudModel);
 
       if (
-        lifecycleState.value.phase === 'playing' &&
+        session.phase() === 'playing' &&
         isHealthCritical(playerState.value.hitPoints)
       ) {
         drawLowHealthGlow(ctx, canvas.width, canvas.height, worldAnimElapsed);
@@ -1044,95 +800,52 @@ export const PlatformerPage = () => {
       }
     };
 
-    resize();
-    snapCameraToRespawn();
-    render();
-    canvas.focus();
-
-    const onResize = () => {
-      resize();
-      render();
-    };
-    window.addEventListener('resize', onResize);
-
-    const input = createKeyboardInput();
-    inputRef.current = input;
-
     /**
-     * Any key or a canvas click restarts the game while 'awaitingRestart'
-     * full health, spawn position, back to the 'intro' iris-in. No-op in
-     * every other phase (checked first) so this can't fire mid-gameplay.
+     * The page's per-frame composition, injected into the controller. The
+     * session decides *what* a frame may do (its gates); the page owns the
+     * world step and the draw pipeline (see research D13/SC-005).
      */
-    const restartIfAwaiting = () => {
-      if (lifecycleState.value.phase !== 'awaitingRestart') return;
-      resetGame();
-      snapCameraToRespawn();
-      const center = respawnCenter.value;
-      lifecycleState.value = introState(center.x, center.y);
-      render();
-    };
-    window.addEventListener('keydown', restartIfAwaiting);
-    canvas.addEventListener('click', restartIfAwaiting);
+    const runFrame = (dt: number, gates: PhaseGates) => {
+      // The session owns these; mirror them so the pipeline reads plain locals.
+      const runtime = session.runtime();
+      backgroundColor = runtime.backgroundColor;
+      cloudField = runtime.cloudField;
+      worldAnimElapsed = runtime.worldElapsed;
+      darknessLayerRef.current = runtime.darknessLayer;
+      hitTintLayerRef.current = runtime.hitTintLayer;
 
-    const onJournalKey = (e: KeyboardEvent) => {
-      if (e.repeat) return;
-      if (e.code === 'KeyJ') handleJournalToggle();
-    };
-    window.addEventListener('keydown', onJournalKey);
-
-    const loop = createGameLoop((dt) => {
-      // 'dying' and 'awaitingRestart' pause the game loop entirely — no
-      // physics/input processing, just advancing (dying) or holding
-      // (awaitingRestart) the iris animation and re-rendering.
-      if (lifecycleState.value.phase === 'dying') {
-        lifecycleState.value = tickLifecycle(lifecycleState.value, dt);
-        // The player's 'death' animState (set where this phase begins) plays
-        // out once during the lead-in before the iris starts closing (see
-        // GameLifecycle.ts's DEATH_ANIM_SECONDS) — everything else about the
-        // player stays frozen, same as the rest of this phase, and once the
-        // lead-in ends this stops advancing, holding the last (collapsed)
-        // frame for the remainder of the phase.
-        if (lifecycleState.value.elapsed < DEATH_ANIM_SECONDS) {
+      if (gates.advanceEffectKinds !== 'all') {
+        // 'dying' / 'awaitingRestart' / 'paused' / 'ending-screen': no world
+        // step, just the phase's own advance (if any) and a repaint.
+        if (gates.advanceLifecycle) {
+          session.advanceLifecycle(dt);
+        }
+        if (gates.advancePlayerAnimation) {
+          // The player's 'death' animState plays out once during the lead-in
+          // before the iris starts closing (see GameLifecycle.ts's
+          // DEATH_ANIM_SECONDS); once it ends this stops advancing, holding
+          // the last (collapsed) frame for the remainder of the phase.
           playerState.value = advancePlayerAnimation(playerState.value, dt);
         }
-        // The spear's blood burst is spawned on the kill tick and must
-        // keep spraying through the death lead-in; the rest of the world stays
-        // frozen as before, so the filtered advance ticks only hit splatters and
-        // leaves every other effect's elapsed exactly (-3/).
-        activeEffects.value = advanceEffects(activeEffects.value, dt, { kinds: ['hitSplatter'] });
-        render();
-        return;
-      }
-      if (lifecycleState.value.phase === 'awaitingRestart') {
-        render();
-        return;
-      }
-      if (lifecycleState.value.phase === 'paused') {
-        // Drains any edge-triggered presses (e.g. Space) that land while the
-        // journal is open every tick, not just once — otherwise a press made
-        // while paused sits in `justPressed` and fires as a jump on the very
-        // next tick after resuming, even though the player never intended to
-        // jump while looking at the overlay.
-        input.clearPending();
-        render();
-        return;
-      }
-      if (lifecycleState.value.phase === 'ending-screen') {
-        input.clearPending();
+        if (gates.advanceEffectKinds !== 'none') {
+          // The spear's blood burst is spawned on the kill tick and must keep
+          // spraying through the death lead-in; every other effect's elapsed
+          // stays exactly as it was.
+          activeEffects.value = advanceEffects(activeEffects.value, dt, {
+            kinds: gates.advanceEffectKinds,
+          });
+        }
         render();
         return;
       }
 
-      // Coins/enemies only animate while the game is actually live — frozen
-      // during death/restart/journal-pause, same as physics below, rather
-      // than ticking on a wall-clock independent of the paused state.
-      worldAnimElapsed += dt;
-
-      // Ambient clouds drift right-to-left here, in the 'playing' branch only,
-      // so they freeze with the world during pause/death/restart. Stepping by
-      // the loop's own clamped `dt` is what makes them resume from where they
-      // were after a stall rather than jumping forward.
-      cloudField = stepCloudField(cloudField, dt, prefersReducedMotion);
+      // The world step is the only reader of input, and only once the session
+      // has created it (i.e. after start()).
+      const input = session.keyboard();
+      if (!input) {
+        render();
+        return;
+      }
 
       // Darkness is eased here, in the `playing` branch only, so it freezes
       // with the rest of the world during pause/death.
@@ -1368,21 +1081,18 @@ export const PlatformerPage = () => {
               let targetY = canvas.height - 32;
               if (text.target === 'keyCounter') {
                 const hudCtx = canvas.getContext('2d');
-                if (hudCtx) {
-                  const chestDescriptor = scaledImageCounter({
-                    image: null,
-                    sourceWidth: CHEST_CLOSED_WIDTH,
-                    sourceHeight: CHEST_CLOSED_HEIGHT,
-                    height: CHEST_COUNTER_ICON_HEIGHT,
-                    count: chestsOpened.value,
-                    total: levelTotals.value.chests,
-                    textGap: CHEST_COUNTER_TEXT_GAP,
-                  });
-                  targetX = hudCounterX(hudCtx, chestDescriptor, CHEST_COUNTER_X);
-                } else {
-                  targetX = CHEST_COUNTER_X;
+                // The key counter's own laid-out position, from the same
+                // model+layout the HUD row is drawn with — the page names no
+                // counter X and chains none (SC-003).
+                const placedKey = hudCtx
+                  ? layoutHud(hudCtx, buildHudModel(spritesRef.current)).counters.find(
+                      (placed) => placed.key === 'keys',
+                    )
+                  : undefined;
+                if (placedKey) {
+                  targetX = placedKey.x;
+                  targetY = placedKey.y;
                 }
-                targetY = KEY_COUNTER_Y;
               }
               spawnEffect(
                 startFlyingText(
@@ -1869,7 +1579,7 @@ export const PlatformerPage = () => {
               x: block.x,
               y: block.y,
               fact: block.fact,
-              iconIndex: () => nextFruitIcon++,
+              iconIndex: () => session.takeNextFruitIcon(),
             }),
           );
         }
@@ -2138,10 +1848,10 @@ export const PlatformerPage = () => {
       // once already 'playing' — see GameLifecycle.ts's tickLifecycle).
       if (!next.alive) {
         playerState.value = { ...next, animState: 'death', animFrame: 0, animTimer: 0 };
-        lifecycleState.value = startDeath(
-          next.x + PLAYER_RENDERED_SIZE / 2,
-          next.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
-        );
+        session.beginDeath({
+          x: next.x + PLAYER_RENDERED_SIZE / 2,
+          y: next.y + PLAYER_VISUAL_CENTER_Y_OFFSET,
+        });
         // See handleDebugKill's identical assignment above: without this the
         // bubble would freeze on screen through the death animation and the
         // awaitingRestart wait, since the game loop's early-returns for those
@@ -2149,7 +1859,7 @@ export const PlatformerPage = () => {
         // fade it out.
         activeEffects.value = clearEffectsOfKind(activeEffects.value, 'speechBubble');
       } else {
-        lifecycleState.value = tickLifecycle(lifecycleState.value, dt);
+        session.advanceLifecycle(dt);
       }
 
       // Deliberately allows 'intro' here too, not just 'playing': per
@@ -2174,319 +1884,34 @@ export const PlatformerPage = () => {
       // tick, permanently re-opening the screen the instant it's dismissed.
       if (
         !endingScreenShown.value &&
-        (lifecycleState.value.phase === 'playing' || lifecycleState.value.phase === 'intro') &&
+        (session.phase() === 'playing' || session.phase() === 'intro') &&
         allChestsOpen(chestStates.value)
       ) {
-        lifecycleState.value = showEndingScreen(lifecycleState.value);
+        sessionRef.current?.showEndingScreen();
         endingScreenOpen.value = true;
         endingScreenShown.value = true;
       }
 
       render();
-    });
-    loop.start();
+    };
 
-    let cancelled = false;
-    loadImage('/sprites/world_tileset.png')
-      .then((img) => {
-        if (cancelled) return;
-        tilesetRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Terrain simply won't render if the tileset fails to load; the
-        // background fill still shows so the page isn't blank.
-      });
-    loadImage(GROUND_ATLAS_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        groundAtlasRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Ground simply won't render if the atlas fails to load; the sky and
-        // the background fill still show so the page isn't blank.
-      });
-    loadImage(BACKGROUND_LAYERS_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        backgroundLayersRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // The background simply won't render if this asset fails to load;
-        // the plain fillRect fallback still shows so the page isn't blank.
-      });
-    loadImage(BACKGROUND_LAYER_GRASS_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        backgroundLayerGrassRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Same fallback as the layers sheet above.
-      });
-    loadImage(BACKGROUND_LAYER_RIVER_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        backgroundLayerRiverRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // The river simply won't animate if this asset fails to load; the
-        // rest of the background still shows.
-      });
-    loadImage(AMBIENT_CLOUDS_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        ambientCloudsRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // The ambient layer is purely decorative — it simply won't render if
-        // this sheet fails to load (drawAmbientClouds returns early on a null
-        // image); the backdrop, level and HUD still show.
-      });
-    loadImage(BACKGROUND_TILES_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        backgroundAtlasRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // The background tile layer is purely decorative — it simply won't
-        // render if this atlas fails to load; the sky, terrain and the rest
-        // of the game still show.
-      });
-    loadImage(STATIC_OBJECTS_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        staticObjectsRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Bush/fence are purely decorative — they simply won't render if this
-        // atlas fails to load; the rest of the level still shows.
-      });
-    loadImage(DECORATIONS_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        decorationsRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Cave-dressing tiles are purely decorative — they simply won't
-        // render if this atlas fails to load; the rest of the level still
-        // shows.
-      });
-    loadImage(TORCH_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        torchRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Torches are purely decorative — they simply won't render if this
-        // strip fails to load; the rest of the level still shows.
-      });
-    loadImage(MUSHROOM_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        mushroomRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Mushrooms simply won't render if this sheet fails to load; the rest
-        // of the level still shows.
-      });
-    // The explosion sheet is no type's primary sprite, so — like
-    // crack_overlay.png — it stays a hand-listed load rather than being
-    // discovered through a registry walk.
-    loadImage(EXPLOSION_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        spritesRef.current[EXPLOSION_SHEET.src] = img;
-        render();
-      })
-      .catch(() => {
-        // Explosions simply won't render if this strip fails to load; the
-        // rest of the game still shows.
-      });
-    // The floor spear's sheet is hand-listed (like EXPLOSION_SHEET) rather
-    // than discovered through a registry walk, because its loaded image must
-    // also build the module-level tip mask the lethal contact test reads
-    //. An unloaded/failed spear stays inert and renders nothing.
-    loadImage(SPEAR_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        spritesRef.current[SPEAR_SHEET.src] = img;
-        const mask = spearTipMaskFromImage(img);
-        if (mask) setSpearTipMask(mask);
-        render();
-      })
-      .catch(() => {
-        // The spear simply won't render (and stays inert) if its art fails to
-        // load; the rest of the game still shows.
-      });
-    // The floor spike sheet is no type's primary sprite either
-    // (spike/spear/floorSpike are hazards, not enemies/pickups/blocks, so
-    // HAZARD_TYPES is never walked by the collectSheetSources loop below)
-    // same hand-listed-load convention as EXPLOSION_SHEET above.
-    loadImage(FLOOR_SPIKE_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        spritesRef.current[FLOOR_SPIKE_SHEET.src] = img;
-        render();
-      })
-      .catch(() => {
-        // Floor spikes simply won't render if this strip fails to load; the
-        // rest of the level still shows.
-      });
-    loadImage('/sprites/knight.png')
-      .then((img) => {
-        if (cancelled) return;
-        playerSpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Player simply won't render if the sprite fails to load; the
-        // terrain still shows.
-      });
-    loadImage('/sprites/knight2.png')
-      .then((img) => {
-        if (cancelled) return;
-        playerJumpSpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Jump falls back to the primary sheet's current frame if this one
-        // fails to load (see SceneRenderer.ts's drawPlayer).
-      });
-    loadImage('/sprites/hearts.png')
-      .then((img) => {
-        if (cancelled) return;
-        heartsSpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // The heart HUD simply won't render if the sprite fails to load; the
-        // rest of the game still shows.
-      });
-    loadImage('/sprites/coin.png')
-      .then((img) => {
-        if (cancelled) return;
-        coinSpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Coins simply won't render if the sprite fails to load; the rest of
-        // the game still shows.
-      });
-    loadImage('/sprites/fruit.png')
-      .then((img) => {
-        if (cancelled) return;
-        fruitSpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Fruits simply won't render if the sprite fails to load; coins and
-        // the rest of the game still show.
-      });
-    // Discovers every enemy sheet from the type registry (plus the key
-    // sheet, for a purple slime's held-key shine-through), every pickup
-    // sheet from PICKUP_TYPES, every block sheet from BLOCK_TYPES, every
-    // deployable item's primary sprite from DEPLOYABLE_ITEM_TYPES (the rope
-    // ladder's bundle/shaft sheet and the bomb's strip are discovered here)
-    // and both chest sheets (closed/open) from the chest kind, rather than
-    // hand-listing each one — adding an enemy, pickup, block, deployable item
-    // or chest type needs no new loadImage call here. coin.png and fruit.png
-    // are also loaded individually above into coinSpriteRef/fruitSpriteRef,
-    // which the HUD counters still read directly
-    // the two loads race harmlessly (same convention KEY_SHEET already
-    // established alongside keySpriteRef's own individual load below).
-    // world_tileset.png is likewise still loaded individually above into
-    // tilesetRef, which drawTerrain/drawSigns read directly — its block-drawing
-    // modules (entities/blocks/) read the copy landing here in spritesRef
-    // instead. crack_overlay.png has no dedicated ref at all and no type's
-    // primary sprite — only a crate's own module reads it, as a secondary
-    // overlay it composites on top of its own tile, via spritesRef, so it stays
-    // hand-listed here rather than discovered through a registry. The chest's
-    // secondary open sheet stays hand-listed too, as secondary sheets do for
-    // every family.
-    for (const src of collectSheetSources([
-      ...Object.values(ENEMY_TYPES).map((t) => t.sprite),
-      ...Object.values(PICKUP_TYPES).map((t) => t.sprite),
-      ...Object.values(BLOCK_TYPES).map((t) => t.sprite),
-      ...Object.values(DEPLOYABLE_ITEM_TYPES).map((t) => t.sprite),
-      chestDeployableItem.closed,
-      chestDeployableItem.open,
-      { sheet: KEY_SHEET, renderScale: 1, animations: {} },
-      { sheet: CRACK_OVERLAY_SHEET, renderScale: 1, animations: {} },
-      { sheet: CRUMBLE_FLOOR_SHEET, renderScale: 1, animations: {} },
-      { sheet: CRUMBLE_CRACKS_SHEET, renderScale: 1, animations: {} },
-      { sheet: DECORATIONS_SHEET, renderScale: 1, animations: {} },
-    ])) {
-      loadImage(src)
-        .then((img) => {
-          if (cancelled) return;
-          spritesRef.current[src] = img;
-          render();
-        })
-        .catch(() => {
-          // That sheet's enemies/pickups (or the held-key hint) simply won't
-          // render if it fails to load; the rest of the game still shows.
-        });
-    }
-    loadImage('/sprites/chest_closed.png')
-      .then((img) => {
-        if (cancelled) return;
-        chestClosedSpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Chests simply won't render if the sprite fails to load; the rest
-        // of the game still shows.
-      });
-    loadImage('/sprites/key.png')
-      .then((img) => {
-        if (cancelled) return;
-        keySpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Key pickups simply won't render if the sprite fails to load; the
-        // rest of the game still works (collision doesn't depend on the
-        // sprite being loaded).
-      });
-    loadImage(CHECKPOINT_FLAG_SHEET.src)
-      .then((img) => {
-        if (cancelled) return;
-        checkpointSpriteRef.current = img;
-        render();
-      })
-      .catch(() => {
-        // Checkpoint flags simply won't render if the strip fails to load;
-        // activation/state still work (collision doesn't depend on it).
-      });
-    loadFont(RESTART_PROMPT_FONT_FAMILY, RESTART_PROMPT_FONT_URL)
-      .then(() => {
-        if (cancelled) return;
-        render();
-      })
-      .catch(() => {
-        // drawRestartPrompt/drawCounterPopups fall back to their
-        // sans-serif/monospace stacks if the custom font fails to load.
-      });
+    const onJournalKey = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      if (e.code === 'KeyJ') handleJournalToggle();
+    };
+    window.addEventListener('keydown', onJournalKey);
+
+    const session = createPlatformerSession({ canvas, onFrame: runFrame });
+    sessionRef.current = session;
+    // The session publishes its own live lookup before start() so the very
+    // first repaint already reads through it.
+    spritesRef.current = session.lookup;
+    session.start();
 
     return () => {
-      cancelled = true;
-      loop.stop();
-      input.destroy();
-      inputRef.current = null;
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('keydown', restartIfAwaiting);
+      session.dispose();
+      sessionRef.current = null;
       window.removeEventListener('keydown', onJournalKey);
-      canvas.removeEventListener('click', restartIfAwaiting);
     };
   }, []);
 
@@ -2508,7 +1933,7 @@ export const PlatformerPage = () => {
         {/* Sits top-left, left of the hearts HUD, which HEARTS_START_X shifts
             right to make room — top-left keeps it easy to spot against the
             terrain. size-10 (40px) must match the 40 baked into
-            HEARTS_START_X's computation in HudRenderer.ts. */}
+            HEARTS_START_X's computation in HudLayout.ts. */}
         <button
           ref={journalButtonRef}
           type="button"

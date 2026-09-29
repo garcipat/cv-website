@@ -3,6 +3,12 @@ import {
   drawHudCounter,
   drawIrisOverlay,
   drawRestartPrompt,
+  drawLowHealthGlow,
+  lowHealthGlowAlpha,
+  LOW_HEALTH_GLOW_WIDTH_PX,
+  LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS,
+} from './HudRenderer';
+import {
   formatHudCounterText,
   hudCounterWidth,
   hudCounterX,
@@ -17,11 +23,7 @@ import {
   HUD_GROUP_GAP,
   KEY_COUNTER_ICON_HEIGHT,
   KEY_COUNTER_Y,
-  drawLowHealthGlow,
-  lowHealthGlowAlpha,
-  LOW_HEALTH_GLOW_WIDTH_PX,
-  LOW_HEALTH_GLOW_PULSE_PERIOD_SECONDS,
-} from './HudRenderer';
+} from './HudLayout';
 import { RESTART_PROMPT_FONT_FAMILY } from '../textDraw';
 import { MAX_HALF_HEARTS, HEART_RENDERED_SIZE } from '../../entities/Health';
 import { BOMB_SHEET } from '../../entities/sprites/sheets';

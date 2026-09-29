@@ -105,8 +105,8 @@ import {
   CHEST_COUNTER_TEXT_GAP,
   CHEST_COUNTER_X,
   KEY_COUNTER_Y,
-  LOW_HEALTH_GLOW_WIDTH_PX,
-} from './engine/render/HudRenderer';
+} from './engine/render/HudLayout';
+import { LOW_HEALTH_GLOW_WIDTH_PX } from './engine/render/HudRenderer';
 import { pauseForJournal } from './engine/GameLifecycle';
 import { ENEMY_HIT_REACTION_SECONDS } from './entities/enemies/shared';
 import { isInvulnerable } from './contracts/capabilities';
@@ -7240,6 +7240,104 @@ describe('PlatformerPage', () => {
         grounded: true,
       };
       expect(currentLevel.value.markers?.[0]?.[3]).toEqual({ kind: 'patrolBoundary' });
+    });
+  });
+
+  describe('asset loading — progressive reveal and per-asset failure isolation', () => {
+    /** A manually-settled `Image` stub: nothing resolves until the test says
+     * so, so an assertion can pin what one asset's resolution repaints. */
+    class ControlledSpriteImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      private _src = '';
+
+      static created: ControlledSpriteImage[] = [];
+
+      get src(): string {
+        return this._src;
+      }
+
+      set src(value: string) {
+        this._src = value;
+        ControlledSpriteImage.created.push(this);
+      }
+
+      static reset(): void {
+        ControlledSpriteImage.created = [];
+      }
+
+      static settle(src: string, ok: boolean): void {
+        for (const image of ControlledSpriteImage.created) {
+          if (image.src !== src) continue;
+          if (ok) image.onload?.();
+          else image.onerror?.();
+        }
+      }
+
+      static settleEverythingExcept(failed: string): void {
+        for (const image of ControlledSpriteImage.created) {
+          if (image.src !== failed) image.onload?.();
+        }
+      }
+    }
+
+    const TILESET_SRC = '/sprites/world_tileset.png';
+
+    beforeEach(() => {
+      ControlledSpriteImage.reset();
+      vi.stubGlobal('Image', ControlledSpriteImage);
+    });
+
+    it('oneAssetResolves-repaintsBeforeAnyOtherAssetHasResolved', async () => {
+      // Arrange
+      render(<PlatformerPage />);
+      const ctx = platformerPage.context;
+      await act(async () => {});
+      const repaintsBefore = ctx.fillRect.mock.calls.length;
+
+      // Act — settle exactly one asset, leaving every other one pending.
+      await act(async () => {
+        ControlledSpriteImage.settle(TILESET_SRC, true);
+      });
+
+      // Assert — that single resolution produced its own repaint (progressive
+      // reveal), rather than art appearing only once every asset has landed.
+      expect(ctx.fillRect.mock.calls.length).toBeGreaterThan(repaintsBefore);
+    });
+
+    it('secondAssetResolves-repaintsAgainIndependentlyOfTheFirst', async () => {
+      // Arrange
+      render(<PlatformerPage />);
+      const ctx = platformerPage.context;
+      await act(async () => {
+        ControlledSpriteImage.settle(TILESET_SRC, true);
+      });
+      const repaintsAfterFirst = ctx.fillRect.mock.calls.length;
+
+      // Act
+      await act(async () => {
+        ControlledSpriteImage.settle('/sprites/knight.png', true);
+      });
+
+      // Assert — the page does not batch assets into one repaint.
+      expect(ctx.fillRect.mock.calls.length).toBeGreaterThan(repaintsAfterFirst);
+    });
+
+    it('oneAssetFails-stillRendersTheRestOfThePage', async () => {
+      // Arrange
+      render(<PlatformerPage />);
+      const ctx = platformerPage.context;
+
+      // Act — the terrain atlas fails; every other asset resolves.
+      await act(async () => {
+        ControlledSpriteImage.settleEverythingExcept(TILESET_SRC);
+        ControlledSpriteImage.settle(TILESET_SRC, false);
+      });
+
+      // Assert — the page is not blank: it still repaints and still draws the
+      // assets that did load.
+      expect(ctx.fillRect).toHaveBeenCalled();
+      expect(ctx.drawImage).toHaveBeenCalled();
     });
   });
 });

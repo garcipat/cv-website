@@ -286,8 +286,9 @@ export function stepCloudField(
  * matches the painted clouds/hills band, so it reads as living at that depth
  *. It is still drawn behind everything else.
  *
- * Returns immediately when `image` is null or the field is empty
- *, so a failed load or a too-short sky simply omits the layer without
+ * Returns immediately when `image` is missing (null, or undefined from a
+ * lookup key that was never seeded) or the field is empty
+ *, so a failed/unloaded sheet or a too-short sky simply omits the layer without
  * breaking the frame. The caller draws everything else after it.
  */
 export function drawAmbientClouds(
@@ -296,7 +297,11 @@ export function drawAmbientClouds(
   field: CloudField,
   cameraX: number,
 ): void {
-  if (image === null || field.clouds.length === 0) return;
+  // A falsy check, not `=== null`: a missing lookup key is `undefined` at the
+  // type level the compiler can't see (index signatures type as
+  // `HTMLImageElement | null`), and passing that to `drawImage` throws and
+  // blanks the whole frame. Skipping is always the correct degradation.
+  if (!image || field.clouds.length === 0) return;
 
   ctx.imageSmoothingEnabled = false;
 

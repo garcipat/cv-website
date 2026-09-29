@@ -193,6 +193,23 @@ describe('drawAmbientClouds', () => {
     drawAmbientClouds(ctx, fakeImage(), emptyField, 0);
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
+
+  it('drawAmbientClouds-unseededLookupKey-drawsNothingInsteadOfThrowing', () => {
+    // Arrange: an index-signature read of a key that was never seeded yields
+    // `undefined` at runtime while the compiler types it `HTMLImageElement |
+    // null`, so a strict `=== null` guard lets it through into `drawImage`. A
+    // real browser then throws "The provided value is not of type ..." and the
+    // whole frame is blanked; skipping the layer is the correct degradation.
+    const ctx = fakeCtx();
+    const field = createCloudField(1024, 32, 390);
+    const unseededLookup: Record<string, HTMLImageElement | null> = {};
+
+    // Act
+    drawAmbientClouds(ctx, unseededLookup['/sprites/ambient_clouds.png'], field, 0);
+
+    // Assert
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+  });
 });
 
 describe('reduced motion', () => {

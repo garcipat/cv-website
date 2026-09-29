@@ -1,9 +1,9 @@
 import type { TileChar } from '../../level/LevelParser';
 import { TERRAIN_CHARS } from '../../tiles/registry';
-import { RENDERED_TILE_SIZE, tileToPixel } from '../../level/Terrain';
 import type { MarkerGrid } from '../../level/LevelData';
-import { DEFAULT_TORCH_STRENGTH, torchLightSource } from '../../tiles/torch';
+import { torchLightSource } from '../../tiles/torch';
 import type { TorchLight } from '../../tiles/torch';
+import { placeTorches } from '../../level/TorchMapper';
 import type { LightSource } from '../../contracts/lighting';
 import { playerLightSource } from '../../entities/Player';
 import { previewPlayerState } from './previewPlacements';
@@ -32,29 +32,21 @@ export interface CaveLightingPreview {
 }
 
 /**
- * One light per `torch` terrain tile, at `tileToPixel` + half a rendered tile
- * the same conversion `PlatformerState`'s `torchPositions` uses. Each light's
- * strength is its `torch` marker's value, or `DEFAULT_TORCH_STRENGTH` when it
- * carries none. A pure scan of the editor's `TileChar[][]`, never
- * mutating its arguments.
+ * One light per `torch` terrain tile. The tile scan stays here (the editor
+ * owns its `TileChar[][]`), but the placement maths and the strength rule come
+ * from the one shared `placeTorches` mapper the state layer's `torchPositions`
+ * also consumes — so the preview's lights and the game's can never disagree.
+ * Pure, never mutating its arguments.
  */
 export function torchLightsFromGrid(grid: TileChar[][], markers?: MarkerGrid): TorchLight[] {
-  const torches: TorchLight[] = [];
+  const torchCells: Array<{ col: number; row: number }> = [];
   for (let row = 0; row < grid.length; row++) {
     for (let col = 0; col < grid[row].length; col++) {
       if (TERRAIN_CHARS[grid[row][col]] !== 'torch') continue;
-      const { x, y } = tileToPixel(col, row);
-      const marker = markers?.[row]?.[col];
-      torches.push({
-        col,
-        row,
-        x: x + RENDERED_TILE_SIZE / 2,
-        y: y + RENDERED_TILE_SIZE / 2,
-        strength: marker?.kind === 'torch' ? marker.strength : DEFAULT_TORCH_STRENGTH,
-      });
+      torchCells.push({ col, row });
     }
   }
-  return torches;
+  return placeTorches(torchCells, { markers });
 }
 
 /**

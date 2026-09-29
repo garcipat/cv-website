@@ -77,7 +77,7 @@ graph RL
         R009["✅ R-009: Platformer Renderer Split"]
         R010["✅ R-010: Platformer Mapper & Editor Unification"]
         R011["✅ R-011: Platformer Player Damage & Bomb Systems"]
-        R012["R-012: Platformer State Stores & Asset/HUD Extraction"]
+        R012["✅ R-012: Platformer State Stores & Asset/HUD Extraction"]
         R013["R-013: Platformer Sprite Asset & Atlas Organization"]
         R014["R-014: Platformer Layer-Boundary Lint Guard"]
         R015["✅ R-015: Platformer Tile Module Registry"]
@@ -329,6 +329,7 @@ graph RL
     class R008 done
     class R009 done
     class R011 done
+    class R012 done
     class R015 done
     class R005 done
     class R006 done
